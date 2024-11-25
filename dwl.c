@@ -2567,7 +2567,6 @@ run(char *startup_cmd)
 		die("startup: backend_start");
 
 	/* Now that the socket exists and the backend is started, run the startup command */
-	autostartexec();
 	if (startup_cmd) {
 		int piperw[2];
 		if (pipe(piperw) < 0)
@@ -2593,6 +2592,7 @@ run(char *startup_cmd)
 		close(STDOUT_FILENO);
 
 	printstatus();
+	autostartexec();
 
 	/* At this point the outputs are initialized, choose initial selmon based on
 	 * cursor position, and set default cursor image */
