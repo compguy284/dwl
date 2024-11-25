@@ -64,7 +64,7 @@ static const MonitorRule monrules[] = {
 	*/
 	/* defaults */
 	{ "HDMI-A-1",       0.5f, 1,      1,    &layouts[0], WL_OUTPUT_TRANSFORM_NORMAL,   0,  0 },
-	{ "HDMI-A-3",       0.5f, 1,      1,    &layouts[0], WL_OUTPUT_TRANSFORM_NORMAL,   1290,  0 },
+	{ "HDMI-A-3",       0.5f, 1,      1,    &layouts[0], WL_OUTPUT_TRANSFORM_NORMAL,   1920,  0 },
 	{ NULL,       0.55f, 1,      1,    &layouts[0], WL_OUTPUT_TRANSFORM_NORMAL,   -1,  -1 },
 };
 
