@@ -30,6 +30,7 @@ static const char *const autostart[] = {
         "waybar", NULL,
         "openrgb", "--startminimized", "--profile", "default", NULL,
         "swww-daemon", NULL,
+        "swayidle", "timeout", "600", "'wlopm --off HDMI-A-1 --off HDMI-A-3'", "resume", "'wlopm --on HDMI-A-1 --on HDMI-A-3'", NULL,
         NULL /* terminate */
 };
 
