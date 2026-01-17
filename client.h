@@ -134,6 +134,7 @@ client_get_appid(Client *c)
 static inline void
 client_get_clip(Client *c, struct wlr_box *clip)
 {
+	struct wlr_box xdg_geom;
 	*clip = (struct wlr_box){
 		.x = 0,
 		.y = 0,
@@ -146,8 +147,16 @@ client_get_clip(Client *c, struct wlr_box *clip)
 		return;
 #endif
 
-	clip->x = c->surface.xdg->geometry.x;
-	clip->y = c->surface.xdg->geometry.y;
+	*clip = (struct wlr_box){
+		.x = c->bw,
+		.y = c->bw,
+		.width = c->geom.width - c->bw * 2,
+		.height = c->geom.height - c->bw * 2,
+	};
+
+	xdg_geom = c->surface.xdg->current.geometry;
+	clip->x = xdg_geom.x;
+	clip->y = xdg_geom.y;
 }
 
 static inline void
@@ -162,7 +171,7 @@ client_get_geometry(Client *c, struct wlr_box *geom)
 		return;
 	}
 #endif
-	*geom = c->surface.xdg->geometry;
+	*geom = c->surface.xdg->current.geometry;
 }
 
 static inline Client *
@@ -314,6 +323,17 @@ static inline void
 client_set_border_color(Client *c, const float color[static 4])
 {
 	int i;
+
+#ifdef XWAYLAND
+	if (!client_is_x11(c)) {
+#endif
+	if (corner_radius > 0) {
+		return;
+	}
+#ifdef XWAYLAND
+	}
+#endif
+
 	for (i = 0; i < 4; i++)
 		wlr_scene_rect_set_color(c->border[i], color);
 }

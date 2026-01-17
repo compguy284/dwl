@@ -12,9 +12,9 @@ DWLDEVCFLAGS = -g -Wpedantic -Wall -Wextra -Wdeclaration-after-statement \
 	-Wfloat-conversion
 
 # CFLAGS / LDFLAGS
-PKGS      = wayland-server xkbcommon libinput $(XLIBS)
-DWLCFLAGS = `$(PKG_CONFIG) --cflags $(PKGS)` $(WLR_INCS) $(DWLCPPFLAGS) $(DWLDEVCFLAGS) $(CFLAGS)
-LDLIBS    = `$(PKG_CONFIG) --libs $(PKGS)` $(WLR_LIBS) -lm $(LIBS)
+PKGS      = scenefx-0.4 wlroots-0.19 wayland-server xkbcommon libinput $(XLIBS)
+DWLCFLAGS = `$(PKG_CONFIG) --cflags $(PKGS)` $(DWLCPPFLAGS) $(DWLDEVCFLAGS) $(CFLAGS)
+LDLIBS    = `$(PKG_CONFIG) --libs $(PKGS)` -lm $(LIBS)
 
 all: dwl
 dwl: dwl.o util.o
