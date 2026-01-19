@@ -79,10 +79,9 @@
 #define MAX(A, B)               ((A) > (B) ? (A) : (B))
 #define MIN(A, B)               ((A) < (B) ? (A) : (B))
 #define CLEANMASK(mask)         (mask & ~WLR_MODIFIER_CAPS)
-#define VISIBLEON(C, M)         ((M) && (C)->mon == (M) && ((C)->tags & (M)->tagset[(M)->seltags]))
+#define VISIBLEON(C, M)         ((M) && (C)->mon == (M))
 #define LENGTH(X)               (sizeof X / sizeof X[0])
 #define END(A)                  ((A) + LENGTH(A))
-#define TAGMASK                 ((1u << TAGCOUNT) - 1)
 #define LISTEN(E, L, H)         wl_signal_add((E), ((L)->notify = (H), (L)))
 #define LISTEN_STATIC(E, H)     do { struct wl_listener *_l = ecalloc(1, sizeof(*_l)); _l->notify = (H); wl_signal_add((E), _l); } while (0)
 
@@ -141,7 +140,6 @@ typedef struct {
 	struct wl_listener set_hints;
 #endif
 	unsigned int bw;
-	uint32_t tags;
 	int isfloating, isurgent, isfullscreen;
 	uint32_t resize; /* configure serial of a pending resize */
 
@@ -212,9 +210,7 @@ struct Monitor {
 	int gappiv;           /* vertical gap between windows */
 	int gappoh;           /* horizontal outer gaps */
 	int gappov;           /* vertical outer gaps */
-	unsigned int seltags;
 	unsigned int sellt;
-	uint32_t tagset[2];
 	float mfact;
 	int gamma_lut_changed;
 	int nmaster;
@@ -241,7 +237,6 @@ typedef struct {
 typedef struct {
 	const char *id;
 	const char *title;
-	uint32_t tags;
 	int isfloating;
 	int monitor;
 } Rule;
@@ -351,27 +346,23 @@ static void setfullscreen(Client *c, int fullscreen);
 static void setgaps(int oh, int ov, int ih, int iv);
 static void setlayout(const Arg *arg);
 static void setmfact(const Arg *arg);
-static void setmon(Client *c, Monitor *m, uint32_t newtags);
+static void setmon(Client *c, Monitor *m);
 static void setpsel(struct wl_listener *listener, void *data);
 static void setsel(struct wl_listener *listener, void *data);
 static void setup(void);
 static void spawn(const Arg *arg);
 static void startdrag(struct wl_listener *listener, void *data);
-static void tag(const Arg *arg);
 static void movetomon(const Arg *arg);
 static void tile(Monitor *m);
 static void togglefloating(const Arg *arg);
 static void togglefullscreen(const Arg *arg);
 static void togglegaps(const Arg *arg);
-static void toggletag(const Arg *arg);
-static void toggleview(const Arg *arg);
 static void unlocksession(struct wl_listener *listener, void *data);
 static void unmaplayersurfacenotify(struct wl_listener *listener, void *data);
 static void unmapnotify(struct wl_listener *listener, void *data);
 static void updatemons(struct wl_listener *listener, void *data);
 static void updatetitle(struct wl_listener *listener, void *data);
 static void urgent(struct wl_listener *listener, void *data);
-static void view(const Arg *arg);
 static void virtualkeyboard(struct wl_listener *listener, void *data);
 static void virtualpointer(struct wl_listener *listener, void *data);
 static Monitor *xytomon(double x, double y);
@@ -520,7 +511,6 @@ applyrules(Client *c)
 {
 	/* rule matching */
 	const char *appid, *title;
-	uint32_t newtags = 0;
 	int i;
 	const Rule *r;
 	Monitor *mon = selmon, *m;
@@ -532,7 +522,6 @@ applyrules(Client *c)
 		if ((!r->title || strstr(title, r->title))
 				&& (!r->id || strstr(appid, r->id))) {
 			c->isfloating = r->isfloating;
-			newtags |= r->tags;
 			i = 0;
 			wl_list_for_each(m, &mons, link) {
 				if (r->monitor == i++)
@@ -542,7 +531,7 @@ applyrules(Client *c)
 	}
 
 	c->isfloating |= client_is_float_type(c);
-	setmon(c, mon, newtags);
+	setmon(c, mon);
 }
 
 void
@@ -705,7 +694,7 @@ buttonpress(struct wl_listener *listener, void *data)
 			cursor_mode = CurNormal;
 			/* Drop the window off on its new monitor */
 			selmon = xytomon(cursor->x, cursor->y);
-			setmon(grabc, selmon, 0);
+			setmon(grabc, selmon);
 			grabc = NULL;
 			return;
 		}
@@ -862,7 +851,7 @@ closemon(Monitor *m)
 			resize(c, (struct wlr_box){.x = c->geom.x - m->w.width, .y = c->geom.y,
 					.width = c->geom.width, .height = c->geom.height}, 0);
 		if (c->mon == m)
-			setmon(c, selmon, c->tags);
+			setmon(c, selmon);
 	}
 	focusclient(focustop(selmon), 1);
 	printstatus();
@@ -930,7 +919,7 @@ commitnotify(struct wl_listener *listener, void *data)
 		if (c->mon) {
 			client_set_scale(client_surface(c), c->mon->wlr_output->scale);
 		}
-		setmon(c, NULL, 0); /* Make sure to reapply rules in mapnotify() */
+		setmon(c, NULL); /* Make sure to reapply rules in mapnotify() */
 
 		wlr_xdg_toplevel_set_wm_capabilities(c->surface.xdg->toplevel,
 				WLR_XDG_TOPLEVEL_WM_CAPABILITIES_FULLSCREEN);
@@ -1124,7 +1113,6 @@ createmon(struct wl_listener *listener, void *data)
 
 	wlr_output_state_init(&state);
 	/* Initialize monitor state using configured rules */
-	m->tagset[0] = m->tagset[1] = 1;
 	for (r = monrules; r < END(monrules); r++) {
 		if (!r->name || strstr(wlr_output->name, r->name)) {
 			m->m.x = r->x;
@@ -2014,13 +2002,13 @@ mapnotify(struct wl_listener *listener, void *data)
 	wl_list_insert(&clients, &c->link);
 	wl_list_insert(&fstack, &c->flink);
 
-	/* Set initial monitor, tags, floating status, and focus:
+	/* Set initial monitor, floating status, and focus:
 	 * we always consider floating, clients that have parent and thus
-	 * we set the same tags and monitor as its parent.
+	 * we set the same monitor as its parent.
 	 * If there is no parent, apply rules */
 	if ((p = client_get_parent(c))) {
 		c->isfloating = 1;
-		setmon(c, p->mon, p->tags);
+		setmon(c, p->mon);
 	} else {
 		applyrules(c);
 	}
@@ -2033,7 +2021,7 @@ mapnotify(struct wl_listener *listener, void *data)
 unset_fullscreen:
 	m = c->mon ? c->mon : xytomon(c->geom.x, c->geom.y);
 	wl_list_for_each(w, &clients, link) {
-		if (w != c && w != p && w->isfullscreen && m == w->mon && (w->tags & c->tags))
+		if (w != c && w != p && w->isfullscreen && m == w->mon)
 			setfullscreen(w, 0);
 	}
 }
@@ -2330,34 +2318,21 @@ printstatus(void)
 {
 	Monitor *m = NULL;
 	Client *c;
-	uint32_t occ, urg, sel;
 
 	wl_list_for_each(m, &mons, link) {
-		occ = urg = 0;
-		wl_list_for_each(c, &clients, link) {
-			if (c->mon != m)
-				continue;
-			occ |= c->tags;
-			if (c->isurgent)
-				urg |= c->tags;
-		}
 		if ((c = focustop(m))) {
 			printf("%s title %s\n", m->wlr_output->name, client_get_title(c));
 			printf("%s appid %s\n", m->wlr_output->name, client_get_appid(c));
 			printf("%s fullscreen %d\n", m->wlr_output->name, c->isfullscreen);
 			printf("%s floating %d\n", m->wlr_output->name, c->isfloating);
-			sel = c->tags;
 		} else {
 			printf("%s title \n", m->wlr_output->name);
 			printf("%s appid \n", m->wlr_output->name);
 			printf("%s fullscreen \n", m->wlr_output->name);
 			printf("%s floating \n", m->wlr_output->name);
-			sel = 0;
 		}
 
 		printf("%s selmon %u\n", m->wlr_output->name, m == selmon);
-		printf("%s tags %"PRIu32" %"PRIu32" %"PRIu32" %"PRIu32"\n",
-			m->wlr_output->name, occ, m->tagset[m->seltags], sel, urg);
 		printf("%s layout %s\n", m->wlr_output->name, m->ltsymbol);
 	}
 	fflush(stdout);
@@ -2673,7 +2648,7 @@ setmfact(const Arg *arg)
 }
 
 void
-setmon(Client *c, Monitor *m, uint32_t newtags)
+setmon(Client *c, Monitor *m)
 {
 	Monitor *oldmon = c->mon;
 
@@ -2688,7 +2663,6 @@ setmon(Client *c, Monitor *m, uint32_t newtags)
 	if (m) {
 		/* Make sure window actually overlaps with the monitor */
 		resize(c, c->geom, 0);
-		c->tags = newtags ? newtags : m->tagset[m->seltags]; /* assign tags of target monitor */
 		setfullscreen(c, c->isfullscreen); /* This will call arrange(c->mon) */
 		setfloating(c, c->isfloating);
 	}
@@ -2969,24 +2943,11 @@ startdrag(struct wl_listener *listener, void *data)
 }
 
 void
-tag(const Arg *arg)
-{
-	Client *sel = focustop(selmon);
-	if (!sel || (arg->ui & TAGMASK) == 0)
-		return;
-
-	sel->tags = arg->ui & TAGMASK;
-	focusclient(focustop(selmon), 1);
-	arrange(selmon);
-	printstatus();
-}
-
-void
 movetomon(const Arg *arg)
 {
 	Client *sel = focustop(selmon);
 	if (sel)
-		setmon(sel, dirtomon(arg->i), 0);
+		setmon(sel, dirtomon(arg->i));
 }
 
 void
@@ -3057,33 +3018,6 @@ togglegaps(const Arg *arg)
 }
 
 void
-toggletag(const Arg *arg)
-{
-	uint32_t newtags;
-	Client *sel = focustop(selmon);
-	if (!sel || !(newtags = sel->tags ^ (arg->ui & TAGMASK)))
-		return;
-
-	sel->tags = newtags;
-	focusclient(focustop(selmon), 1);
-	arrange(selmon);
-	printstatus();
-}
-
-void
-toggleview(const Arg *arg)
-{
-	uint32_t newtagset;
-	if (!(newtagset = selmon ? selmon->tagset[selmon->seltags] ^ (arg->ui & TAGMASK) : 0))
-		return;
-
-	selmon->tagset[selmon->seltags] = newtagset;
-	focusclient(focustop(selmon), 1);
-	arrange(selmon);
-	printstatus();
-}
-
-void
 unlocksession(struct wl_listener *listener, void *data)
 {
 	SessionLock *lock = wl_container_of(listener, lock, unlock);
@@ -3123,7 +3057,7 @@ unmapnotify(struct wl_listener *listener, void *data)
 		}
 	} else {
 		wl_list_remove(&c->link);
-		setmon(c, NULL, 0);
+		setmon(c, NULL);
 		wl_list_remove(&c->flink);
 	}
 
@@ -3222,7 +3156,7 @@ updatemons(struct wl_listener *listener, void *data)
 	if (selmon && selmon->wlr_output->enabled) {
 		wl_list_for_each(c, &clients, link) {
 			if (!c->mon && client_surface(c)->mapped)
-				setmon(c, selmon, c->tags);
+				setmon(c, selmon);
 		}
 		focusclient(focustop(selmon), 1);
 		if (selmon->lock_surface) {
@@ -3267,19 +3201,6 @@ urgent(struct wl_listener *listener, void *data)
 
 		update_client_focus_decorations(c, 1, 1);
 	}
-}
-
-void
-view(const Arg *arg)
-{
-	if (!selmon || (arg->ui & TAGMASK) == selmon->tagset[selmon->seltags])
-		return;
-	selmon->seltags ^= 1; /* toggle sel tagset */
-	if (arg->ui & TAGMASK)
-		selmon->tagset[selmon->seltags] = arg->ui & TAGMASK;
-	focusclient(focustop(selmon), 1);
-	arrange(selmon);
-	printstatus();
 }
 
 void
