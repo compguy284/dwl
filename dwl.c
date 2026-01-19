@@ -358,7 +358,7 @@ static void setup(void);
 static void spawn(const Arg *arg);
 static void startdrag(struct wl_listener *listener, void *data);
 static void tag(const Arg *arg);
-static void tagmon(const Arg *arg);
+static void movetomon(const Arg *arg);
 static void tile(Monitor *m);
 static void togglefloating(const Arg *arg);
 static void togglefullscreen(const Arg *arg);
@@ -2982,7 +2982,7 @@ tag(const Arg *arg)
 }
 
 void
-tagmon(const Arg *arg)
+movetomon(const Arg *arg)
 {
 	Client *sel = focustop(selmon);
 	if (sel)
