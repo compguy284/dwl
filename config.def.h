@@ -51,6 +51,12 @@ static const struct blur_data blur_data = {
 /* logging */
 static int log_level = WLR_ERROR;
 
+/* Scroller layout */
+enum { ScrollerCenterAlways, ScrollerCenterOnOverflow };  /* Centering modes */
+static const int scroller_center_mode = ScrollerCenterOnOverflow;  /* Centering behavior */
+static const float scroller_proportions[] = { 0.5f, 0.66f, 0.8f, 1.0f };  /* Column width as fraction of screen */
+static const int scroller_default_proportion = 0;  /* Index into scroller_proportions */
+
 static const Rule rules[] = {
 	/* app_id             title       isfloating   monitor */
 	{ "Gimp_EXAMPLE",     NULL,       1,           -1 }, /* Start floating, not tiled */
@@ -63,6 +69,7 @@ static const Layout layouts[] = {
 	{ "[]=",      tile },
 	{ "><>",      NULL },    /* no layout function means floating behavior */
 	{ "[M]",      monocle },
+	{ "|S|",      scroller },
 };
 
 /* monitors */
@@ -90,6 +97,9 @@ static const struct xkb_rule_names xkb_rules = {
 
 static const int repeat_rate = 25;
 static const int repeat_delay = 600;
+
+/* numlock */
+static const int numlock = 1;
 
 /* Trackpad */
 static const int tap_to_click = 1;
@@ -180,6 +190,11 @@ static const Key keys[] = {
 	{ MODKEY,                    XKB_KEY_t,           setlayout,        {.v = &layouts[0]} },
 	{ MODKEY,                    XKB_KEY_f,           setlayout,        {.v = &layouts[1]} },
 	{ MODKEY,                    XKB_KEY_m,           setlayout,        {.v = &layouts[2]} },
+	{ MODKEY,                    XKB_KEY_s,           setlayout,        {.v = &layouts[3]} },
+	{ MODKEY,                    XKB_KEY_minus,       scroller_cycle_proportion, {.i = -1} },
+	{ MODKEY,                    XKB_KEY_equal,       scroller_cycle_proportion, {.i = +1} },
+	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_Left,        consume_or_expel, {.i = 0} }, /* consume/expel left */
+	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_Right,       consume_or_expel, {.i = 1} }, /* consume/expel right */
 	{ MODKEY,                    XKB_KEY_space,       setlayout,        {0} },
 	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_space,       togglefloating,   {0} },
 	{ MODKEY,                    XKB_KEY_e,           togglefullscreen, {0} },

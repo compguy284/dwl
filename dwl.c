@@ -20,6 +20,7 @@
 #include <wayland-util.h>
 #include <wlr/backend.h>
 #include <wlr/backend/libinput.h>
+#include <wlr/interfaces/wlr_keyboard.h>
 #include <wlr/render/allocator.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_alpha_modifier_v1.h>
@@ -148,6 +149,7 @@ typedef struct {
 	struct wlr_scene_shadow *shadow;
 	int has_shadow_enabled;
 	struct wlr_scene_rect *round_border;
+	int scroller_col; /* Column index for scroller layout grouping */
 } Client;
 
 typedef struct {
@@ -212,6 +214,8 @@ struct Monitor {
 	int gappov;           /* vertical outer gaps */
 	unsigned int sellt;
 	float mfact;
+	int scroller_proportion_idx;  /* Current index into scroller_proportions array */
+	int scroller_viewport_x;      /* Current viewport X offset (for on-overflow mode) */
 	int gamma_lut_changed;
 	int nmaster;
 	char ltsymbol[16];
@@ -268,6 +272,7 @@ static void closemon(Monitor *m);
 static void commitlayersurfacenotify(struct wl_listener *listener, void *data);
 static void commitnotify(struct wl_listener *listener, void *data);
 static void commitpopup(struct wl_listener *listener, void *data);
+static void consume_or_expel(const Arg *arg);
 static void createdecoration(struct wl_listener *listener, void *data);
 static void createidleinhibitor(struct wl_listener *listener, void *data);
 static void createkeyboard(struct wlr_keyboard *keyboard);
@@ -354,6 +359,8 @@ static void spawn(const Arg *arg);
 static void startdrag(struct wl_listener *listener, void *data);
 static void movetomon(const Arg *arg);
 static void tile(Monitor *m);
+static void scroller(Monitor *m);
+static void scroller_cycle_proportion(const Arg *arg);
 static void togglefloating(const Arg *arg);
 static void togglefullscreen(const Arg *arg);
 static void togglegaps(const Arg *arg);
@@ -373,6 +380,7 @@ static void iter_xdg_scene_buffers(struct wlr_scene_buffer *buffer, int sx, int 
 static void iter_xdg_scene_buffers_blur(struct wlr_scene_buffer *buffer, int sx, int sy, void *user_data);
 static void iter_xdg_scene_buffers_opacity(struct wlr_scene_buffer *buffer, int sx, int sy, void *user_data);
 static void iter_xdg_scene_buffers_corner_radius(struct wlr_scene_buffer *buffer, int sx, int sy, void *user_data);
+static void scene_tree_apply_clip(struct wlr_scene_node *node, const struct wlr_box *clip);
 static void output_configure_scene(struct wlr_scene_node *node, Client *c);
 static int in_shadow_ignore_list(const char *str);
 static void client_set_shadow_blur_sigma(Client *c, int blur_sigma);
@@ -385,6 +393,7 @@ static void update_buffer_corner_radius(Client *c, struct wlr_scene_buffer *buff
 /* variables */
 static pid_t child_pid = -1;
 static int locked;
+static uint32_t locked_mods = 0;
 static void *exclusive_focus;
 static struct wl_display *dpy;
 static struct wl_event_loop *event_loop;
@@ -438,6 +447,7 @@ static Monitor *selmon;
 
 static float transparent[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 static int enablegaps = 1;   /* enables gaps, used by togglegaps */
+static int scroller_col_counter = 0; /* unique column ID counter for scroller */
 
 /* global event handlers */
 static struct wl_listener cursor_axis = {.notify = axisnotify};
@@ -929,7 +939,13 @@ commitnotify(struct wl_listener *listener, void *data)
 		return;
 	}
 
-	resize(c, c->geom, (c->isfloating && !c->isfullscreen));
+	/* For tiled windows, call arrange() to let the layout (especially scroller)
+	 * handle positioning and clipping. For floating windows, resize directly. */
+	if (c->isfloating || c->isfullscreen) {
+		resize(c, c->geom, !c->isfullscreen);
+	} else if (c->mon) {
+		arrange(c->mon);
+	}
 
 	/* mark a pending resize as completed */
 	if (c->resize && c->resize <= c->surface.xdg->current.configure_serial)
@@ -967,6 +983,109 @@ commitpopup(struct wl_listener *listener, void *data)
 }
 
 void
+consume_or_expel(const Arg *arg)
+{
+	Client *c, *sel = focustop(selmon);
+	int target_col = -1;
+	int sel_col_count = 0;
+	int col_ids[128];
+	int num_cols = 0;
+	int sel_display_col = -1;
+	int j, found;
+
+	if (!sel || !selmon || selmon->lt[selmon->sellt]->arrange != scroller ||
+	    sel->isfloating || sel->isfullscreen)
+		return;
+
+	/* Build list of unique columns in order and count windows in selected column */
+	wl_list_for_each(c, &clients, link) {
+		if (!VISIBLEON(c, selmon) || c->isfloating || c->isfullscreen)
+			continue;
+		if (c->scroller_col == sel->scroller_col)
+			sel_col_count++;
+		found = 0;
+		for (j = 0; j < num_cols; j++) {
+			if (col_ids[j] == c->scroller_col) {
+				found = 1;
+				break;
+			}
+		}
+		if (!found && num_cols < 128) {
+			if (c->scroller_col == sel->scroller_col)
+				sel_display_col = num_cols;
+			col_ids[num_cols++] = c->scroller_col;
+		}
+	}
+
+	if (sel_col_count > 1) {
+		/* Expel: move focused window to its own column in the specified direction */
+		int new_col = scroller_col_counter++;
+
+		/* Reorder: remove sel from list and reinsert at appropriate position */
+		wl_list_remove(&sel->link);
+
+		if (arg->i == 0) {
+			/* Expel left: insert before first window of current column */
+			wl_list_for_each(c, &clients, link) {
+				if (!VISIBLEON(c, selmon) || c->isfloating || c->isfullscreen)
+					continue;
+				if (c->scroller_col == sel->scroller_col) {
+					wl_list_insert(c->link.prev, &sel->link);
+					break;
+				}
+			}
+		} else {
+			/* Expel right: insert after last window of current column */
+			Client *last = NULL;
+			wl_list_for_each(c, &clients, link) {
+				if (!VISIBLEON(c, selmon) || c->isfloating || c->isfullscreen)
+					continue;
+				if (c->scroller_col == sel->scroller_col)
+					last = c;
+			}
+			if (last)
+				wl_list_insert(&last->link, &sel->link);
+			else
+				wl_list_insert(&clients, &sel->link);
+		}
+
+		sel->scroller_col = new_col;
+		arrange(selmon);
+		return;
+	}
+
+	/* Consume: move focused window into adjacent column at bottom of stack */
+	if (arg->i == 0 && sel_display_col > 0) {
+		/* Consume left: move focused window into left column */
+		target_col = col_ids[sel_display_col - 1];
+	} else if (arg->i == 1 && sel_display_col < num_cols - 1) {
+		/* Consume right: move focused window into right column */
+		target_col = col_ids[sel_display_col + 1];
+	}
+
+	if (target_col == -1)
+		return; /* No adjacent column in that direction */
+
+	/* Find last window in target column and insert focused window after it */
+	{
+		Client *last = NULL;
+		wl_list_for_each(c, &clients, link) {
+			if (!VISIBLEON(c, selmon) || c->isfloating || c->isfullscreen)
+				continue;
+			if (c->scroller_col == target_col)
+				last = c;
+		}
+		if (last) {
+			wl_list_remove(&sel->link);
+			wl_list_insert(&last->link, &sel->link);
+		}
+	}
+
+	sel->scroller_col = target_col;
+	arrange(selmon);
+}
+
+void
 createdecoration(struct wl_listener *listener, void *data)
 {
 	struct wlr_xdg_toplevel_decoration_v1 *deco = data;
@@ -994,6 +1113,8 @@ createkeyboard(struct wlr_keyboard *keyboard)
 	/* Set the keymap to match the group keymap */
 	wlr_keyboard_set_keymap(keyboard, kb_group->wlr_group->keyboard.keymap);
 
+	wlr_keyboard_notify_modifiers(keyboard, 0, 0, locked_mods, 0);
+
 	/* Add the new keyboard to the group */
 	wlr_keyboard_group_add_keyboard(kb_group->wlr_group, keyboard);
 }
@@ -1015,6 +1136,15 @@ createkeyboardgroup(void)
 		die("failed to compile keymap");
 
 	wlr_keyboard_set_keymap(&group->wlr_group->keyboard, keymap);
+	if (numlock) {
+		xkb_mod_index_t mod_index = xkb_keymap_mod_get_index(keymap, XKB_MOD_NAME_NUM);
+		if (mod_index != XKB_MOD_INVALID)
+			locked_mods |= (uint32_t)1 << mod_index;
+	}
+
+	if (locked_mods)
+		wlr_keyboard_notify_modifiers(&group->wlr_group->keyboard, 0, 0, locked_mods, 0);
+
 	xkb_keymap_unref(keymap);
 	xkb_context_unref(context);
 
@@ -1110,6 +1240,8 @@ createmon(struct wl_listener *listener, void *data)
 	m->gappiv = gappiv;
 	m->gappoh = gappoh;
 	m->gappov = gappov;
+	m->scroller_proportion_idx = scroller_default_proportion;
+	m->scroller_viewport_x = 0;
 
 	wlr_output_state_init(&state);
 	/* Initialize monitor state using configured rules */
@@ -1191,7 +1323,6 @@ createnotify(struct wl_listener *listener, void *data)
 
 	c->opacity = opacity_active;
 	c->corner_radius = corner_radius;
-
 	LISTEN(&toplevel->base->surface->events.commit, &c->commit, commitnotify);
 	LISTEN(&toplevel->base->surface->events.map, &c->map, mapnotify);
 	LISTEN(&toplevel->base->surface->events.unmap, &c->unmap, unmapnotify);
@@ -1591,34 +1722,64 @@ void focusdir(const Arg *arg)
 	/* Focus the left, right, up, down client relative to the current focused client on selmon */
 	Client *c, *sel = focustop(selmon);
 	Client *newsel = NULL;
+	Client *prev = NULL;
 	int dist = INT_MAX;
 	int newdist = INT_MAX;
 
 	if (!sel || sel->isfullscreen)
 		return;
 
-	wl_list_for_each(c, &clients, link) {
-		if (!VISIBLEON(c, selmon))
-			continue; /* skip non visible windows */
+	/* For left/right in scroller layout, use list order instead of geometry */
+	if (selmon->lt[selmon->sellt]->arrange == scroller && (arg->ui == 0 || arg->ui == 1)) {
+		wl_list_for_each(c, &clients, link) {
+			if (!VISIBLEON(c, selmon) || c->isfloating || c->isfullscreen)
+				continue;
+			if (c == sel) {
+				if (arg->ui == 0 && prev) /* left */
+					newsel = prev;
+				else if (arg->ui == 1) { /* right - get next */
+					c = wl_container_of(c->link.next, c, link);
+					while (&c->link != &clients) {
+						if (VISIBLEON(c, selmon) && !c->isfloating && !c->isfullscreen) {
+							newsel = c;
+							break;
+						}
+						c = wl_container_of(c->link.next, c, link);
+					}
+				}
+				break;
+			}
+			prev = c;
+		}
+	} else {
+		/* Use geometry for other layouts */
+		wl_list_for_each(c, &clients, link) {
+			if (!VISIBLEON(c, selmon))
+				continue; /* skip non visible windows */
+			if (!c->scene->node.enabled)
+				continue; /* skip windows hidden by layout */
 
-		if (arg->ui == 0 && sel->geom.x <= c->geom.x)
-			continue; /* Client isn't on our left */
-		if (arg->ui == 1 && sel->geom.x >= c->geom.x)
-			continue; /* Client isn't on our right */
-		if (arg->ui == 2 && sel->geom.y <= c->geom.y)
-			continue; /* Client isn't above us */
-		if (arg->ui == 3 && sel->geom.y >= c->geom.y)
-			continue; /* Client isn't below us */
+			if (arg->ui == 0 && sel->geom.x <= c->geom.x)
+				continue; /* Client isn't on our left */
+			if (arg->ui == 1 && sel->geom.x >= c->geom.x)
+				continue; /* Client isn't on our right */
+			if (arg->ui == 2 && sel->geom.y <= c->geom.y)
+				continue; /* Client isn't above us */
+			if (arg->ui == 3 && sel->geom.y >= c->geom.y)
+				continue; /* Client isn't below us */
 
-		dist = abs(sel->geom.x - c->geom.x) + abs(sel->geom.y - c->geom.y);
-		if (dist < newdist) {
-			newdist = dist;
-			newsel = c;
+			dist = abs(sel->geom.x - c->geom.x) + abs(sel->geom.y - c->geom.y);
+			if (dist < newdist) {
+				newdist = dist;
+				newsel = c;
+			}
 		}
 	}
 
-	if (newsel)
+	if (newsel) {
 		focusclient(newsel, 1);
+		arrange(selmon);  /* Update scroller viewport to show focused window */
+	}
 }
 
 
@@ -1998,9 +2159,19 @@ mapnotify(struct wl_listener *listener, void *data)
 	c->geom.width += 2 * c->bw;
 	c->geom.height += 2 * c->bw;
 
-	/* Insert this client into client lists. */
-	wl_list_insert(&clients, &c->link);
+	/* Insert this client into client lists.
+	 * Insert after focused client so new windows appear to its right in scroller. */
+	{
+		Client *focused = focustop(selmon);
+		if (focused && !focused->isfloating && !focused->isfullscreen)
+			wl_list_insert(&focused->link, &c->link);
+		else
+			wl_list_insert(&clients, &c->link);
+	}
 	wl_list_insert(&fstack, &c->flink);
+
+	/* Assign unique scroller column for new windows */
+	c->scroller_col = scroller_col_counter++;
 
 	/* Set initial monitor, floating status, and focus:
 	 * we always consider floating, clients that have parent and thus
@@ -2012,6 +2183,7 @@ mapnotify(struct wl_listener *listener, void *data)
 	} else {
 		applyrules(c);
 	}
+
 	printstatus();
 
 	update_client_corner_radius(c);
@@ -2064,6 +2236,283 @@ monocle(Monitor *m)
 		snprintf(m->ltsymbol, LENGTH(m->ltsymbol), "[%d]", n);
 	if ((c = focustop(m)))
 		wlr_scene_node_raise_to_top(&c->scene->node);
+}
+
+void
+scroller(Monitor *m)
+{
+	Client *c, *focused;
+	int n = 0, j, found;
+	int colwidth, viewport_x;
+	int focus_col, focus_x_start, focus_x_end;
+	int col_visible_start, col_visible_end;
+	int oe = enablegaps;
+	float proportion;
+	/* Column grouping: map scroller_col to display columns */
+	int col_ids[128];      /* scroller_col values in order */
+	int col_counts[128];   /* windows per display column */
+	int num_cols = 0;
+	int col_pos[128] = {0}; /* current position within each column */
+
+	/* Count visible tiled clients and build column mapping */
+	wl_list_for_each(c, &clients, link) {
+		if (!VISIBLEON(c, m) || c->isfloating || c->isfullscreen)
+			continue;
+		n++;
+		/* Check if this scroller_col is already mapped */
+		found = 0;
+		for (j = 0; j < num_cols; j++) {
+			if (col_ids[j] == c->scroller_col) {
+				col_counts[j]++;
+				found = 1;
+				break;
+			}
+		}
+		if (!found && num_cols < 128) {
+			col_ids[num_cols] = c->scroller_col;
+			col_counts[num_cols] = 1;
+			num_cols++;
+		}
+	}
+
+	if (n == 0)
+		return;
+
+	/* Calculate column width from proportion */
+	proportion = scroller_proportions[m->scroller_proportion_idx];
+	colwidth = (int)(m->w.width * proportion);
+
+	/* Find focused window's display column */
+	focused = focustop(m);
+	focus_col = 0;
+	if (focused && !focused->isfloating && !focused->isfullscreen) {
+		for (j = 0; j < num_cols; j++) {
+			if (col_ids[j] == focused->scroller_col) {
+				focus_col = j;
+				break;
+			}
+		}
+	}
+	focus_x_start = focus_col * colwidth;
+	focus_x_end = focus_x_start + colwidth;
+
+	/* Calculate viewport based on centering mode */
+	if (scroller_center_mode == ScrollerCenterAlways) {
+		viewport_x = focus_x_start - (m->w.width - colwidth) / 2;
+	} else { /* ScrollerCenterOnOverflow */
+		col_visible_start = m->scroller_viewport_x;
+		col_visible_end = m->scroller_viewport_x + m->w.width;
+
+		if (focus_x_start < col_visible_start) {
+			/* Scroll left: center the focused column */
+			viewport_x = focus_x_start - (m->w.width - colwidth) / 2;
+		} else if (focus_x_end > col_visible_end) {
+			/* Scroll right: center the focused column */
+			viewport_x = focus_x_start - (m->w.width - colwidth) / 2;
+		} else {
+			/* Keep current viewport */
+			viewport_x = m->scroller_viewport_x;
+		}
+	}
+
+	/* Save viewport for next time */
+	m->scroller_viewport_x = viewport_x;
+
+	/* Position each client */
+	wl_list_for_each(c, &clients, link) {
+		int col, win_x, win_y, win_width, win_height, visible, clipped;
+		int render_x, content_offset, visible_width;
+		int col_win_count, pos_in_col, total_height, per_win_height;
+		struct wlr_box clip;
+		if (!VISIBLEON(c, m) || c->isfloating || c->isfullscreen)
+			continue;
+
+		/* Find display column for this window */
+		col = 0;
+		col_win_count = 1;
+		for (j = 0; j < num_cols; j++) {
+			if (col_ids[j] == c->scroller_col) {
+				col = j;
+				col_win_count = col_counts[j];
+				break;
+			}
+		}
+		pos_in_col = col_pos[col]++;
+
+		/* Calculate window geometry with vertical stacking */
+		total_height = m->w.height - 2*m->gappoh*oe;
+		per_win_height = (total_height - (col_win_count - 1) * m->gappiv*oe) / col_win_count;
+		win_x = m->w.x + (col * colwidth) - viewport_x + m->gappov*oe;
+		win_y = m->w.y + m->gappoh*oe + pos_in_col * (per_win_height + m->gappiv*oe);
+		win_width = colwidth - 2*m->gappov*oe;
+		win_height = per_win_height;
+
+		/* Check if window overlaps with monitor at all */
+		visible = (win_x + win_width > m->w.x) && (win_x < m->w.x + m->w.width);
+		wlr_scene_node_set_enabled(&c->scene->node, visible);
+
+		/* Skip further processing for completely invisible windows */
+		if (!visible) {
+			/* Clear any existing clip on hidden windows */
+			scene_tree_apply_clip(&c->scene_surface->node, NULL);
+			continue;
+		}
+
+		/* Calculate render position and content offset for clipped windows */
+		clipped = (win_x < m->w.x || win_x + win_width > m->w.x + m->w.width);
+		render_x = win_x;
+		content_offset = 0;
+		visible_width = win_width;
+		if (win_x < m->w.x) {
+			/* Left overflow: render at monitor edge, offset content to show right portion */
+			content_offset = m->w.x - win_x;
+			render_x = m->w.x;
+			visible_width -= content_offset;
+		}
+		if (win_x + win_width > m->w.x + m->w.width) {
+			/* Right overflow: reduce visible width */
+			visible_width -= (win_x + win_width) - (m->w.x + m->w.width);
+		}
+
+		/* Resize window to its full logical size and position */
+		resize(c, (struct wlr_box){
+			.x = win_x,
+			.y = win_y,
+			.width = win_width,
+			.height = win_height
+		}, 0);
+
+		if (clipped && visible_width > 0) {
+			int left_visible = (content_offset == 0);
+			int right_visible = (win_x + win_width <= m->w.x + m->w.width);
+			int border_left = left_visible ? c->bw : 0;
+			int border_right = right_visible ? c->bw : 0;
+			int total_vis_width = visible_width + border_left + border_right;
+			int radius = c->corner_radius + c->bw;
+
+			/* Configure shadow for visible portion - no blur extension on clipped edges */
+			if (c->shadow) {
+				int shadow_blur = (int)round(c->shadow->blur_sigma);
+				int blur_left = left_visible ? shadow_blur : 0;
+				int blur_right = right_visible ? shadow_blur : 0;
+				int shadow_w = total_vis_width + blur_left + blur_right;
+				int shadow_h = win_height + shadow_blur * 2;
+
+				wlr_scene_node_set_enabled(&c->shadow->node, 1);
+				wlr_scene_node_set_position(&c->shadow->node, -blur_left, -shadow_blur);
+				wlr_scene_shadow_set_size(c->shadow, shadow_w, shadow_h);
+				wlr_scene_shadow_set_clipped_region(c->shadow, (struct clipped_region) {
+					.corners = corner_radii_new(
+						left_visible ? radius : 0,
+						right_visible ? radius : 0,
+						right_visible ? radius : 0,
+						left_visible ? radius : 0
+					),
+					.area = { blur_left, shadow_blur, total_vis_width, win_height }
+				});
+			}
+
+			/* Get base clip to find xdg geometry offset */
+			client_get_clip(c, &clip);
+
+			/* Position scene at monitor edge (minus left border if visible) */
+			wlr_scene_node_set_position(&c->scene->node, render_x - border_left, win_y);
+
+			/* Calculate final clip: crop to visible_width starting at content_offset */
+			clip.x += content_offset;
+			clip.width = visible_width;
+
+			/* Position scene_surface to compensate for clip offset, plus border inset.
+			 * wlr_scene_subsurface_tree_set_clip shows the clipped region at its
+			 * original position within the surface. We shift scene_surface so the
+			 * clipped content appears at the correct position with border space. */
+			wlr_scene_node_set_position(&c->scene_surface->node, border_left - clip.x, c->bw - clip.y);
+			scene_tree_apply_clip(&c->scene_surface->node, &clip);
+
+			/* Use round_border if available, otherwise fall back to regular borders */
+			if (c->round_border) {
+				const float *color = c->isurgent ? urgentcolor :
+					(c == focused ? focuscolor : bordercolor);
+				int b;
+
+				/* Hide regular borders */
+				for (b = 0; b < 4; b++)
+					wlr_scene_node_set_enabled(&c->border[b]->node, 0);
+
+				/* Configure round_border for visible portion with appropriate corner radii */
+				wlr_scene_node_set_enabled(&c->round_border->node, 1);
+				wlr_scene_node_set_position(&c->round_border->node, 0, 0);
+				wlr_scene_rect_set_size(c->round_border, total_vis_width, win_height);
+				wlr_scene_rect_set_color(c->round_border, color);
+
+				/* Set corner radii: 0 for clipped edges, radius for visible edges */
+				wlr_scene_rect_set_clipped_region(c->round_border, (struct clipped_region) {
+					.corners = corner_radii_new(
+						left_visible ? radius : 0,   /* top_left */
+						right_visible ? radius : 0,  /* top_right */
+						right_visible ? radius : 0,  /* bottom_right */
+						left_visible ? radius : 0    /* bottom_left */
+					),
+					.area = { border_left, c->bw, visible_width, win_height - 2 * c->bw }
+				});
+			} else {
+				/* Fall back to regular borders */
+				const float *color = c->isurgent ? urgentcolor :
+					(c == focused ? focuscolor : bordercolor);
+				int b;
+				for (b = 0; b < 4; b++)
+					wlr_scene_rect_set_color(c->border[b], color);
+
+				/* Top border */
+				wlr_scene_node_set_enabled(&c->border[0]->node, 1);
+				wlr_scene_rect_set_size(c->border[0], total_vis_width, c->bw);
+				wlr_scene_node_set_position(&c->border[0]->node, 0, 0);
+
+				/* Bottom border */
+				wlr_scene_node_set_enabled(&c->border[1]->node, 1);
+				wlr_scene_rect_set_size(c->border[1], total_vis_width, c->bw);
+				wlr_scene_node_set_position(&c->border[1]->node, 0, win_height - c->bw);
+
+				/* Left border - only if left edge visible */
+				wlr_scene_node_set_enabled(&c->border[2]->node, left_visible);
+				if (left_visible) {
+					wlr_scene_rect_set_size(c->border[2], c->bw, win_height - 2 * c->bw);
+					wlr_scene_node_set_position(&c->border[2]->node, 0, c->bw);
+				}
+
+				/* Right border - only if right edge visible */
+				wlr_scene_node_set_enabled(&c->border[3]->node, right_visible);
+				if (right_visible) {
+					wlr_scene_rect_set_size(c->border[3], c->bw, win_height - 2 * c->bw);
+					wlr_scene_node_set_position(&c->border[3]->node, total_vis_width - c->bw, c->bw);
+				}
+			}
+		} else if (visible) {
+			/* Fully visible: normal positioning with decorations */
+			int b;
+			for (b = 0; b < 4; b++)
+				wlr_scene_node_set_enabled(&c->border[b]->node, 1);
+			if (c->round_border)
+				wlr_scene_node_set_enabled(&c->round_border->node, 1);
+			if (c->shadow)
+				wlr_scene_node_set_enabled(&c->shadow->node, 1);
+
+			/* Reset surface position and clear any clip */
+			wlr_scene_node_set_position(&c->scene_surface->node, c->bw, c->bw);
+			scene_tree_apply_clip(&c->scene_surface->node, NULL);
+		}
+	}
+}
+
+void
+scroller_cycle_proportion(const Arg *arg)
+{
+	int len = LENGTH(scroller_proportions);
+	if (!selmon)
+		return;
+	/* arg->i: +1 to cycle forward, -1 to cycle backward */
+	selmon->scroller_proportion_idx = (selmon->scroller_proportion_idx + arg->i + len) % len;
+	arrange(selmon);
 }
 
 void
@@ -2449,7 +2898,7 @@ resize(Client *c, struct wlr_box geo, int interact)
 	c->resize = client_set_size(c, c->geom.width - 2 * c->bw,
 			c->geom.height - 2 * c->bw);
 	client_get_clip(c, &clip);
-	wlr_scene_subsurface_tree_set_clip(&c->scene_surface->node, &clip);
+	scene_tree_apply_clip(&c->scene_surface->node, &clip);
 
 	if (corner_radius > 0 && c->round_border) {
 		wlr_scene_node_set_position(&c->round_border->node, 0, 0);
@@ -3371,6 +3820,15 @@ iter_xdg_scene_buffers_corner_radius(struct wlr_scene_buffer *buffer, int sx, in
 	}
 }
 
+/*
+ * Apply a clip region to a scene tree using scenefx's built-in function.
+ */
+void
+scene_tree_apply_clip(struct wlr_scene_node *node, const struct wlr_box *clip)
+{
+	wlr_scene_subsurface_tree_set_clip(node, clip);
+}
+
 void
 output_configure_scene(struct wlr_scene_node *node, Client *c)
 {
@@ -3592,7 +4050,6 @@ createnotifyx11(struct wl_listener *listener, void *data)
 	c->surface.xwayland = xsurface;
 	c->type = X11;
 	c->bw = client_is_unmanaged(c) ? 0 : borderpx;
-
 	/* Listen to the various events it can emit */
 	LISTEN(&xsurface->events.associate, &c->associate, associatex11);
 	LISTEN(&xsurface->events.destroy, &c->destroy, destroynotify);
