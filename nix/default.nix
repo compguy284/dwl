@@ -1,5 +1,7 @@
 { lib
 , stdenv
+, meson
+, ninja
 , pkg-config
 , wayland-scanner
 , wlroots_0_19
@@ -19,6 +21,8 @@ stdenv.mkDerivation {
   src = ./..;
 
   nativeBuildInputs = [
+    meson
+    ninja
     pkg-config
     wayland-scanner
   ];
@@ -36,7 +40,9 @@ stdenv.mkDerivation {
     scenefx
   ];
 
-  makeFlags = [ "PREFIX=$(out)" ];
+  mesonFlags = [
+    "-Dxwayland=disabled"
+  ];
 
   meta = with lib; {
     description = "dwm for Wayland with scenefx effects";

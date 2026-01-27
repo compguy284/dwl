@@ -64,12 +64,13 @@
 
               # Build tools
               pkg-config
-              gnumake
+              meson
+              ninja
             ];
 
             shellHook = ''
               echo "dwl development shell (with scenefx)"
-              echo "Run 'make' to build"
+              echo "Run 'meson setup build && meson compile -C build' to build"
             '';
           };
         }

@@ -9,6 +9,11 @@
 #include "input.h"
 #include "layout.h"
 #include "monitor.h"
+#include "version.h"
+
+#ifndef VERSION
+#define VERSION "unknown"
+#endif
 
 /* function declarations */
 static void buttonpress(struct wl_listener *listener, void *data);
