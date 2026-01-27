@@ -4,39 +4,39 @@
                         ((hex >> 8) & 0xFF) / 255.0f, \
                         (hex & 0xFF) / 255.0f }
 /* appearance */
-static const int sloppyfocus               = 1;  /* focus follows mouse */
+const int sloppyfocus               = 1;  /* focus follows mouse */
 static const int bypass_surface_visibility = 0;  /* 1 means idle inhibitors will disable idle tracking even if it's surface isn't visible  */
-static const int smartgaps                 = 0;  /* 1 means no outer gap when there is only one window */
-static const int monoclegaps               = 0;  /* 1 means outer gaps in monocle layout */
-static const unsigned int borderpx         = 1;  /* border pixel of windows */
-static const unsigned int gappih           = 10; /* horiz inner gap between windows */
-static const unsigned int gappiv           = 10; /* vert inner gap between windows */
-static const unsigned int gappoh           = 10; /* horiz outer gap between windows and screen edge */
-static const unsigned int gappov           = 10; /* vert outer gap between windows and screen edge */
+const int smartgaps                 = 0;  /* 1 means no outer gap when there is only one window */
+const int monoclegaps               = 0;  /* 1 means outer gaps in monocle layout */
+const unsigned int borderpx         = 1;  /* border pixel of windows */
+const unsigned int gappih           = 10; /* horiz inner gap between windows */
+const unsigned int gappiv           = 10; /* vert inner gap between windows */
+const unsigned int gappoh           = 10; /* horiz outer gap between windows and screen edge */
+const unsigned int gappov           = 10; /* vert outer gap between windows and screen edge */
 static const float rootcolor[]             = COLOR(0x222222ff);
-static const float bordercolor[]           = COLOR(0x444444ff);
-static const float focuscolor[]            = COLOR(0x005577ff);
-static const float urgentcolor[]           = COLOR(0xff0000ff);
+const float bordercolor[]           = COLOR(0x444444ff);
+const float focuscolor[]            = COLOR(0x005577ff);
+const float urgentcolor[]           = COLOR(0xff0000ff);
 /* This conforms to the xdg-protocol. Set the alpha to zero to restore the old behavior */
-static const float fullscreen_bg[]         = {0.0f, 0.0f, 0.0f, 0.0f}; /* You can also use glsl colors */
+const float fullscreen_bg[]                = {0.0f, 0.0f, 0.0f, 0.0f}; /* You can also use glsl colors */
 
-static const int opacity = 0; /* flag to enable opacity */
-static const float opacity_inactive = 0.5;
-static const float opacity_active = 1.0;
+const int opacity = 0; /* flag to enable opacity */
+const float opacity_inactive = 0.5;
+const float opacity_active = 1.0;
 
-static const int shadow = 1; /* flag to enable shadow */
-static const int shadow_only_floating = 0; /* only apply shadow to floating windows */
-static const float shadow_color[4] = COLOR(0x0000FFff);
-static const float shadow_color_focus[4] = COLOR(0xFF0000ff);
-static const int shadow_blur_sigma = 20;
-static const int shadow_blur_sigma_focus = 40;
-static const char *const shadow_ignore_list[] = { NULL }; /* list of app-id to ignore */
+const int shadow = 1; /* flag to enable shadow */
+const int shadow_only_floating = 0; /* only apply shadow to floating windows */
+const float shadow_color[4] = COLOR(0x0000FFff);
+const float shadow_color_focus[4] = COLOR(0xFF0000ff);
+const int shadow_blur_sigma = 20;
+const int shadow_blur_sigma_focus = 40;
+const char *const shadow_ignore_list[] = { NULL }; /* list of app-id to ignore */
 
-static const int corner_radius = 8; /* 0 disables corner_radius */
-static const int corner_radius_inner = 9; /* 0 disables corner_radius */
-static const int corner_radius_only_floating = 0; /* only apply corner_radius to floating windows */
+const int corner_radius = 8; /* 0 disables corner_radius */
+const int corner_radius_inner = 9; /* 0 disables corner_radius */
+const int corner_radius_only_floating = 0; /* only apply corner_radius to floating windows */
 
-static const int blur = 1; /* flag to enable blur */
+const int blur = 1; /* flag to enable blur */
 static const int blur_xray = 0; /* flag to make transparent fs and floating windows display your background */
 static const int blur_ignore_transparent = 1;
 static const struct blur_data blur_data = {
@@ -52,31 +52,33 @@ static const struct blur_data blur_data = {
 static int log_level = WLR_ERROR;
 
 /* Scroller layout */
-enum { ScrollerCenterAlways, ScrollerCenterOnOverflow };  /* Centering modes */
-static const int scroller_center_mode = ScrollerCenterOnOverflow;  /* Centering behavior */
-static const float scroller_proportions[] = { 0.5f, 0.66f, 0.8f, 1.0f };  /* Column width as fraction of screen */
-static const int scroller_default_proportion = 0;  /* Index into scroller_proportions */
+const int scroller_center_mode = ScrollerCenterOnOverflow;  /* Centering behavior */
+const float scroller_proportions[] = { 0.5f, 0.66f, 0.8f, 1.0f };  /* Column width as fraction of screen */
+const size_t scroller_proportions_count = LENGTH(scroller_proportions);
+const int scroller_default_proportion = 0;  /* Index into scroller_proportions */
 
-static const Rule rules[] = {
+const Rule rules[] = {
 	/* app_id             title       isfloating   monitor */
 	{ "Gimp_EXAMPLE",     NULL,       1,           -1 }, /* Start floating, not tiled */
 	{ "firefox_EXAMPLE",  NULL,       0,           -1 },
 };
+const size_t rules_count = LENGTH(rules);
 
 /* layout(s) */
-static const Layout layouts[] = {
+const Layout layouts[] = {
 	/* symbol     arrange function */
 	{ "[]=",      tile },
 	{ "><>",      NULL },    /* no layout function means floating behavior */
 	{ "[M]",      monocle },
 	{ "|S|",      scroller },
 };
+const size_t layouts_count = LENGTH(layouts);
 
 /* monitors */
 /* (x=-1, y=-1) is reserved as an "autoconfigure" monitor position indicator
  * WARNING: negative values other than (-1, -1) cause problems with Xwayland clients due to
  * https://gitlab.freedesktop.org/xorg/xserver/-/issues/899 */
-static const MonitorRule monrules[] = {
+const MonitorRule monrules[] = {
    /* name        mfact  nmaster scale layout       rotate/reflect                x    y
     * example of a HiDPI laptop monitor:
     { "eDP-1",    0.5f,  1,      2,    &layouts[0], WL_OUTPUT_TRANSFORM_NORMAL,   -1,  -1 }, */
@@ -85,9 +87,10 @@ static const MonitorRule monrules[] = {
 	{ NULL,       0.55f,  1,      1,    &layouts[0], WL_OUTPUT_TRANSFORM_NORMAL,   -1,   -1 },
 	/* default monitor rule: can be changed but cannot be eliminated; at least one monitor rule must exist */
 };
+const size_t monrules_count = LENGTH(monrules);
 
 /* keyboard */
-static const struct xkb_rule_names xkb_rules = {
+const struct xkb_rule_names xkb_rules = {
 	/* can specify fields: rules, model, layout, variant, options */
 	/* example:
 	.options = "ctrl:nocaps",
@@ -95,11 +98,11 @@ static const struct xkb_rule_names xkb_rules = {
 	.options = NULL,
 };
 
-static const int repeat_rate = 25;
-static const int repeat_delay = 600;
+const int repeat_rate = 25;
+const int repeat_delay = 600;
 
 /* numlock */
-static const int numlock = 1;
+const int numlock = 1;
 
 /* Trackpad */
 static const int tap_to_click = 1;

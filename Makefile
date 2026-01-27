@@ -17,12 +17,19 @@ DWLCFLAGS = `$(PKG_CONFIG) --cflags $(PKGS)` $(DWLCPPFLAGS) $(DWLDEVCFLAGS) $(CF
 LDLIBS    = `$(PKG_CONFIG) --libs $(PKGS)` -lm $(LIBS)
 
 all: dwl
-dwl: dwl.o util.o
-	$(CC) dwl.o util.o $(DWLCFLAGS) $(LDFLAGS) $(LDLIBS) -o $@
-dwl.o: dwl.c client.h config.h config.mk cursor-shape-v1-protocol.h \
+dwl: dwl.o util.o visual.o session.o client_funcs.o pointer.o input.o layout.o monitor.o
+	$(CC) dwl.o util.o visual.o session.o client_funcs.o pointer.o input.o layout.o monitor.o $(DWLCFLAGS) $(LDFLAGS) $(LDLIBS) -o $@
+dwl.o: dwl.c dwl.h client.h visual.h session.h client_funcs.h pointer.h input.h layout.h monitor.h config.h config.mk cursor-shape-v1-protocol.h \
 	pointer-constraints-unstable-v1-protocol.h wlr-layer-shell-unstable-v1-protocol.h \
 	wlr-output-power-management-unstable-v1-protocol.h xdg-shell-protocol.h
 util.o: util.c util.h
+visual.o: visual.c visual.h dwl.h client.h config.h
+session.o: session.c session.h dwl.h client.h
+client_funcs.o: client_funcs.c client_funcs.h dwl.h client.h layout.h visual.h config.h
+pointer.o: pointer.c pointer.h dwl.h client.h client_funcs.h layout.h
+input.o: input.c input.h dwl.h
+layout.o: layout.c layout.h dwl.h client.h client_funcs.h visual.h wlr-layer-shell-unstable-v1-protocol.h
+monitor.o: monitor.c monitor.h dwl.h client.h client_funcs.h layout.h visual.h session.h
 
 # wayland-scanner is a tool which generates C headers and rigging for Wayland
 # protocols, which are specified in XML. wlroots requires you to rig these up
