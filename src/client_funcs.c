@@ -35,8 +35,8 @@ applyrules(Client *c)
 	appid = client_get_appid(c);
 	title = client_get_title(c);
 
-	for (i = 0; i < rules_count; i++) {
-		const Rule *r = &rules[i];
+	for (i = 0; i < cfg.rules_count; i++) {
+		const CfgRule *r = &cfg.rules[i];
 		int mi;
 		if ((!r->title || strstr(title, r->title))
 				&& (!r->id || strstr(appid, r->id))) {
@@ -102,10 +102,10 @@ createnotify(struct wl_listener *listener, void *data)
 	/* Allocate a Client for this surface */
 	c = toplevel->base->data = ecalloc(1, sizeof(*c));
 	c->surface.xdg = toplevel->base;
-	c->bw = borderpx;
+	c->bw = cfg.borderpx;
 
-	c->opacity = opacity_active;
-	c->corner_radius = corner_radius;
+	c->opacity = cfg.opacity_active;
+	c->corner_radius = cfg.corner_radius;
 	LISTEN(&toplevel->base->surface->events.commit, &c->commit, commitnotify);
 	LISTEN(&toplevel->base->surface->events.map, &c->map, mapnotify);
 	LISTEN(&toplevel->base->surface->events.unmap, &c->unmap, unmapnotify);
@@ -183,7 +183,7 @@ mapnotify(struct wl_listener *listener, void *data)
 
 	for (i = 0; i < 4; i++) {
 		c->border[i] = wlr_scene_rect_create(c->scene, 0, 0,
-				c->isurgent ? urgentcolor : bordercolor);
+				c->isurgent ? cfg.urgentcolor : cfg.bordercolor);
 		c->border[i]->node.data = c;
 	}
 
@@ -192,8 +192,8 @@ mapnotify(struct wl_listener *listener, void *data)
 #ifdef XWAYLAND
 	if (!client_is_x11(c)) {
 #endif
-	if (corner_radius > 0) {
-		c->round_border = wlr_scene_rect_create(c->scene, 0, 0, c->isurgent ? urgentcolor : bordercolor);
+	if (cfg.corner_radius > 0) {
+		c->round_border = wlr_scene_rect_create(c->scene, 0, 0, c->isurgent ? cfg.urgentcolor : cfg.bordercolor);
 		c->round_border->node.data = c;
 		/* Lower the border below the XDG scene tree */
 		wlr_scene_node_lower_to_bottom(&c->round_border->node);
@@ -210,8 +210,8 @@ mapnotify(struct wl_listener *listener, void *data)
 #ifdef XWAYLAND
 	if (!client_is_x11(c)) {
 #endif
-	if (shadow) {
-		c->shadow = wlr_scene_shadow_create(c->scene, 0, 0, c->corner_radius, shadow_blur_sigma, shadow_color);
+	if (cfg.shadow) {
+		c->shadow = wlr_scene_shadow_create(c->scene, 0, 0, c->corner_radius, cfg.shadow_blur_sigma, cfg.shadow_color);
 		/* Lower the shadow below the border */
 		wlr_scene_node_lower_to_bottom(&c->shadow->node);
 	}
@@ -313,7 +313,7 @@ resize(Client *c, struct wlr_box geo, int interact)
 	client_get_clip(c, &clip);
 	scene_tree_apply_clip(&c->scene_surface->node, &clip);
 
-	if (corner_radius > 0 && c->round_border) {
+	if (cfg.corner_radius > 0 && c->round_border) {
 		wlr_scene_node_set_position(&c->round_border->node, 0, 0);
 		wlr_scene_rect_set_size(c->round_border, c->geom.width, c->geom.height);
 		wlr_scene_rect_set_clipped_region(c->round_border, (struct clipped_region) {
@@ -322,7 +322,7 @@ resize(Client *c, struct wlr_box geo, int interact)
 		});
 	}
 
-	if (shadow && c->shadow) {
+	if (cfg.shadow && c->shadow) {
 		client_set_shadow_blur_sigma(c, (int)round(c->shadow->blur_sigma));
 	}
 }
@@ -353,7 +353,7 @@ setfullscreen(Client *c, int fullscreen)
 	c->isfullscreen = fullscreen;
 	if (!c->mon || !client_surface(c)->mapped)
 		return;
-	c->bw = fullscreen ? 0 : borderpx;
+	c->bw = fullscreen ? 0 : cfg.borderpx;
 	client_set_fullscreen(c, fullscreen);
 	wlr_scene_node_reparent(&c->scene->node, layers[c->isfullscreen
 			? LyrFS : c->isfloating ? LyrFloat : LyrTile]);
@@ -431,4 +431,28 @@ updatetitle(struct wl_listener *listener, void *data)
 	Client *c = wl_container_of(listener, c, set_title);
 	if (c == focustop(c->mon))
 		printstatus();
+}
+
+void
+config_update_all_clients(void)
+{
+	Client *c;
+	wl_list_for_each(c, &clients, link) {
+		c->bw = c->isfullscreen ? 0 : cfg.borderpx;
+		c->corner_radius = cfg.corner_radius;
+		update_client_corner_radius(c);
+		update_client_shadow_color(c);
+		update_client_blur(c);
+
+		if (c == focustop(c->mon)) {
+			client_set_border_color(c, cfg.focuscolor);
+			update_client_focus_decorations(c, 1, 0);
+		} else if (c->isurgent) {
+			client_set_border_color(c, cfg.urgentcolor);
+			update_client_focus_decorations(c, 0, 1);
+		} else {
+			client_set_border_color(c, cfg.bordercolor);
+			update_client_focus_decorations(c, 0, 0);
+		}
+	}
 }

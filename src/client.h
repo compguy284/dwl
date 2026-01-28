@@ -327,7 +327,7 @@ client_set_border_color(Client *c, const float color[static 4])
 #ifdef XWAYLAND
 	if (!client_is_x11(c)) {
 #endif
-	if (corner_radius > 0) {
+	if (cfg.corner_radius > 0) {
 		return;
 	}
 #ifdef XWAYLAND

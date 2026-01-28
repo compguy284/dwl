@@ -30,7 +30,7 @@ arrange(Monitor *m)
 	wlr_scene_node_set_enabled(&m->fullscreen_bg->node,
 			(c = focustop(m)) && c->isfullscreen);
 
-	if (blur) {
+	if (cfg.blur) {
 		wlr_scene_node_set_enabled(&m->blur_layer->node, 1);
 	}
 
@@ -150,7 +150,7 @@ focusclient(Client *c, int lift)
 		/* Don't change border color if there is an exclusive focus or we are
 		 * handling a drag operation */
 		if (!exclusive_focus && !seat->drag) {
-			client_set_border_color(c, focuscolor);
+			client_set_border_color(c, cfg.focuscolor);
 
 			update_client_focus_decorations(c, 1, 0);
 		}
@@ -170,7 +170,7 @@ focusclient(Client *c, int lift)
 		/* Don't deactivate old client if the new one wants focus, as this causes issues with winecfg
 		 * and probably other clients */
 		} else if (old_c && !client_is_unmanaged(old_c) && (!c || !client_wants_focus(c))) {
-			client_set_border_color(old_c, bordercolor);
+			client_set_border_color(old_c, cfg.bordercolor);
 
 			update_client_focus_decorations(old_c, 0, 0);
 
@@ -311,11 +311,11 @@ monocle(Monitor *m)
 		if (!VISIBLEON(c, m) || c->isfloating || c->isfullscreen)
 			continue;
 		n++;
-		if (!monoclegaps)
+		if (!cfg.monoclegaps)
 			resize(c, m->w, 0);
 		else
-			resize(c, (struct wlr_box){.x = m->w.x + gappoh, .y = m->w.y + gappov,
-				.width = m->w.width - 2 * gappoh, .height = m->w.height - 2 * gappov}, 0);
+			resize(c, (struct wlr_box){.x = m->w.x + cfg.gappoh, .y = m->w.y + cfg.gappov,
+				.width = m->w.width - 2 * cfg.gappoh, .height = m->w.height - 2 * cfg.gappov}, 0);
 	}
 	if (n)
 		snprintf(m->ltsymbol, LENGTH(m->ltsymbol), "[%d]", n);
@@ -364,7 +364,7 @@ scroller(Monitor *m)
 		return;
 
 	/* Calculate column width from proportion */
-	proportion = scroller_proportions[m->scroller_proportion_idx];
+	proportion = cfg.scroller_proportions[m->scroller_proportion_idx];
 	colwidth = (int)(m->w.width * proportion);
 
 	/* Find focused window's display column */
@@ -382,7 +382,7 @@ scroller(Monitor *m)
 	focus_x_end = focus_x_start + colwidth;
 
 	/* Calculate viewport based on centering mode */
-	if (scroller_center_mode == ScrollerCenterAlways) {
+	if (cfg.scroller_center_mode == ScrollerCenterAlways) {
 		viewport_x = focus_x_start - (m->w.width - colwidth) / 2;
 	} else { /* ScrollerCenterOnOverflow */
 		col_visible_start = m->scroller_viewport_x;
@@ -516,8 +516,8 @@ scroller(Monitor *m)
 
 			/* Use round_border if available, otherwise fall back to regular borders */
 			if (c->round_border) {
-				const float *color = c->isurgent ? urgentcolor :
-					(c == focused ? focuscolor : bordercolor);
+				const float *color = c->isurgent ? cfg.urgentcolor :
+					(c == focused ? cfg.focuscolor : cfg.bordercolor);
 				int b;
 
 				/* Hide regular borders */
@@ -542,8 +542,8 @@ scroller(Monitor *m)
 				});
 			} else {
 				/* Fall back to regular borders */
-				const float *color = c->isurgent ? urgentcolor :
-					(c == focused ? focuscolor : bordercolor);
+				const float *color = c->isurgent ? cfg.urgentcolor :
+					(c == focused ? cfg.focuscolor : cfg.bordercolor);
 				int b;
 				for (b = 0; b < 4; b++)
 					wlr_scene_rect_set_color(c->border[b], color);
@@ -592,7 +592,7 @@ scroller(Monitor *m)
 void
 scroller_cycle_proportion(const Arg *arg)
 {
-	int len = (int)scroller_proportions_count;
+	int len = (int)cfg.scroller_proportions_count;
 	if (!selmon)
 		return;
 	/* arg->i: +1 to cycle forward, -1 to cycle backward */
@@ -613,7 +613,7 @@ tile(Monitor *m)
 	if (n == 0)
 		return;
 
-	if (smartgaps == n) {
+	if (cfg.smartgaps == n) {
 		oe = 0; // outer gaps disabled
 	}
 
@@ -749,7 +749,7 @@ consume_or_expel(const Arg *arg)
 void
 defaultgaps(const Arg *arg)
 {
-	setgaps(gappoh, gappov, gappih, gappiv);
+	setgaps(cfg.gappoh, cfg.gappov, cfg.gappih, cfg.gappiv);
 }
 
 void

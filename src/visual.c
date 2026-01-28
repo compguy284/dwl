@@ -22,7 +22,7 @@ iter_xdg_scene_buffers(struct wlr_scene_buffer *buffer, int sx, int sy, void *us
 	xdg_surface = wlr_xdg_surface_try_from_wlr_surface(scene_surface->surface);
 
 	if (c && xdg_surface && xdg_surface->role == WLR_XDG_SURFACE_ROLE_TOPLEVEL) {
-		if (opacity) {
+		if (cfg.opacity) {
 			wlr_scene_buffer_set_opacity(buffer, c->opacity);
 		}
 
@@ -56,7 +56,7 @@ iter_xdg_scene_buffers_opacity(struct wlr_scene_buffer *buffer, int sx, int sy, 
 	xdg_surface = wlr_xdg_surface_try_from_wlr_surface(scene_surface->surface);
 
 	if (c && xdg_surface && xdg_surface->role == WLR_XDG_SURFACE_ROLE_TOPLEVEL) {
-		if (opacity) {
+		if (cfg.opacity) {
 			wlr_scene_buffer_set_opacity(buffer, c->opacity);
 		}
 	}
@@ -116,7 +116,7 @@ output_configure_scene(struct wlr_scene_node *node, Client *c)
 		xdg_surface = wlr_xdg_surface_try_from_wlr_surface(scene_surface->surface);
 
 		if (c && xdg_surface && xdg_surface->role == WLR_XDG_SURFACE_ROLE_TOPLEVEL) {
-			if (opacity) {
+			if (cfg.opacity) {
 				wlr_scene_buffer_set_opacity(buffer, c->opacity);
 			}
 
@@ -136,8 +136,8 @@ int
 in_shadow_ignore_list(const char *str)
 {
 	int i;
-	for (i = 0; shadow_ignore_list[i] != NULL; i++) {
-		if (strcmp(shadow_ignore_list[i], str) == 0) {
+	for (i = 0; cfg.shadow_ignore_list[i] != NULL; i++) {
+		if (strcmp(cfg.shadow_ignore_list[i], str) == 0) {
 			return 1;
 		}
 	}
@@ -159,9 +159,9 @@ client_set_shadow_blur_sigma(Client *c, int blur_sigma)
 void
 update_client_corner_radius(Client *c)
 {
-	if (corner_radius && c->round_border) {
+	if (cfg.corner_radius && c->round_border) {
 		int radius = c->corner_radius + c->bw;
-		if ((corner_radius_only_floating && !c->isfloating) || c->isfullscreen) {
+		if ((cfg.corner_radius_only_floating && !c->isfloating) || c->isfullscreen) {
 			radius = 0;
 		}
 		wlr_scene_rect_set_corner_radius(c->round_border, radius);
@@ -170,7 +170,7 @@ update_client_corner_radius(Client *c)
 #ifdef XWAYLAND
 	if (!client_is_x11(c)) {
 #endif
-	if (corner_radius_inner > 0 && c->scene) {
+	if (cfg.corner_radius_inner > 0 && c->scene) {
 		wlr_scene_node_for_each_buffer(&c->scene_surface->node, iter_xdg_scene_buffers_corner_radius, c);
 	}
 #ifdef XWAYLAND
@@ -181,7 +181,7 @@ update_client_corner_radius(Client *c)
 void
 update_client_blur(Client *c)
 {
-	if (!blur) {
+	if (!cfg.blur) {
 		return;
 	}
 
@@ -201,12 +201,12 @@ update_buffer_corner_radius(Client *c, struct wlr_scene_buffer *buffer)
 	}
 #endif
 
-	if (!corner_radius_inner) {
+	if (!cfg.corner_radius_inner) {
 		return;
 	}
 
-	radius = corner_radius_inner;
-	if ((corner_radius_only_floating && !c->isfloating) || c->isfullscreen) {
+	radius = cfg.corner_radius_inner;
+	if ((cfg.corner_radius_only_floating && !c->isfloating) || c->isfullscreen) {
 		radius = 0;
 	}
 
@@ -219,13 +219,13 @@ update_client_shadow_color(Client *c)
 	int has_shadow_enabled = 1;
 	const float *color;
 
-	if (!shadow || !c->shadow) {
+	if (!cfg.shadow || !c->shadow) {
 		return;
 	}
 
-	color = focustop(c->mon) == c ? shadow_color_focus : shadow_color;
+	color = focustop(c->mon) == c ? cfg.shadow_color_focus : cfg.shadow_color;
 
-	if ((shadow_only_floating && !c->isfloating) ||
+	if ((cfg.shadow_only_floating && !c->isfloating) ||
 		in_shadow_ignore_list(client_get_appid(c)) ||
 		c->isfullscreen) {
 		color = transparent;
@@ -239,17 +239,17 @@ update_client_shadow_color(Client *c)
 void
 update_client_focus_decorations(Client *c, int focused, int urgent)
 {
-	if (corner_radius > 0 && c->round_border) {
-		wlr_scene_rect_set_color(c->round_border, urgent ? urgentcolor : (focused ? focuscolor : bordercolor));
+	if (cfg.corner_radius > 0 && c->round_border) {
+		wlr_scene_rect_set_color(c->round_border, urgent ? cfg.urgentcolor : (focused ? cfg.focuscolor : cfg.bordercolor));
 	}
-	if (shadow && c->shadow) {
-		client_set_shadow_blur_sigma(c, (int)round(focused ? shadow_blur_sigma_focus : shadow_blur_sigma));
+	if (cfg.shadow && c->shadow) {
+		client_set_shadow_blur_sigma(c, (int)round(focused ? cfg.shadow_blur_sigma_focus : cfg.shadow_blur_sigma));
 		if (c->has_shadow_enabled) {
-			wlr_scene_shadow_set_color(c->shadow, focused ? shadow_color_focus : shadow_color);
+			wlr_scene_shadow_set_color(c->shadow, focused ? cfg.shadow_color_focus : cfg.shadow_color);
 		}
 	}
-	if (opacity) {
-		c->opacity = focused ? opacity_active : opacity_inactive;
+	if (cfg.opacity) {
+		c->opacity = focused ? cfg.opacity_active : cfg.opacity_inactive;
 		wlr_scene_node_for_each_buffer(&c->scene_surface->node, iter_xdg_scene_buffers_opacity, c);
 	}
 }

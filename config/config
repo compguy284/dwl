@@ -1,0 +1,178 @@
+# dwl configuration file
+# Place at $XDG_CONFIG_HOME/dwl/config (default: ~/.config/dwl/config)
+# Reload with: kill -SIGHUP $(pidof dwl)
+# Lines starting with # are comments. Format: key = value
+
+# --- Appearance ---
+borderpx = 4
+sloppyfocus = 1
+bypass_surface_visibility = 0
+
+# --- Gaps ---
+smartgaps = 0
+monoclegaps = 0
+gappih = 10
+gappiv = 10
+gappoh = 10
+gappov = 10
+
+# --- Colors (RRGGBBAA hex) ---
+rootcolor = 222222ff
+bordercolor = 444444ff
+focuscolor = 005577ff
+urgentcolor = ff0000ff
+fullscreen_bg = 00000000
+
+# --- Opacity ---
+# Set opacity = 1 to enable per-window opacity
+opacity = 0
+opacity_inactive = 0.5
+opacity_active = 1.0
+
+# --- Shadows ---
+shadow = 0
+shadow_only_floating = 0
+shadow_color = 0000FFff
+shadow_color_focus = FF0000ff
+shadow_blur_sigma = 20
+shadow_blur_sigma_focus = 40
+# shadow_ignore = app_id1 app_id2
+
+# --- Corner Radius ---
+corner_radius = 8
+corner_radius_inner = 9
+corner_radius_only_floating = 0
+
+# --- Blur ---
+blur = 1
+blur_xray = 0
+blur_ignore_transparent = 1
+blur_num_passes = 3
+blur_radius = 5.0
+blur_noise = 0.02
+blur_brightness = 0.9
+blur_contrast = 0.9
+blur_saturation = 1.1
+
+# --- Logging ---
+# Values: debug, info, error, silent
+log_level = error
+
+# --- Scroller Layout ---
+# Center mode: always, on_overflow
+scroller_center_mode = on_overflow
+scroller_proportions = 0.5 0.66 0.8 1.0
+scroller_default_proportion = 0
+
+# --- Keyboard ---
+# xkb_rules =
+# xkb_model =
+# xkb_layout =
+# xkb_variant =
+# xkb_options =
+repeat_rate = 25
+repeat_delay = 600
+numlock = 1
+
+# --- Trackpad ---
+tap_to_click = 1
+tap_and_drag = 1
+drag_lock = 1
+natural_scrolling = 0
+disable_while_typing = 1
+left_handed = 0
+middle_button_emulation = 0
+# scroll_method: no_scroll, 2fg, edge, on_button_down
+scroll_method = 2fg
+# click_method: none, button_areas, clickfinger
+click_method = button_areas
+# send_events_mode: enabled, disabled, disabled_on_external_mouse
+send_events_mode = enabled
+# accel_profile: flat, adaptive
+accel_profile = adaptive
+accel_speed = 0.0
+# button_map: lrm, lmr
+button_map = lrm
+
+# --- Modifier Key ---
+# Values: alt, super, ctrl
+modkey = alt
+
+# --- Commands ---
+termcmd = alacritty
+menucmd = wmenu-run
+
+# --- Rules ---
+# Format: rule = app_id, title, isfloating, monitor
+# Use NULL or * for wildcard. Monitor -1 means any.
+# rule = Gimp, *, 1, -1
+# rule = firefox, *, 0, -1
+
+# --- Monitor Rules ---
+# Format: monrule = name, mfact, nmaster, scale, layout, transform, x, y
+# Use NULL or * for wildcard name (matches all monitors).
+# layout: tile, floating, monocle, scroller (or symbol: []=, ><>, [M], |S|)
+# transform: normal, 90, 180, 270, flipped, flipped_90, flipped_180, flipped_270
+monrule = HDMI-A-1, 0.5, 1, 1, tile, normal, 0, 0
+monrule = DP-1, 0.5, 1, 1, tile, normal, 1920, 0
+monrule = *, 0.55, 1, 1, tile, normal, -1, -1
+
+# --- Keybindings ---
+# Format: bind = modifiers keysym function [argument]
+# Modifiers: mod (= modkey), shift, ctrl, alt, super/logo
+# Combine with +: mod+shift
+#
+# bind = mod p spawn wmenu-run
+# bind = mod+shift Return spawn alacritty
+# bind = mod j focusstack +1
+# bind = mod k focusstack -1
+# bind = mod+ctrl Left focusdir 0
+# bind = mod+ctrl Right focusdir 1
+# bind = mod+ctrl Up focusdir 2
+# bind = mod+ctrl Down focusdir 3
+# bind = mod i incnmaster +1
+# bind = mod d incnmaster -1
+# bind = mod h setmfact -0.05
+# bind = mod l setmfact +0.05
+# bind = mod+logo h incgaps +1
+# bind = mod+logo l incgaps -1
+# bind = mod+logo+shift H incogaps +1
+# bind = mod+logo+shift L incogaps -1
+# bind = mod+logo+ctrl h incigaps +1
+# bind = mod+logo+ctrl l incigaps -1
+# bind = mod+logo 0 togglegaps
+# bind = mod+logo+shift parenright defaultgaps
+# bind = mod y incihgaps +1
+# bind = mod o incihgaps -1
+# bind = mod+ctrl y incivgaps +1
+# bind = mod+ctrl o incivgaps -1
+# bind = mod+logo y incohgaps +1
+# bind = mod+logo o incohgaps -1
+# bind = mod+shift Y incovgaps +1
+# bind = mod+shift O incovgaps -1
+# bind = mod Return zoom
+# bind = mod+shift c killclient
+# bind = mod t setlayout tile
+# bind = mod f setlayout floating
+# bind = mod m setlayout monocle
+# bind = mod s setlayout scroller
+# bind = mod minus scroller_cycle_proportion -1
+# bind = mod equal scroller_cycle_proportion +1
+# bind = mod+shift Left consume_or_expel 0
+# bind = mod+shift Right consume_or_expel 1
+# bind = mod space setlayout
+# bind = mod+shift space togglefloating
+# bind = mod e togglefullscreen
+# bind = mod comma focusmon left
+# bind = mod period focusmon right
+# bind = mod+shift less movetomon left
+# bind = mod+shift greater movetomon right
+# bind = mod+shift q quit
+#
+# Note: Ctrl+Alt+F1-F12 (chvt) bindings are always active.
+
+# --- Mouse Buttons ---
+# Format: button = modifiers button function [argument]
+# button = mod BTN_LEFT moveresize move
+# button = mod BTN_MIDDLE togglefloating
+# button = mod BTN_RIGHT moveresize resize

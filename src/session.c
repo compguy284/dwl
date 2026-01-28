@@ -46,7 +46,7 @@ commitlayersurfacenotify(struct wl_listener *listener, void *data)
 
 	arrangelayers(l->mon);
 
-	if (blur) {
+	if (cfg.blur) {
 		struct wlr_layer_surface_v1 *wlr_layer_surface = l->layer_surface;
 		if (wlr_layer_surface->current.layer ==
 				ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND ||

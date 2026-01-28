@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-dwl (dwm for Wayland) is a compact, hackable Wayland compositor based on wlroots and scenefx. It follows the suckless philosophy - configuration is done by editing `config.h` and recompiling.
+dwl (dwm for Wayland) is a compact, hackable Wayland compositor based on wlroots and scenefx. Configuration is done via a runtime config file at `$XDG_CONFIG_HOME/dwl/config` with live reload via SIGHUP.
 
 **Note**: This project is unmaintained as of August 2025.
 
@@ -38,26 +38,27 @@ nix build      # Build the package
 
 ## Configuration
 
-Configuration follows the suckless model:
-1. Copy `src/config.def.h` to `src/config.h` (done automatically on first build)
-2. Edit `src/config.h` to customize
-3. Rebuild with `meson compile -C build`
+Configuration uses a runtime config file:
+- **Path**: `$XDG_CONFIG_HOME/dwl/config` (default: `~/.config/dwl/config`)
+- **Format**: `key = value`, one per line, `#` comments, blank lines ignored
+- **Reload**: `kill -SIGHUP $(pidof dwl)` to apply changes without restarting
+- **Reference**: See `config/config` for all settings with documentation
 
-Key configuration sections in `src/config.def.h`:
-- **Appearance**: Border pixels, colors (border, focus, urgency)
-- **Gaps**: smartgaps, monoclegaps, gappih/gappiv/gappoh/gappov for inner/outer horizontal/vertical gaps
-- **Opacity**: Active/inactive window opacity settings
-- **Shadows**: Shadow color and configuration
-- **Corner radius**: Rounded corner settings for windows
-- **Blur**: Blur effect settings for windows and backgrounds
-- **Numlock**: Enable numlock on start
-- **Keyboard**: XKB rules, repeat rate/delay
-- **Trackpad**: libinput settings (natural scroll, tap-to-click, acceleration)
-- **Keybindings**: All shortcuts (default modifier is Alt)
-- **Rules**: Per-application window management rules
-- **Layouts**: tile, floating, monocle, scroller
-- **Scroller**: scroller_center_mode, scroller_proportions for scroller layout behavior
-- **MonitorRules**: Per-monitor settings including scale
+If no config file exists, built-in defaults are used. All settings in `config/config`:
+- **Appearance**: `borderpx`, `sloppyfocus`, colors (`bordercolor`, `focuscolor`, `urgentcolor`, `rootcolor`)
+- **Gaps**: `smartgaps`, `monoclegaps`, `gappih`/`gappiv`/`gappoh`/`gappov`
+- **Opacity**: `opacity`, `opacity_inactive`, `opacity_active`
+- **Shadows**: `shadow`, `shadow_color`, `shadow_color_focus`, `shadow_blur_sigma`
+- **Corner radius**: `corner_radius`, `corner_radius_inner`, `corner_radius_only_floating`
+- **Blur**: `blur`, `blur_num_passes`, `blur_radius`, `blur_noise`, `blur_brightness`, etc.
+- **Keyboard**: `xkb_layout`, `repeat_rate`, `repeat_delay`, `numlock`
+- **Trackpad**: `tap_to_click`, `natural_scrolling`, `accel_profile`, etc.
+- **Keybindings**: `bind = mod+shift Return spawn alacritty` (default modifier is Alt)
+- **Mouse buttons**: `button = mod BTN_LEFT moveresize move`
+- **Rules**: `rule = app_id, title, isfloating, monitor`
+- **Monitor rules**: `monrule = name, mfact, nmaster, scale, layout, transform, x, y`
+- **Scroller**: `scroller_center_mode`, `scroller_proportions`
+- **Commands**: `termcmd`, `menucmd`
 
 ## Architecture
 
@@ -68,7 +69,8 @@ All source files live in `src/`.
 - **src/dwl.c** (~3800 lines): Main compositor implementation
 - **src/client.h**: Inline helper functions for client/window management
 - **src/util.c/h**: Small utilities (die, ecalloc, fd_set_nonblock)
-- **src/config.def.h**: Default configuration template
+- **src/config_parser.c/h**: Runtime configuration parser with SIGHUP reload
+- **config/config**: Default/reference configuration file
 - **src/visual.c/h**: Visual effects (opacity, shadows, corners, blur)
 - **src/session.c/h**: Session lock handling
 - **src/client_funcs.c/h**: Client management functions

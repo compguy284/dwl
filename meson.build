@@ -18,7 +18,7 @@ version = vcs_tag(
 
 # --- Dependencies ---
 wlroots    = dependency('wlroots-0.19')
-scenefx    = dependency('scenefx-0.4')
+scenefx    = dependency('scenefx-0.4', include_type: 'system')
 wayland    = dependency('wayland-server')
 xkbcommon  = dependency('xkbcommon')
 libinput   = dependency('libinput')
@@ -53,12 +53,6 @@ add_project_arguments(
   '-Wfloat-conversion',
   language: 'c',
 )
-
-# --- config.h (suckless style) ---
-# Copy config.def.h to config.h if it doesn't exist
-if not import('fs').exists('src/config.h')
-  run_command('cp', 'src/config.def.h', 'src/config.h', check: true)
-endif
 
 # --- Protocol generation ---
 wayland_scanner_dep = dependency('wayland-scanner', native: true)
@@ -102,6 +96,7 @@ src = files(
   'src/input.c',
   'src/layout.c',
   'src/monitor.c',
+  'src/config_parser.c',
 )
 
 # --- Build ---
@@ -116,4 +111,7 @@ executable('dwl',
 install_man('dwl.1')
 install_data('dwl.desktop',
   install_dir: get_option('datadir') / 'wayland-sessions',
+)
+install_data('config/config',
+  install_dir: get_option('datadir') / 'dwl',
 )

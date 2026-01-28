@@ -79,6 +79,7 @@
 #endif
 
 #include "util.h"
+#include "config_parser.h"
 
 /* macros */
 #define MAX(A, B)               ((A) > (B) ? (A) : (B))
@@ -97,21 +98,6 @@ enum { LyrBg, LyrBlur, LyrBottom, LyrTile, LyrFloat, LyrTop, LyrFS, LyrOverlay, 
 enum { ScrollerCenterAlways, ScrollerCenterOnOverflow }; /* scroller centering modes */
 
 /* type definitions */
-typedef union {
-	int i;
-	uint32_t ui;
-	float f;
-	const void *v;
-} Arg;
-
-typedef struct {
-	unsigned int mod;
-	unsigned int button;
-	void (*func)(const Arg *);
-	const Arg arg;
-} Button;
-
-typedef struct Monitor Monitor;
 typedef struct {
 	/* Must keep this field first */
 	unsigned int type; /* XDGShell or X11* */
@@ -159,13 +145,6 @@ typedef struct {
 } Client;
 
 typedef struct {
-	uint32_t mod;
-	xkb_keysym_t keysym;
-	void (*func)(const Arg *);
-	const Arg arg;
-} Key;
-
-typedef struct {
 	struct wlr_keyboard_group *wlr_group;
 
 	int nsyms;
@@ -194,11 +173,6 @@ typedef struct {
 	struct wl_listener unmap;
 	struct wl_listener surface_commit;
 } LayerSurface;
-
-typedef struct {
-	const char *symbol;
-	void (*arrange)(Monitor *);
-} Layout;
 
 struct Monitor {
 	struct wl_list link;
@@ -230,26 +204,9 @@ struct Monitor {
 };
 
 typedef struct {
-	const char *name;
-	float mfact;
-	int nmaster;
-	float scale;
-	const Layout *lt;
-	enum wl_output_transform rr;
-	int x, y;
-} MonitorRule;
-
-typedef struct {
 	struct wlr_pointer_constraint_v1 *constraint;
 	struct wl_listener destroy;
 } PointerConstraint;
-
-typedef struct {
-	const char *id;
-	const char *title;
-	int isfloating;
-	int monitor;
-} Rule;
 
 typedef struct {
 	struct wlr_scene_tree *scene;
@@ -322,25 +279,6 @@ extern int scroller_col_counter;
 extern struct wlr_xwayland *xwayland;
 #endif
 
-/* Configuration variables - defined in config.h, included by dwl.c */
-extern const int opacity;
-extern const float opacity_inactive;
-extern const float opacity_active;
-extern const int shadow;
-extern const int shadow_only_floating;
-extern const float shadow_color[4];
-extern const float shadow_color_focus[4];
-extern const int shadow_blur_sigma;
-extern const int shadow_blur_sigma_focus;
-extern const char *const shadow_ignore_list[];
-extern const int corner_radius;
-extern const int corner_radius_inner;
-extern const int corner_radius_only_floating;
-extern const int blur;
-extern const float bordercolor[4];
-extern const float focuscolor[4];
-extern const float urgentcolor[4];
-
 /* Functions used by multiple modules */
 void motionnotify(uint32_t time, struct wlr_input_device *device, double sx,
 		double sy, double sx_unaccel, double sy_unaccel);
@@ -350,29 +288,11 @@ void checkidleinhibitor(struct wlr_surface *exclude);
 void requestdecorationmode(struct wl_listener *listener, void *data);
 int keybinding(uint32_t mods, xkb_keysym_t sym);
 
-/* Config variables from config.h */
-extern const unsigned int borderpx;
-extern const Rule rules[];
-extern const size_t rules_count;
-extern const Layout layouts[];
-extern const size_t layouts_count;
-extern const MonitorRule monrules[];
-extern const size_t monrules_count;
-extern const float fullscreen_bg[];
-extern const int sloppyfocus;
-extern const struct xkb_rule_names xkb_rules;
-extern const int repeat_rate;
-extern const int repeat_delay;
-extern const int numlock;
-extern const int smartgaps;
-extern const int monoclegaps;
-extern const unsigned int gappih;
-extern const unsigned int gappiv;
-extern const unsigned int gappoh;
-extern const unsigned int gappov;
-extern const int scroller_center_mode;
-extern const float scroller_proportions[];
-extern const size_t scroller_proportions_count;
-extern const int scroller_default_proportion;
+/* Functions from dwl.c made non-static for config_parser */
+void spawn(const Arg *arg);
+void killclient(const Arg *arg);
+void quit(const Arg *arg);
+void moveresize(const Arg *arg);
+void chvt(const Arg *arg);
 
 #endif /* DWL_H */

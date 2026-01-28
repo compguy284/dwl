@@ -43,7 +43,7 @@ cleanupmon(struct wl_listener *listener, void *data)
 	closemon(m);
 	wlr_scene_node_destroy(&m->fullscreen_bg->node);
 
-	if (blur) {
+	if (cfg.blur) {
 		wlr_scene_node_destroy(&m->blur_layer->node);
 	}
 
@@ -85,7 +85,7 @@ createmon(struct wl_listener *listener, void *data)
 	/* This event is raised by the backend when a new output (aka a display or
 	 * monitor) becomes available. */
 	struct wlr_output *wlr_output = data;
-	const MonitorRule *r;
+	const CfgMonitorRule *r;
 	size_t i;
 	struct wlr_output_state state;
 	Monitor *m;
@@ -99,23 +99,23 @@ createmon(struct wl_listener *listener, void *data)
 	for (i = 0; i < LENGTH(m->layers); i++)
 		wl_list_init(&m->layers[i]);
 
-	m->gappih = gappih;
-	m->gappiv = gappiv;
-	m->gappoh = gappoh;
-	m->gappov = gappov;
-	m->scroller_proportion_idx = scroller_default_proportion;
+	m->gappih = cfg.gappih;
+	m->gappiv = cfg.gappiv;
+	m->gappoh = cfg.gappoh;
+	m->gappov = cfg.gappov;
+	m->scroller_proportion_idx = cfg.scroller_default_proportion;
 	m->scroller_viewport_x = 0;
 
 	wlr_output_state_init(&state);
 	/* Initialize monitor state using configured rules */
-	for (r = monrules; r < monrules + monrules_count; r++) {
+	for (r = cfg.monrules; r < cfg.monrules + cfg.monrules_count; r++) {
 		if (!r->name || strstr(wlr_output->name, r->name)) {
 			m->m.x = r->x;
 			m->m.y = r->y;
 			m->mfact = r->mfact;
 			m->nmaster = r->nmaster;
-			m->lt[0] = r->lt;
-			m->lt[1] = &layouts[layouts_count > 1 && r->lt != &layouts[1]];
+			m->lt[0] = &cfg.layouts[r->layout_idx];
+			m->lt[1] = &cfg.layouts[cfg.layouts_count > 1 && r->layout_idx != 1];
 			strncpy(m->ltsymbol, m->lt[m->sellt]->symbol, LENGTH(m->ltsymbol));
 			wlr_output_state_set_scale(&state, r->scale);
 			wlr_output_state_set_transform(&state, r->rr);
@@ -150,10 +150,10 @@ createmon(struct wl_listener *listener, void *data)
 	 *
 	 */
 	/* updatemons() will resize and set correct position */
-	m->fullscreen_bg = wlr_scene_rect_create(layers[LyrFS], 0, 0, fullscreen_bg);
+	m->fullscreen_bg = wlr_scene_rect_create(layers[LyrFS], 0, 0, cfg.fullscreen_bg);
 	wlr_scene_node_set_enabled(&m->fullscreen_bg->node, 0);
 
-	if (blur) {
+	if (cfg.blur) {
 		m->blur_layer = wlr_scene_optimized_blur_create(&scene->tree, 0, 0);
 		wlr_scene_node_reparent(&m->blur_layer->node, layers[LyrBlur]);
 		wlr_scene_node_set_enabled(&m->blur_layer->node, 0);
@@ -421,7 +421,7 @@ updatemons(struct wl_listener *listener, void *data)
 		wlr_scene_node_set_position(&m->fullscreen_bg->node, m->m.x, m->m.y);
 		wlr_scene_rect_set_size(m->fullscreen_bg, m->m.width, m->m.height);
 
-		if (blur) {
+		if (cfg.blur) {
 			wlr_scene_optimized_blur_set_size(m->blur_layer, m->m.width, m->m.height);
 		}
 

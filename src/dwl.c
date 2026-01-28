@@ -17,7 +17,6 @@
 
 /* function declarations */
 static void buttonpress(struct wl_listener *listener, void *data);
-static void chvt(const Arg *arg);
 void checkidleinhibitor(struct wlr_surface *exclude);
 static void cleanup(void);
 static void cleanuplisteners(void);
@@ -31,15 +30,11 @@ static void destroyidleinhibitor(struct wl_listener *listener, void *data);
 static void gpureset(struct wl_listener *listener, void *data);
 static void handlesig(int signo);
 static void inputdevice(struct wl_listener *listener, void *data);
-static void killclient(const Arg *arg);
-static void moveresize(const Arg *arg);
-static void quit(const Arg *arg);
 void requestdecorationmode(struct wl_listener *listener, void *data);
 static void run(char *startup_cmd);
 static void setpsel(struct wl_listener *listener, void *data);
 static void setsel(struct wl_listener *listener, void *data);
 static void setup(void);
-static void spawn(const Arg *arg);
 static void urgent(struct wl_listener *listener, void *data);
 
 /* variables - definitions for extern declarations in dwl.h */
@@ -144,9 +139,6 @@ static struct wl_listener xwayland_ready = {.notify = xwaylandready};
 struct wlr_xwayland *xwayland;
 #endif
 
-/* configuration, allows nested code to access above variables */
-#include "config.h"
-
 /* attempt to encapsulate suck into one file */
 #include "client.h"
 
@@ -158,7 +150,8 @@ buttonpress(struct wl_listener *listener, void *data)
 	struct wlr_keyboard *keyboard;
 	uint32_t mods;
 	Client *c;
-	const Button *b;
+	const CfgButton *b;
+	size_t i;
 
 	wlr_idle_notifier_v1_notify_activity(idle_notifier, seat);
 
@@ -176,7 +169,7 @@ buttonpress(struct wl_listener *listener, void *data)
 
 		keyboard = wlr_seat_get_keyboard(seat);
 		mods = keyboard ? wlr_keyboard_get_modifiers(keyboard) : 0;
-		for (b = buttons; b < END(buttons); b++) {
+		for (i = 0, b = cfg.buttons; i < cfg.buttons_count; i++, b++) {
 			if (CLEANMASK(mods) == CLEANMASK(b->mod) &&
 					event->button == b->button && b->func) {
 				b->func(&b->arg);
@@ -219,7 +212,7 @@ checkidleinhibitor(struct wlr_surface *exclude)
 	wl_list_for_each(inhibitor, &idle_inhibit_mgr->inhibitors, link) {
 		struct wlr_surface *surface = wlr_surface_get_root_surface(inhibitor->surface);
 		struct wlr_scene_tree *tree = surface->data;
-		if (exclude != surface && (bypass_surface_visibility || (!tree
+		if (exclude != surface && (cfg.bypass_surface_visibility || (!tree
 				|| wlr_scene_node_coords(&tree->node, &unused_lx, &unused_ly)))) {
 			inhibited = 1;
 			break;
@@ -353,36 +346,36 @@ createpointer(struct wlr_pointer *pointer)
 			&& (device = wlr_libinput_get_device_handle(&pointer->base))) {
 
 		if (libinput_device_config_tap_get_finger_count(device)) {
-			libinput_device_config_tap_set_enabled(device, tap_to_click);
-			libinput_device_config_tap_set_drag_enabled(device, tap_and_drag);
-			libinput_device_config_tap_set_drag_lock_enabled(device, drag_lock);
-			libinput_device_config_tap_set_button_map(device, button_map);
+			libinput_device_config_tap_set_enabled(device, cfg.tap_to_click);
+			libinput_device_config_tap_set_drag_enabled(device, cfg.tap_and_drag);
+			libinput_device_config_tap_set_drag_lock_enabled(device, cfg.drag_lock);
+			libinput_device_config_tap_set_button_map(device, cfg.button_map);
 		}
 
 		if (libinput_device_config_scroll_has_natural_scroll(device))
-			libinput_device_config_scroll_set_natural_scroll_enabled(device, natural_scrolling);
+			libinput_device_config_scroll_set_natural_scroll_enabled(device, cfg.natural_scrolling);
 
 		if (libinput_device_config_dwt_is_available(device))
-			libinput_device_config_dwt_set_enabled(device, disable_while_typing);
+			libinput_device_config_dwt_set_enabled(device, cfg.disable_while_typing);
 
 		if (libinput_device_config_left_handed_is_available(device))
-			libinput_device_config_left_handed_set(device, left_handed);
+			libinput_device_config_left_handed_set(device, cfg.left_handed);
 
 		if (libinput_device_config_middle_emulation_is_available(device))
-			libinput_device_config_middle_emulation_set_enabled(device, middle_button_emulation);
+			libinput_device_config_middle_emulation_set_enabled(device, cfg.middle_button_emulation);
 
 		if (libinput_device_config_scroll_get_methods(device) != LIBINPUT_CONFIG_SCROLL_NO_SCROLL)
-			libinput_device_config_scroll_set_method(device, scroll_method);
+			libinput_device_config_scroll_set_method(device, cfg.scroll_method);
 
 		if (libinput_device_config_click_get_methods(device) != LIBINPUT_CONFIG_CLICK_METHOD_NONE)
-			libinput_device_config_click_set_method(device, click_method);
+			libinput_device_config_click_set_method(device, cfg.click_method);
 
 		if (libinput_device_config_send_events_get_modes(device))
-			libinput_device_config_send_events_set_mode(device, send_events_mode);
+			libinput_device_config_send_events_set_mode(device, cfg.send_events_mode);
 
 		if (libinput_device_config_accel_is_available(device)) {
-			libinput_device_config_accel_set_profile(device, accel_profile);
-			libinput_device_config_accel_set_speed(device, accel_speed);
+			libinput_device_config_accel_set_profile(device, cfg.accel_profile);
+			libinput_device_config_accel_set_speed(device, cfg.accel_speed);
 		}
 	}
 
@@ -489,8 +482,9 @@ keybinding(uint32_t mods, xkb_keysym_t sym)
 	 * processing keys, rather than passing them on to the client for its own
 	 * processing.
 	 */
-	const Key *k;
-	for (k = keys; k < END(keys); k++) {
+	const CfgKey *k;
+	size_t i;
+	for (i = 0, k = cfg.keys; i < cfg.keys_count; i++, k++) {
 		if (CLEANMASK(mods) == CLEANMASK(k->mod)
 				&& xkb_keysym_to_lower(sym) == xkb_keysym_to_lower(k->keysym)
 				&& k->func) {
@@ -647,7 +641,7 @@ setup(void)
 	for (i = 0; i < (int)LENGTH(sig); i++)
 		sigaction(sig[i], &sa, NULL);
 
-	wlr_log_init(log_level, NULL);
+	wlr_log_init(cfg.log_level, NULL);
 
 	/* The Wayland display is managed by libwayland. It handles accepting
 	 * clients from the Unix socket, manging Wayland globals, and so on. */
@@ -663,15 +657,15 @@ setup(void)
 
 	/* Initialize the scene graph used to lay out windows */
 	scene = wlr_scene_create();
-	root_bg = wlr_scene_rect_create(&scene->tree, 0, 0, rootcolor);
+	root_bg = wlr_scene_rect_create(&scene->tree, 0, 0, cfg.rootcolor);
 	for (i = 0; i < NUM_LAYERS; i++)
 		layers[i] = wlr_scene_tree_create(&scene->tree);
 	drag_icon = wlr_scene_tree_create(&scene->tree);
 	wlr_scene_node_place_below(&drag_icon->node, &layers[LyrBlock]->node);
 
-	if (blur) {
-		wlr_scene_set_blur_data(scene, blur_data.num_passes, (int)blur_data.radius,
-			blur_data.noise, blur_data.brightness, blur_data.contrast, blur_data.saturation);
+	if (cfg.blur) {
+		wlr_scene_set_blur_data(scene, cfg.blur_data.num_passes, (int)cfg.blur_data.radius,
+			cfg.blur_data.noise, cfg.blur_data.brightness, cfg.blur_data.contrast, cfg.blur_data.saturation);
 	}
 
 	/* Autocreates a renderer, either Pixman, GLES2 or Vulkan for us. The user
@@ -846,6 +840,9 @@ setup(void)
 	wl_signal_add(&output_mgr->events.apply, &output_mgr_apply);
 	wl_signal_add(&output_mgr->events.test, &output_mgr_test);
 
+	/* Register SIGHUP for config reload */
+	wl_event_loop_add_signal(event_loop, SIGHUP, config_reload_handler, NULL);
+
 	/* Make sure XWayland clients don't connect to the parent X server,
 	 * e.g when running in the x11 backend or the wayland backend and the
 	 * compositor has Xwayland support */
@@ -890,7 +887,7 @@ urgent(struct wl_listener *listener, void *data)
 	printstatus();
 
 	if (client_surface(c)->mapped) {
-		client_set_border_color(c, urgentcolor);
+		client_set_border_color(c, cfg.urgentcolor);
 
 		update_client_focus_decorations(c, 1, 1);
 	}
@@ -951,7 +948,7 @@ createnotifyx11(struct wl_listener *listener, void *data)
 	c = xsurface->data = ecalloc(1, sizeof(*c));
 	c->surface.xwayland = xsurface;
 	c->type = X11;
-	c->bw = client_is_unmanaged(c) ? 0 : borderpx;
+	c->bw = client_is_unmanaged(c) ? 0 : cfg.borderpx;
 	/* Listen to the various events it can emit */
 	LISTEN(&xsurface->events.associate, &c->associate, associatex11);
 	LISTEN(&xsurface->events.destroy, &c->destroy, destroynotify);
@@ -983,7 +980,7 @@ sethints(struct wl_listener *listener, void *data)
 	printstatus();
 
 	if (c->isurgent && surface && surface->mapped)
-		client_set_border_color(c, urgentcolor);
+		client_set_border_color(c, cfg.urgentcolor);
 }
 
 void
@@ -1007,13 +1004,13 @@ int
 main(int argc, char *argv[])
 {
 	char *startup_cmd = NULL;
-	int c;
+	int c, debug = 0;
 
 	while ((c = getopt(argc, argv, "s:hdv")) != -1) {
 		if (c == 's')
 			startup_cmd = optarg;
 		else if (c == 'd')
-			log_level = WLR_DEBUG;
+			debug = 1;
 		else if (c == 'v')
 			die("dwl " VERSION);
 		else
@@ -1025,9 +1022,13 @@ main(int argc, char *argv[])
 	/* Wayland requires XDG_RUNTIME_DIR for creating its communications socket */
 	if (!getenv("XDG_RUNTIME_DIR"))
 		die("XDG_RUNTIME_DIR must be set");
+	config_init();
+	if (debug)
+		cfg.log_level = WLR_DEBUG;
 	setup();
 	run(startup_cmd);
 	cleanup();
+	config_free();
 	return EXIT_SUCCESS;
 
 usage:

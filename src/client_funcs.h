@@ -29,4 +29,7 @@ void setfloating(Client *c, int floating);
 void setfullscreen(Client *c, int fullscreen);
 void setmon(Client *c, Monitor *m);
 
+/* Update all clients after config reload */
+void config_update_all_clients(void);
+
 #endif /* CLIENT_FUNCS_H */

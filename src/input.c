@@ -22,18 +22,24 @@ createkeyboardgroup(void)
 	KeyboardGroup *group = ecalloc(1, sizeof(*group));
 	struct xkb_context *context;
 	struct xkb_keymap *keymap;
+	struct xkb_rule_names xkb_names;
 
 	group->wlr_group = wlr_keyboard_group_create();
 	group->wlr_group->data = group;
 
 	/* Prepare an XKB keymap and assign it to the keyboard group. */
 	context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
-	if (!(keymap = xkb_keymap_new_from_names(context, &xkb_rules,
+	xkb_names.rules = cfg.xkb_rules;
+	xkb_names.model = cfg.xkb_model;
+	xkb_names.layout = cfg.xkb_layout;
+	xkb_names.variant = cfg.xkb_variant;
+	xkb_names.options = cfg.xkb_options;
+	if (!(keymap = xkb_keymap_new_from_names(context, &xkb_names,
 				XKB_KEYMAP_COMPILE_NO_FLAGS)))
 		die("failed to compile keymap");
 
 	wlr_keyboard_set_keymap(&group->wlr_group->keyboard, keymap);
-	if (numlock) {
+	if (cfg.numlock) {
 		xkb_mod_index_t mod_index = xkb_keymap_mod_get_index(keymap, XKB_MOD_NAME_NUM);
 		if (mod_index != XKB_MOD_INVALID)
 			locked_mods |= (uint32_t)1 << mod_index;
@@ -45,7 +51,7 @@ createkeyboardgroup(void)
 	xkb_keymap_unref(keymap);
 	xkb_context_unref(context);
 
-	wlr_keyboard_set_repeat_info(&group->wlr_group->keyboard, repeat_rate, repeat_delay);
+	wlr_keyboard_set_repeat_info(&group->wlr_group->keyboard, cfg.repeat_rate, cfg.repeat_delay);
 
 	/* Set up listeners for keyboard events */
 	LISTEN(&group->wlr_group->keyboard.events.key, &group->key, keypress);
