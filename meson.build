@@ -24,7 +24,7 @@ xkbcommon  = dependency('xkbcommon')
 libinput   = dependency('libinput')
 math       = cc.find_library('m')
 
-base_deps = [wlroots, scenefx, wayland, xkbcommon, libinput, math]
+base_deps = [scenefx, wlroots, wayland, xkbcommon, libinput, math]
 
 # XWayland (optional)
 xwayland_option = get_option('xwayland')
