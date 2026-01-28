@@ -15,6 +15,8 @@
   xorg,
   scenefx,
   libGL,
+  enableXWayland ? false,
+  debug ? false,
 }:
 
 stdenv.mkDerivation {
@@ -44,10 +46,12 @@ stdenv.mkDerivation {
   ];
 
   mesonFlags = [
-    "-Dxwayland=disabled"
+    (lib.mesonEnable "xwayland" enableXWayland)
+    (lib.mesonBool "asan" debug)
+    (lib.mesonBool "debug" debug)
   ];
 
-  passthru.providedSessions = ["macwc"];
+  passthru.providedSessions = [ "macwc" ];
 
   meta = with lib; {
     description = "macwc - Wayland compositor with scenefx effects";

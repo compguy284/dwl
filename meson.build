@@ -54,6 +54,17 @@ add_project_arguments(
   language: 'c',
 )
 
+# --- AddressSanitizer ---
+if get_option('asan')
+  add_project_arguments(
+    '-fsanitize=address',
+    '-fno-omit-frame-pointer',
+    '-fno-optimize-sibling-calls',
+    language: 'c',
+  )
+  add_project_link_arguments('-fsanitize=address', language: 'c')
+endif
+
 # --- Protocol generation ---
 wayland_scanner_dep = dependency('wayland-scanner', native: true)
 wayland_scanner = find_program(

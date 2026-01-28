@@ -1,2 +1,4 @@
 option('xwayland', type: 'feature', value: 'disabled',
   description: 'XWayland support')
+option('asan', type: 'boolean', value: false,
+  description: 'Enable AddressSanitizer')
