@@ -480,7 +480,8 @@ scroller(Monitor *m)
 			int right_visible = (win_x + win_width <= m->w.x + m->w.width);
 			int border_left = left_visible ? c->bw : 0;
 			int border_right = right_visible ? c->bw : 0;
-			int total_vis_width = visible_width + border_left + border_right;
+			int total_vis_width = visible_width;
+			int visible_content = visible_width - border_left - border_right;
 			int radius = c->corner_radius + c->bw;
 
 			/* Configure shadow for visible portion - no blur extension on clipped edges */
@@ -508,12 +509,14 @@ scroller(Monitor *m)
 			/* Get base clip to find xdg geometry offset */
 			client_get_clip(c, &clip);
 
-			/* Position scene at monitor edge (minus left border if visible) */
-			wlr_scene_node_set_position(&c->scene->node, render_x - border_left, win_y);
+			/* Position scene at the visible window edge */
+			wlr_scene_node_set_position(&c->scene->node, render_x, win_y);
 
-			/* Calculate final clip: crop to visible_width starting at content_offset */
-			clip.x += content_offset;
-			clip.width = visible_width;
+			/* Calculate final clip: crop to visible content area.
+			 * content_offset is from the window edge (including border),
+			 * so subtract c->bw to get the offset within the surface. */
+			clip.x += content_offset > (int)c->bw ? content_offset - c->bw : 0;
+			clip.width = visible_content;
 
 			/* Position scene_surface to compensate for clip offset, plus border inset.
 			 * wlr_scene_subsurface_tree_set_clip shows the clipped region at its
@@ -546,7 +549,7 @@ scroller(Monitor *m)
 						right_visible ? radius : 0,  /* bottom_right */
 						left_visible ? radius : 0    /* bottom_left */
 					),
-					.area = { border_left, c->bw, visible_width, win_height - 2 * c->bw }
+					.area = { border_left, c->bw, visible_content, win_height - 2 * c->bw }
 				});
 			} else {
 				/* Fall back to regular borders */
