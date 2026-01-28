@@ -68,6 +68,7 @@ struct wlr_virtual_keyboard_manager_v1 *virtual_keyboard_mgr;
 struct wlr_virtual_pointer_manager_v1 *virtual_pointer_mgr;
 struct wlr_cursor_shape_manager_v1 *cursor_shape_mgr;
 struct wlr_output_power_manager_v1 *power_mgr;
+struct wlr_foreign_toplevel_manager_v1 *foreign_toplevel_mgr;
 
 struct wlr_pointer_constraints_v1 *pointer_constraints;
 struct wlr_relative_pointer_manager_v1 *relative_pointer_mgr;
@@ -839,6 +840,8 @@ setup(void)
 	output_mgr = wlr_output_manager_v1_create(dpy);
 	wl_signal_add(&output_mgr->events.apply, &output_mgr_apply);
 	wl_signal_add(&output_mgr->events.test, &output_mgr_test);
+
+	foreign_toplevel_mgr = wlr_foreign_toplevel_manager_v1_create(dpy);
 
 	/* Register SIGHUP for config reload */
 	wl_event_loop_add_signal(event_loop, SIGHUP, config_reload_handler, NULL);

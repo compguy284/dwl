@@ -7,6 +7,44 @@
 #include "layout.h"
 #include "visual.h"
 
+/* Foreign toplevel request handlers */
+static void
+foreign_toplevel_request_maximize(struct wl_listener *listener, void *data)
+{
+	/* macwc doesn't support maximization - ignore the request */
+}
+
+static void
+foreign_toplevel_request_minimize(struct wl_listener *listener, void *data)
+{
+	/* macwc doesn't support minimization - reject by setting minimized=0 */
+	Client *c = wl_container_of(listener, c, foreign_toplevel_request_minimize);
+	if (c->foreign_toplevel)
+		wlr_foreign_toplevel_handle_v1_set_minimized(c->foreign_toplevel, 0);
+}
+
+static void
+foreign_toplevel_request_activate(struct wl_listener *listener, void *data)
+{
+	Client *c = wl_container_of(listener, c, foreign_toplevel_request_activate);
+	focusclient(c, 1);
+}
+
+static void
+foreign_toplevel_request_fullscreen(struct wl_listener *listener, void *data)
+{
+	Client *c = wl_container_of(listener, c, foreign_toplevel_request_fullscreen);
+	struct wlr_foreign_toplevel_handle_v1_fullscreen_event *event = data;
+	setfullscreen(c, event->fullscreen);
+}
+
+static void
+foreign_toplevel_request_close(struct wl_listener *listener, void *data)
+{
+	Client *c = wl_container_of(listener, c, foreign_toplevel_request_close);
+	client_send_close(c);
+}
+
 void
 applybounds(Client *c, struct wlr_box *bbox)
 {
@@ -238,6 +276,24 @@ mapnotify(struct wl_listener *listener, void *data)
 	/* Assign unique scroller column for new windows */
 	c->scroller_col = scroller_col_counter++;
 
+	/* Create foreign toplevel handle for external clients (taskbars, docks, etc.) */
+	c->foreign_toplevel = wlr_foreign_toplevel_handle_v1_create(foreign_toplevel_mgr);
+	if (c->foreign_toplevel) {
+		c->foreign_toplevel->data = c;
+		wlr_foreign_toplevel_handle_v1_set_title(c->foreign_toplevel, client_get_title(c));
+		wlr_foreign_toplevel_handle_v1_set_app_id(c->foreign_toplevel, client_get_appid(c));
+		LISTEN(&c->foreign_toplevel->events.request_maximize,
+		       &c->foreign_toplevel_request_maximize, foreign_toplevel_request_maximize);
+		LISTEN(&c->foreign_toplevel->events.request_minimize,
+		       &c->foreign_toplevel_request_minimize, foreign_toplevel_request_minimize);
+		LISTEN(&c->foreign_toplevel->events.request_activate,
+		       &c->foreign_toplevel_request_activate, foreign_toplevel_request_activate);
+		LISTEN(&c->foreign_toplevel->events.request_fullscreen,
+		       &c->foreign_toplevel_request_fullscreen, foreign_toplevel_request_fullscreen);
+		LISTEN(&c->foreign_toplevel->events.request_close,
+		       &c->foreign_toplevel_request_close, foreign_toplevel_request_close);
+	}
+
 	/* Set initial monitor, floating status, and focus:
 	 * we always consider floating, clients that have parent and thus
 	 * we set the same monitor as its parent.
@@ -248,6 +304,10 @@ mapnotify(struct wl_listener *listener, void *data)
 	} else {
 		applyrules(c);
 	}
+
+	/* Notify foreign toplevel of the output it's on */
+	if (c->foreign_toplevel && c->mon)
+		wlr_foreign_toplevel_handle_v1_output_enter(c->foreign_toplevel, c->mon->wlr_output);
 
 	printstatus();
 
@@ -351,6 +411,8 @@ void
 setfullscreen(Client *c, int fullscreen)
 {
 	c->isfullscreen = fullscreen;
+	if (c->foreign_toplevel)
+		wlr_foreign_toplevel_handle_v1_set_fullscreen(c->foreign_toplevel, fullscreen);
 	if (!c->mon || !client_surface(c)->mapped)
 		return;
 	c->bw = fullscreen ? 0 : cfg.borderpx;
@@ -384,6 +446,14 @@ setmon(Client *c, Monitor *m)
 		return;
 	c->mon = m;
 	c->prev = c->geom;
+
+	/* Update foreign toplevel output association */
+	if (c->foreign_toplevel) {
+		if (oldmon)
+			wlr_foreign_toplevel_handle_v1_output_leave(c->foreign_toplevel, oldmon->wlr_output);
+		if (m)
+			wlr_foreign_toplevel_handle_v1_output_enter(c->foreign_toplevel, m->wlr_output);
+	}
 
 	/* Scene graph sends surface leave/enter events on move and resize */
 	if (oldmon)
@@ -420,6 +490,17 @@ unmapnotify(struct wl_listener *listener, void *data)
 		wl_list_remove(&c->flink);
 	}
 
+	/* Destroy foreign toplevel handle */
+	if (c->foreign_toplevel) {
+		wl_list_remove(&c->foreign_toplevel_request_maximize.link);
+		wl_list_remove(&c->foreign_toplevel_request_minimize.link);
+		wl_list_remove(&c->foreign_toplevel_request_activate.link);
+		wl_list_remove(&c->foreign_toplevel_request_fullscreen.link);
+		wl_list_remove(&c->foreign_toplevel_request_close.link);
+		wlr_foreign_toplevel_handle_v1_destroy(c->foreign_toplevel);
+		c->foreign_toplevel = NULL;
+	}
+
 	wlr_scene_node_destroy(&c->scene->node);
 	printstatus();
 	motionnotify(0, NULL, 0, 0, 0, 0);
@@ -429,6 +510,8 @@ void
 updatetitle(struct wl_listener *listener, void *data)
 {
 	Client *c = wl_container_of(listener, c, set_title);
+	if (c->foreign_toplevel)
+		wlr_foreign_toplevel_handle_v1_set_title(c->foreign_toplevel, client_get_title(c));
 	if (c == focustop(c->mon))
 		printstatus();
 }

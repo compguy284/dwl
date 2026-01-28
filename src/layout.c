@@ -154,6 +154,10 @@ focusclient(Client *c, int lift)
 
 			update_client_focus_decorations(c, 1, 0);
 		}
+
+		/* Update foreign toplevel activated state */
+		if (c->foreign_toplevel)
+			wlr_foreign_toplevel_handle_v1_set_activated(c->foreign_toplevel, 1);
 	}
 
 	/* Deactivate old client if focus is changing */
@@ -175,6 +179,10 @@ focusclient(Client *c, int lift)
 			update_client_focus_decorations(old_c, 0, 0);
 
 			client_activate_surface(old, 0);
+
+			/* Update foreign toplevel deactivated state */
+			if (old_c->foreign_toplevel)
+				wlr_foreign_toplevel_handle_v1_set_activated(old_c->foreign_toplevel, 0);
 		}
 	}
 	printstatus();

@@ -69,6 +69,7 @@
 #include <wlr/types/wlr_xdg_decoration_v1.h>
 #include <wlr/types/wlr_xdg_output_v1.h>
 #include <wlr/types/wlr_xdg_shell.h>
+#include <wlr/types/wlr_foreign_toplevel_management_v1.h>
 #include <wlr/util/log.h>
 #include <wlr/util/region.h>
 #include <xkbcommon/xkbcommon.h>
@@ -142,6 +143,12 @@ typedef struct {
 	int has_shadow_enabled;
 	struct wlr_scene_rect *round_border;
 	int scroller_col; /* Column index for scroller layout grouping */
+	struct wlr_foreign_toplevel_handle_v1 *foreign_toplevel;
+	struct wl_listener foreign_toplevel_request_maximize;
+	struct wl_listener foreign_toplevel_request_minimize;
+	struct wl_listener foreign_toplevel_request_activate;
+	struct wl_listener foreign_toplevel_request_fullscreen;
+	struct wl_listener foreign_toplevel_request_close;
 } Client;
 
 typedef struct {
@@ -247,6 +254,7 @@ extern struct wlr_virtual_keyboard_manager_v1 *virtual_keyboard_mgr;
 extern struct wlr_virtual_pointer_manager_v1 *virtual_pointer_mgr;
 extern struct wlr_cursor_shape_manager_v1 *cursor_shape_mgr;
 extern struct wlr_output_power_manager_v1 *power_mgr;
+extern struct wlr_foreign_toplevel_manager_v1 *foreign_toplevel_mgr;
 
 extern struct wlr_pointer_constraints_v1 *pointer_constraints;
 extern struct wlr_relative_pointer_manager_v1 *relative_pointer_mgr;
