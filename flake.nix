@@ -25,7 +25,7 @@
         { pkgs, config, ... }:
         let
           macwc = pkgs.callPackage ./nix/default.nix {
-            scenefx = inputs.scenefx.packages.${system.stdenv.hostPlatform.system}.default;
+            scenefx = inputs.scenefx.packages.${pkgs.stdenv.hostPlatform.system}.default;
           };
           shellOverride = old: {
             nativeBuildInputs = old.nativeBuildInputs ++ [ ];
