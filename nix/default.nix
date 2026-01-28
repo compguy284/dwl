@@ -13,6 +13,7 @@
 , libdrm
 , xorg
 , scenefx
+, libGL
 }:
 
 stdenv.mkDerivation {
@@ -38,6 +39,7 @@ stdenv.mkDerivation {
     xorg.libxcb
     xorg.xcbutilwm
     scenefx
+    libGL
   ];
 
   mesonFlags = [
