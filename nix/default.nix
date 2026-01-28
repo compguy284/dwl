@@ -47,6 +47,8 @@ stdenv.mkDerivation {
     "-Dxwayland=disabled"
   ];
 
+  passthru.providedSessions = ["macwc"];
+
   meta = with lib; {
     description = "macwc - Wayland compositor with scenefx effects";
     homepage = "https://codeberg.org/dwl/dwl"; # upstream attribution
