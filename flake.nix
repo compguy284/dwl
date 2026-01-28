@@ -3,7 +3,10 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    scenefx.url = "github:wlrfx/scenefx";
+    scenefx = {
+      url = "github:wlrfx/scenefx";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
