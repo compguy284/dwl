@@ -191,4 +191,13 @@ int config_reload_handler(int signal_number, void *data);
 /* Free all dynamically allocated config resources */
 void config_free(void);
 
+/* Look up a bindable function by name, returns function pointer or NULL */
+void (*lookup_func(const char *name))(const Arg *);
+
+/* Reverse lookup: function pointer to name string, returns NULL if not found */
+const char *lookup_func_name(void (*func)(const Arg *));
+
+/* Set a single config value at runtime (key/value strings), returns 0 on success */
+int config_set_value(const char *key, const char *value);
+
 #endif /* CONFIG_PARSER_H */

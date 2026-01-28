@@ -108,6 +108,7 @@ src = files(
   'src/layout.c',
   'src/monitor.c',
   'src/config_parser.c',
+  'src/ipc.c',
 )
 
 # --- Build ---
@@ -115,6 +116,11 @@ executable('macwc',
   src, version, protocol_headers,
   dependencies: base_deps,
   include_directories: 'src',
+  install: true,
+)
+
+executable('macwcctl',
+  'src/macwcctl.c',
   install: true,
 )
 

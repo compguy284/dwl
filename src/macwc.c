@@ -9,6 +9,7 @@
 #include "input.h"
 #include "layout.h"
 #include "monitor.h"
+#include "ipc.h"
 #include "version.h"
 
 #ifndef VERSION
@@ -227,6 +228,7 @@ void
 cleanup(void)
 {
 	cleanuplisteners();
+	ipc_cleanup();
 #ifdef XWAYLAND
 	wlr_xwayland_destroy(xwayland);
 	xwayland = NULL;
@@ -562,6 +564,9 @@ run(char *startup_cmd)
 	 * master, etc */
 	if (!wlr_backend_start(backend))
 		die("startup: backend_start");
+
+	/* Initialize IPC server before forking startup command so children inherit MACWC_SOCK */
+	ipc_init();
 
 	/* Now that the socket exists and the backend is started, run the startup command */
 	if (startup_cmd) {

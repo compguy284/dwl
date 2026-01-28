@@ -117,12 +117,23 @@ static const FuncEntry func_table[] = {
 	{ NULL, NULL }
 };
 
-static void (*lookup_func(const char *name))(const Arg *)
+void (*lookup_func(const char *name))(const Arg *)
 {
 	const FuncEntry *f;
 	for (f = func_table; f->name; f++) {
 		if (strcmp(f->name, name) == 0)
 			return f->func;
+	}
+	return NULL;
+}
+
+const char *
+lookup_func_name(void (*func)(const Arg *))
+{
+	const FuncEntry *f;
+	for (f = func_table; f->name; f++) {
+		if (f->func == func)
+			return f->name;
 	}
 	return NULL;
 }
@@ -1230,4 +1241,36 @@ config_free(void)
 	free(cfg.menucmd);
 	free(cfg.shadow_ignore_list);
 	memset(&cfg, 0, sizeof(cfg));
+}
+
+int
+config_set_value(const char *key, const char *value)
+{
+	char line[4096];
+	Monitor *m;
+	int ret;
+
+	snprintf(line, sizeof(line), "%s = %s", key, value);
+	ret = parse_line(line, 0);
+	if (ret < 0)
+		return ret;
+
+	/* Apply visual changes */
+	if (root_bg)
+		wlr_scene_rect_set_color(root_bg, cfg.rootcolor);
+
+	if (cfg.blur && scene) {
+		wlr_scene_set_blur_data(scene, cfg.blur_data.num_passes,
+			(int)cfg.blur_data.radius, cfg.blur_data.noise,
+			cfg.blur_data.brightness, cfg.blur_data.contrast,
+			cfg.blur_data.saturation);
+	}
+
+	config_update_all_clients();
+
+	wl_list_for_each(m, &mons, link) {
+		arrange(m);
+	}
+
+	return 0;
 }
