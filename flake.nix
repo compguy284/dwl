@@ -3,6 +3,7 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    flake-parts.url = "github:hercules-ci/flake-parts";
     scenefx = {
       url = "github:wlrfx/scenefx";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -10,68 +11,25 @@
   };
 
   outputs =
-    {
-      self,
-      nixpkgs,
-      scenefx,
-    }:
-    let
+    { self, flake-parts, ... }@inputs:
+    flake-parts.lib.mkFlake { inherit inputs; } {
       systems = [
         "x86_64-linux"
         "aarch64-linux"
       ];
-      forAllSystems = nixpkgs.lib.genAttrs systems;
-    in
-    {
-      packages = forAllSystems (
-        system:
-        let
-          pkgs = nixpkgs.legacyPackages.${system};
-        in
+
+      perSystem =
+        { pkgs, system, ... }:
         {
-          dwl = pkgs.callPackage ./nix/default.nix {
-            scenefx = scenefx.packages.${system}.default;
-          };
-
-          default = self.packages.${system}.dwl;
-        }
-      );
-
-      nixosModules.default = { config, lib, pkgs, ... }:
-        let
-          cfg = config.programs.dwl;
-        in
-        {
-          options.programs.dwl = {
-            enable = lib.mkEnableOption "dwl - dwm for Wayland";
-
-            package = lib.mkOption {
-              type = lib.types.package;
-              default = self.packages.${pkgs.system}.default;
-              defaultText = lib.literalExpression "inputs.dwl.packages.\${system}.default";
-              description = "The dwl package to use.";
+          packages = {
+            dwl = pkgs.callPackage ./nix/default.nix {
+              scenefx = inputs.scenefx.packages.${system}.default;
             };
+
+            default = self.packages.${system}.dwl;
           };
 
-          config = lib.mkIf cfg.enable {
-            environment.systemPackages = [ cfg.package ];
-
-            # Register as a wayland session for display managers
-            services.displayManager.sessionPackages = [ cfg.package ];
-
-            # Ensure wayland/graphics stack is available
-            hardware.graphics.enable = lib.mkDefault true;
-          };
-        };
-
-      devShells = forAllSystems (
-        system:
-        let
-          pkgs = nixpkgs.legacyPackages.${system};
-          scenefxPkg = scenefx.packages.${system}.default;
-        in
-        {
-          default = pkgs.mkShell {
+          devShells.default = pkgs.mkShell {
             buildInputs = with pkgs; [
               # Core dependencies
               wlroots_0_19
@@ -89,7 +47,7 @@
               xwayland
 
               # SceneFX
-              scenefxPkg
+              inputs.scenefx.packages.${system}.default
               libGL
 
               # Build tools
@@ -103,7 +61,10 @@
               echo "Run 'meson setup build && meson compile -C build' to build"
             '';
           };
-        }
-      );
+        };
+
+      flake = {
+        nixosModules.default = import ./nix/module.nix { inherit self; };
+      };
     };
 }
