@@ -1,19 +1,20 @@
-{ lib
-, stdenv
-, meson
-, ninja
-, pkg-config
-, wayland-scanner
-, wlroots_0_19
-, wayland
-, wayland-protocols
-, libxkbcommon
-, libinput
-, pixman
-, libdrm
-, xorg
-, scenefx
-, libGL
+{
+  lib,
+  stdenv,
+  meson,
+  ninja,
+  pkg-config,
+  wayland-scanner,
+  wlroots_0_19,
+  wayland,
+  wayland-protocols,
+  libxkbcommon,
+  libinput,
+  pixman,
+  libdrm,
+  xorg,
+  scenefx,
+  libGL,
 }:
 
 stdenv.mkDerivation {

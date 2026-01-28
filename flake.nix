@@ -13,58 +13,39 @@
   outputs =
     { self, flake-parts, ... }@inputs:
     flake-parts.lib.mkFlake { inherit inputs; } {
+      imports = [
+        inputs.flake-parts.flakeModules.easyOverlay
+      ];
+
+      flake = {
+        nixosModules.macwc = import ./nix/module.nix { inherit self; };
+      };
+
+      perSystem =
+        { pkgs, config, ... }:
+        let
+          macwc = pkgs.callPackage ./nix/default.nix {
+            scenefx = inputs.scenefx.packages.${system.stdenv.hostPlatform.system}.default;
+          };
+          shellOverride = old: {
+            nativeBuildInputs = old.nativeBuildInputs ++ [ ];
+            buildInputs = old.buildInputs ++ [ ];
+          };
+        in
+        {
+          packages.default = macwc;
+          overlayAttrs = {
+            inherit (config.packages) macwc;
+          };
+          packages = {
+            inherit macwc;
+          };
+          devShells.default = macwc.overrideAttrs shellOverride;
+          formatter = pkgs.nixfmt;
+        };
       systems = [
         "x86_64-linux"
         "aarch64-linux"
       ];
-
-      perSystem =
-        { pkgs, system, ... }:
-        {
-          packages = {
-            macwc = pkgs.callPackage ./nix/default.nix {
-              scenefx = inputs.scenefx.packages.${system}.default;
-            };
-
-            default = self.packages.${system}.macwc;
-          };
-
-          devShells.default = pkgs.mkShell {
-            buildInputs = with pkgs; [
-              # Core dependencies
-              wlroots_0_19
-              wayland
-              wayland-protocols
-              wayland-scanner
-              libxkbcommon
-              libinput
-              pixman
-              libdrm
-
-              # XWayland support
-              xorg.libxcb
-              xorg.xcbutilwm
-              xwayland
-
-              # SceneFX
-              inputs.scenefx.packages.${system}.default
-              libGL
-
-              # Build tools
-              pkg-config
-              meson
-              ninja
-            ];
-
-            shellHook = ''
-              echo "macwc development shell (with scenefx)"
-              echo "Run 'meson setup build && meson compile -C build' to build"
-            '';
-          };
-        };
-
-      flake = {
-        nixosModules.default = import ./nix/module.nix { inherit self; };
-      };
     };
 }

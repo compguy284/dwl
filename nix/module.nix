@@ -1,5 +1,10 @@
 { self }:
-{ config, lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 let
   cfg = config.programs.macwc;
 in
@@ -9,8 +14,7 @@ in
 
     package = lib.mkOption {
       type = lib.types.package;
-      default = self.packages.${pkgs.system}.default;
-      defaultText = lib.literalExpression "inputs.macwc.packages.\${system}.default";
+      default = self.packages.${pkgs.stdenv.hostPlatform.system}.macwc;
       description = "The macwc package to use.";
     };
   };
