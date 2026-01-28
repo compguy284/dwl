@@ -17,7 +17,7 @@
 }:
 
 stdenv.mkDerivation {
-  pname = "dwl";
+  pname = "macwc";
   version = "0.8-dev";
   src = ./..;
 
@@ -47,8 +47,8 @@ stdenv.mkDerivation {
   ];
 
   meta = with lib; {
-    description = "dwm for Wayland with scenefx effects";
-    homepage = "https://codeberg.org/dwl/dwl";
+    description = "macwc - Wayland compositor with scenefx effects";
+    homepage = "https://codeberg.org/dwl/dwl"; # upstream attribution
     license = licenses.gpl3Only;
     platforms = platforms.linux;
   };

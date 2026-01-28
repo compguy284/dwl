@@ -1,17 +1,17 @@
 { self }:
 { config, lib, pkgs, ... }:
 let
-  cfg = config.programs.dwl;
+  cfg = config.programs.macwc;
 in
 {
-  options.programs.dwl = {
-    enable = lib.mkEnableOption "dwl - dwm for Wayland";
+  options.programs.macwc = {
+    enable = lib.mkEnableOption "macwc - Wayland compositor";
 
     package = lib.mkOption {
       type = lib.types.package;
       default = self.packages.${pkgs.system}.default;
-      defaultText = lib.literalExpression "inputs.dwl.packages.\${system}.default";
-      description = "The dwl package to use.";
+      defaultText = lib.literalExpression "inputs.macwc.packages.\${system}.default";
+      description = "The macwc package to use.";
     };
   };
 

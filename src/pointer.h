@@ -5,7 +5,7 @@
 #ifndef POINTER_H
 #define POINTER_H
 
-#include "dwl.h"
+#include "macwc.h"
 
 /* Pointer listener functions */
 void axisnotify(struct wl_listener *listener, void *data);

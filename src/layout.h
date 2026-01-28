@@ -5,7 +5,7 @@
 #ifndef LAYOUT_H
 #define LAYOUT_H
 
-#include "dwl.h"
+#include "macwc.h"
 
 /* Core layout functions */
 void arrange(Monitor *m);

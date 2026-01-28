@@ -13,7 +13,7 @@
 #include <wlr/types/wlr_output.h>
 #include <xkbcommon/xkbcommon.h>
 
-/* Forward declarations - full definitions in dwl.h */
+/* Forward declarations - full definitions in macwc.h */
 typedef union {
 	int i;
 	uint32_t ui;

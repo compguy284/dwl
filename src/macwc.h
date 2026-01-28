@@ -1,9 +1,9 @@
 /*
- * dwl.h - Shared types, macros, and extern declarations
+ * macwc.h - Shared types, macros, and extern declarations
  * See LICENSE file for copyright and license details.
  */
-#ifndef DWL_H
-#define DWL_H
+#ifndef MACWC_H
+#define MACWC_H
 
 #include <limits.h>
 #include <getopt.h>
@@ -288,11 +288,11 @@ void checkidleinhibitor(struct wlr_surface *exclude);
 void requestdecorationmode(struct wl_listener *listener, void *data);
 int keybinding(uint32_t mods, xkb_keysym_t sym);
 
-/* Functions from dwl.c made non-static for config_parser */
+/* Functions from macwc.c made non-static for config_parser */
 void spawn(const Arg *arg);
 void killclient(const Arg *arg);
 void quit(const Arg *arg);
 void moveresize(const Arg *arg);
 void chvt(const Arg *arg);
 
-#endif /* DWL_H */
+#endif /* MACWC_H */

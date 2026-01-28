@@ -1,4 +1,4 @@
-project('dwl', 'c',
+project('macwc', 'c',
   version: '0.8-dev',
   default_options: [
     'warning_level=3',
@@ -87,7 +87,7 @@ endforeach
 
 # --- Sources ---
 src = files(
-  'src/dwl.c',
+  'src/macwc.c',
   'src/util.c',
   'src/visual.c',
   'src/session.c',
@@ -100,7 +100,7 @@ src = files(
 )
 
 # --- Build ---
-executable('dwl',
+executable('macwc',
   src, version, protocol_headers,
   dependencies: base_deps,
   include_directories: 'src',
@@ -108,10 +108,10 @@ executable('dwl',
 )
 
 # --- Install ---
-install_man('dwl.1')
-install_data('dwl.desktop',
+install_man('macwc.1')
+install_data('macwc.desktop',
   install_dir: get_option('datadir') / 'wayland-sessions',
 )
 install_data('config/config',
-  install_dir: get_option('datadir') / 'dwl',
+  install_dir: get_option('datadir') / 'macwc',
 )

@@ -5,7 +5,7 @@
 #ifndef CLIENT_FUNCS_H
 #define CLIENT_FUNCS_H
 
-#include "dwl.h"
+#include "macwc.h"
 
 /* Client geometry and bounds */
 void applybounds(Client *c, struct wlr_box *bbox);

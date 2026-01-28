@@ -1,5 +1,5 @@
 {
-  description = "dwl - dwm for Wayland";
+  description = "macwc - Wayland compositor";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -22,11 +22,11 @@
         { pkgs, system, ... }:
         {
           packages = {
-            dwl = pkgs.callPackage ./nix/default.nix {
+            macwc = pkgs.callPackage ./nix/default.nix {
               scenefx = inputs.scenefx.packages.${system}.default;
             };
 
-            default = self.packages.${system}.dwl;
+            default = self.packages.${system}.macwc;
           };
 
           devShells.default = pkgs.mkShell {
@@ -57,7 +57,7 @@
             ];
 
             shellHook = ''
-              echo "dwl development shell (with scenefx)"
+              echo "macwc development shell (with scenefx)"
               echo "Run 'meson setup build && meson compile -C build' to build"
             '';
           };
