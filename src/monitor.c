@@ -116,7 +116,7 @@ createmon(struct wl_listener *listener, void *data)
 			m->nmaster = r->nmaster;
 			m->lt[0] = &cfg.layouts[r->layout_idx];
 			m->lt[1] = &cfg.layouts[cfg.layouts_count > 1 && r->layout_idx != 1];
-			strncpy(m->ltsymbol, m->lt[m->sellt]->symbol, LENGTH(m->ltsymbol));
+			snprintf(m->ltsymbol, LENGTH(m->ltsymbol), "%s", m->lt[m->sellt]->symbol);
 			wlr_output_state_set_scale(&state, r->scale);
 			wlr_output_state_set_transform(&state, r->rr);
 			break;

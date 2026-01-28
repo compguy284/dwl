@@ -34,7 +34,7 @@ arrange(Monitor *m)
 		wlr_scene_node_set_enabled(&m->blur_layer->node, 1);
 	}
 
-	strncpy(m->ltsymbol, m->lt[m->sellt]->symbol, LENGTH(m->ltsymbol));
+	snprintf(m->ltsymbol, LENGTH(m->ltsymbol), "%s", m->lt[m->sellt]->symbol);
 
 	/* We move all clients (except fullscreen and unmanaged) to LyrTile while
 	 * in floating layout to avoid "real" floating clients be always on top */
@@ -857,7 +857,7 @@ setlayout(const Arg *arg)
 		selmon->sellt ^= 1;
 	if (arg && arg->v)
 		selmon->lt[selmon->sellt] = (Layout *)arg->v;
-	strncpy(selmon->ltsymbol, selmon->lt[selmon->sellt]->symbol, LENGTH(selmon->ltsymbol));
+	snprintf(selmon->ltsymbol, LENGTH(selmon->ltsymbol), "%s", selmon->lt[selmon->sellt]->symbol);
 	arrange(selmon);
 	printstatus();
 }
