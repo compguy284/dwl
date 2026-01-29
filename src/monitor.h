@@ -5,7 +5,7 @@
 #ifndef MONITOR_H
 #define MONITOR_H
 
-#include "macwc.h"
+#include "dwl.h"
 
 /* Monitor lifecycle - used as listener callbacks */
 void createmon(struct wl_listener *listener, void *data);

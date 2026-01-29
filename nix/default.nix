@@ -20,7 +20,7 @@
 }:
 
 stdenv.mkDerivation {
-  pname = "macwc";
+  pname = "dwl";
   version = "0.8-dev";
   src = ./..;
 
@@ -51,10 +51,10 @@ stdenv.mkDerivation {
     (lib.mesonBool "debug" debug)
   ];
 
-  passthru.providedSessions = [ "macwc" ];
+  passthru.providedSessions = [ "dwl" ];
 
   meta = with lib; {
-    description = "macwc - Wayland compositor with scenefx effects";
+    description = "dwl - Wayland compositor with scenefx effects";
     homepage = "https://codeberg.org/dwl/dwl"; # upstream attribution
     license = licenses.gpl3Only;
     platforms = platforms.linux;

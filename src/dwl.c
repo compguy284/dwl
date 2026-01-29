@@ -1,7 +1,7 @@
 /*
  * See LICENSE file for copyright and license details.
  */
-#include "macwc.h"
+#include "dwl.h"
 #include "visual.h"
 #include "session.h"
 #include "client_funcs.h"
@@ -38,7 +38,7 @@ static void setsel(struct wl_listener *listener, void *data);
 static void setup(void);
 static void urgent(struct wl_listener *listener, void *data);
 
-/* variables - definitions for extern declarations in macwc.h */
+/* variables - definitions for extern declarations in dwl.h */
 pid_t child_pid = -1;
 int locked;
 uint32_t locked_mods = 0;
@@ -468,7 +468,7 @@ inputdevice(struct wl_listener *listener, void *data)
 	}
 
 	/* We need to let the wlr_seat know what our capabilities are, which is
-	 * communiciated to the client. In macwc we always have a cursor, even if
+	 * communiciated to the client. In dwl we always have a cursor, even if
 	 * there are no pointer devices, so we always include that capability. */
 	/* TODO do we actually require a cursor? */
 	caps = WL_SEAT_CAPABILITY_POINTER;
@@ -565,7 +565,7 @@ run(char *startup_cmd)
 	if (!wlr_backend_start(backend))
 		die("startup: backend_start");
 
-	/* Initialize IPC server before forking startup command so children inherit MACWC_SOCK */
+	/* Initialize IPC server before forking startup command so children inherit DWL_SOCK */
 	ipc_init();
 
 	/* Now that the socket exists and the backend is started, run the startup command */
@@ -589,7 +589,7 @@ run(char *startup_cmd)
 	}
 
 	/* Mark stdout as non-blocking to avoid the startup script
-	 * causing macwc to freeze when a user neither closes stdin
+	 * causing dwl to freeze when a user neither closes stdin
 	 * nor consumes standard input in his startup script */
 
 	if (fd_set_nonblock(STDOUT_FILENO) < 0)
@@ -620,7 +620,7 @@ setpsel(struct wl_listener *listener, void *data)
 {
 	/* This event is raised by the seat when a client wants to set the selection,
 	 * usually when the user copies something. wlroots allows compositors to
-	 * ignore such requests if they so choose, but in macwc we always honor them
+	 * ignore such requests if they so choose, but in dwl we always honor them
 	 */
 	struct wlr_seat_request_set_primary_selection_event *event = data;
 	wlr_seat_set_primary_selection(seat, event->source, event->serial);
@@ -631,7 +631,7 @@ setsel(struct wl_listener *listener, void *data)
 {
 	/* This event is raised by the seat when a client wants to set the selection,
 	 * usually when the user copies something. wlroots allows compositors to
-	 * ignore such requests if they so choose, but in macwc we always honor them
+	 * ignore such requests if they so choose, but in dwl we always honor them
 	 */
 	struct wlr_seat_request_set_selection_event *event = data;
 	wlr_seat_set_selection(seat, event->source, event->serial);
@@ -878,7 +878,7 @@ spawn(const Arg *arg)
 		dup2(STDERR_FILENO, STDOUT_FILENO);
 		setsid();
 		execvp(((char **)arg->v)[0], (char **)arg->v);
-		die("macwc: execvp %s failed:", ((char **)arg->v)[0]);
+		die("dwl: execvp %s failed:", ((char **)arg->v)[0]);
 	}
 }
 
@@ -999,7 +999,7 @@ xwaylandready(struct wl_listener *listener, void *data)
 	/* assign the one and only seat */
 	wlr_xwayland_set_seat(xwayland, seat);
 
-	/* Set the default XWayland cursor to match the rest of macwc. */
+	/* Set the default XWayland cursor to match the rest of dwl. */
 	if ((xcursor = wlr_xcursor_manager_get_xcursor(cursor_mgr, "default", 1)))
 		wlr_xwayland_set_cursor(xwayland,
 				xcursor->images[0]->buffer, xcursor->images[0]->width * 4,
@@ -1020,7 +1020,7 @@ main(int argc, char *argv[])
 		else if (c == 'd')
 			debug = 1;
 		else if (c == 'v')
-			die("macwc " VERSION);
+			die("dwl " VERSION);
 		else
 			goto usage;
 	}

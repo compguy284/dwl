@@ -404,7 +404,7 @@ updatemons(struct wl_listener *listener, void *data)
 	wlr_scene_node_set_position(&root_bg->node, sgeom.x, sgeom.y);
 	wlr_scene_rect_set_size(root_bg, sgeom.width, sgeom.height);
 
-	/* Make sure the clients are hidden when macwc is locked */
+	/* Make sure the clients are hidden when dwl is locked */
 	wlr_scene_node_set_position(&locked_bg->node, sgeom.x, sgeom.y);
 	wlr_scene_rect_set_size(locked_bg, sgeom.width, sgeom.height);
 

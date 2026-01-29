@@ -6,16 +6,16 @@
   ...
 }:
 let
-  cfg = config.programs.macwc;
+  cfg = config.programs.dwl;
 in
 {
-  options.programs.macwc = {
-    enable = lib.mkEnableOption "macwc - Wayland compositor";
+  options.programs.dwl = {
+    enable = lib.mkEnableOption "dwl - Wayland compositor";
 
     package = lib.mkOption {
       type = lib.types.package;
-      default = self.packages.${pkgs.stdenv.hostPlatform.system}.macwc;
-      description = "The macwc package to use.";
+      default = self.packages.${pkgs.stdenv.hostPlatform.system}.dwl;
+      description = "The dwl package to use.";
     };
   };
 

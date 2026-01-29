@@ -13,7 +13,7 @@
 #include <wlr/util/log.h>
 
 #include "config_parser.h"
-#include "macwc.h"
+#include "dwl.h"
 #include "layout.h"
 #include "monitor.h"
 #include "input.h"
@@ -658,9 +658,9 @@ config_path(void)
 	const char *home = getenv("HOME");
 
 	if (config_home && *config_home)
-		snprintf(path, sizeof(path), "%s/macwc/config", config_home);
+		snprintf(path, sizeof(path), "%s/dwl/config", config_home);
 	else if (home && *home)
-		snprintf(path, sizeof(path), "%s/.config/macwc/config", home);
+		snprintf(path, sizeof(path), "%s/.config/dwl/config", home);
 	else
 		return NULL;
 

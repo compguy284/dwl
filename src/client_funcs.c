@@ -11,13 +11,13 @@
 static void
 foreign_toplevel_request_maximize(struct wl_listener *listener, void *data)
 {
-	/* macwc doesn't support maximization - ignore the request */
+	/* dwl doesn't support maximization - ignore the request */
 }
 
 static void
 foreign_toplevel_request_minimize(struct wl_listener *listener, void *data)
 {
-	/* macwc doesn't support minimization - reject by setting minimized=0 */
+	/* dwl doesn't support minimization - reject by setting minimized=0 */
 	Client *c = wl_container_of(listener, c, foreign_toplevel_request_minimize);
 	if (c->foreign_toplevel)
 		wlr_foreign_toplevel_handle_v1_set_minimized(c->foreign_toplevel, 0);
@@ -328,7 +328,7 @@ maximizenotify(struct wl_listener *listener, void *data)
 {
 	/* This event is raised when a client would like to maximize itself,
 	 * typically because the user clicked on the maximize button on
-	 * client-side decorations. macwc doesn't support maximization, but
+	 * client-side decorations. dwl doesn't support maximization, but
 	 * to conform to xdg-shell protocol we still must send a configure.
 	 * Since xdg-shell protocol v5 we should ignore request of unsupported
 	 * capabilities, just schedule a empty configure when the client uses <5

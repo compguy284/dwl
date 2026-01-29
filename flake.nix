@@ -1,5 +1,5 @@
 {
-  description = "macwc - Wayland compositor";
+  description = "dwl - Wayland compositor";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -18,13 +18,13 @@
       ];
 
       flake = {
-        nixosModules.macwc = import ./nix/module.nix { inherit self; };
+        nixosModules.dwl = import ./nix/module.nix { inherit self; };
       };
 
       perSystem =
         { pkgs, config, ... }:
         let
-          macwc = pkgs.callPackage ./nix/default.nix {
+          dwl = pkgs.callPackage ./nix/default.nix {
             scenefx = inputs.scenefx.packages.${pkgs.stdenv.hostPlatform.system}.default;
           };
           shellOverride = old: {
@@ -33,14 +33,14 @@
           };
         in
         {
-          packages.default = macwc;
+          packages.default = dwl;
           overlayAttrs = {
-            inherit (config.packages) macwc;
+            inherit (config.packages) dwl;
           };
           packages = {
-            inherit macwc;
+            inherit dwl;
           };
-          devShells.default = macwc.overrideAttrs shellOverride;
+          devShells.default = dwl.overrideAttrs shellOverride;
           formatter = pkgs.nixfmt;
         };
       systems = [

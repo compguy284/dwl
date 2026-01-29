@@ -5,7 +5,7 @@
 #include "visual.h"
 #include "client.h"
 
-/* Forward declaration for function still in macwc.c */
+/* Forward declaration for function still in dwl.c */
 Client *focustop(Monitor *m);
 
 void

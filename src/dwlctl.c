@@ -1,5 +1,5 @@
 /*
- * macwcctl - CLI client for macwc IPC
+ * dwlctl - CLI client for dwl IPC
  * See LICENSE file for copyright and license details.
  */
 #define _GNU_SOURCE
@@ -15,7 +15,7 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-		"Usage: macwcctl [options] <command> [args...]\n"
+		"Usage: dwlctl [options] <command> [args...]\n"
 		"\n"
 		"Commands:\n"
 		"  get monitors|clients|focused|config|keybinds|layouts\n"
@@ -39,14 +39,14 @@ discover_socket(const char *override)
 	if (override)
 		return (char *)override;
 
-	env_sock = getenv("MACWC_SOCK");
+	env_sock = getenv("DWL_SOCK");
 	if (env_sock && *env_sock)
 		return (char *)env_sock;
 
 	runtime_dir = getenv("XDG_RUNTIME_DIR");
 	wayland_display = getenv("WAYLAND_DISPLAY");
 	if (runtime_dir && wayland_display) {
-		snprintf(path, sizeof(path), "%s/macwc-ipc.%s.sock",
+		snprintf(path, sizeof(path), "%s/dwl-ipc.%s.sock",
 			runtime_dir, wayland_display);
 		return path;
 	}
@@ -91,10 +91,15 @@ ipc_send_recv(const char *sock_path, const char *request, char **response)
 
 	memset(&addr, 0, sizeof(addr));
 	addr.sun_family = AF_UNIX;
-	snprintf(addr.sun_path, sizeof(addr.sun_path), "%s", sock_path);
+	if (strlen(sock_path) >= sizeof(addr.sun_path)) {
+		fprintf(stderr, "dwlctl: socket path too long\n");
+		close(fd);
+		return -1;
+	}
+	memcpy(addr.sun_path, sock_path, strlen(sock_path) + 1);
 
 	if (connect(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-		fprintf(stderr, "macwcctl: cannot connect to %s: %s\n",
+		fprintf(stderr, "dwlctl: cannot connect to %s: %s\n",
 			sock_path, strerror(errno));
 		close(fd);
 		return -1;
@@ -173,20 +178,20 @@ main(int argc, char *argv[])
 
 	sock_path = discover_socket(sock_override);
 	if (!sock_path) {
-		fprintf(stderr, "macwcctl: cannot determine socket path\n");
+		fprintf(stderr, "dwlctl: cannot determine socket path\n");
 		return 1;
 	}
 
 	if (strcmp(argv[0], "get") == 0) {
 		if (argc < 2) {
-			fprintf(stderr, "macwcctl: get requires a target (monitors, clients, focused, config, keybinds, layouts)\n");
+			fprintf(stderr, "dwlctl: get requires a target (monitors, clients, focused, config, keybinds, layouts)\n");
 			return 1;
 		}
 		snprintf(request, sizeof(request),
 			"{\"command\":\"get_%s\"}\n", argv[1]);
 	} else if (strcmp(argv[0], "action") == 0) {
 		if (argc < 2) {
-			fprintf(stderr, "macwcctl: action requires a name\n");
+			fprintf(stderr, "dwlctl: action requires a name\n");
 			return 1;
 		}
 		if (argc == 2) {
@@ -241,7 +246,7 @@ main(int argc, char *argv[])
 		}
 	} else if (strcmp(argv[0], "set") == 0) {
 		if (argc < 3) {
-			fprintf(stderr, "macwcctl: set requires <key> <value>\n");
+			fprintf(stderr, "dwlctl: set requires <key> <value>\n");
 			return 1;
 		}
 		{
@@ -257,7 +262,7 @@ main(int argc, char *argv[])
 	} else if (strcmp(argv[0], "version") == 0) {
 		snprintf(request, sizeof(request), "{\"command\":\"version\"}\n");
 	} else {
-		fprintf(stderr, "macwcctl: unknown command '%s'\n", argv[0]);
+		fprintf(stderr, "dwlctl: unknown command '%s'\n", argv[0]);
 		usage();
 		return 1;
 	}

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-macwc is a compact, hackable Wayland compositor based on wlroots and scenefx. Configuration is done via a runtime config file at `$XDG_CONFIG_HOME/macwc/config` with live reload via SIGHUP.
+dwl is a compact, hackable Wayland compositor based on wlroots and scenefx. Configuration is done via a runtime config file at `$XDG_CONFIG_HOME/dwl/config` with live reload via SIGHUP.
 
 **Note**: This project is unmaintained as of August 2025.
 
@@ -39,9 +39,9 @@ nix build      # Build the package
 ## Configuration
 
 Configuration uses a runtime config file:
-- **Path**: `$XDG_CONFIG_HOME/macwc/config` (default: `~/.config/macwc/config`)
+- **Path**: `$XDG_CONFIG_HOME/dwl/config` (default: `~/.config/dwl/config`)
 - **Format**: `key = value`, one per line, `#` comments, blank lines ignored
-- **Reload**: `kill -SIGHUP $(pidof macwc)` to apply changes without restarting
+- **Reload**: `kill -SIGHUP $(pidof dwl)` to apply changes without restarting
 - **Reference**: See `config/config` for all settings with documentation
 
 If no config file exists, built-in defaults are used. All settings in `config/config`:
@@ -66,7 +66,7 @@ If no config file exists, built-in defaults are used. All settings in `config/co
 
 All source files live in `src/`.
 
-- **src/macwc.c** (~3800 lines): Main compositor implementation
+- **src/dwl.c** (~3800 lines): Main compositor implementation
 - **src/client.h**: Inline helper functions for client/window management
 - **src/util.c/h**: Small utilities (die, ecalloc, fd_set_nonblock)
 - **src/config_parser.c/h**: Runtime configuration parser with SIGHUP reload
@@ -79,7 +79,7 @@ All source files live in `src/`.
 - **src/layout.c/h**: Layout algorithms (tile, monocle, scroller)
 - **src/monitor.c/h**: Monitor management
 
-### Key Data Structures (src/macwc.c)
+### Key Data Structures (src/dwl.c)
 
 - **Client**: Represents a window - contains scene tree, borders, surface (XDG or XWayland), geometry, event listeners, and properties (floating, fullscreen, opacity, corner_radius, shadow, scroller_col)
 - **Monitor**: Represents a display - contains output, layers array, layout state, master factor, gap settings (gappih, gappiv, gappoh, gappov), scroller state (scroller_proportion_idx, scroller_viewport_x), and blur layer
@@ -101,7 +101,7 @@ Monitors have 9 layers in stacking order:
 
 ### Wayland Protocols
 
-macwc implements numerous protocols including: xdg-shell, wlr-layer-shell, pointer-constraints, session-lock, idle-inhibit, xdg-activation, and virtual keyboard/pointer.
+dwl implements numerous protocols including: xdg-shell, wlr-layer-shell, pointer-constraints, session-lock, idle-inhibit, xdg-activation, and virtual keyboard/pointer.
 
 Custom protocol XMLs are in `protocols/`.
 
@@ -128,8 +128,8 @@ This fork integrates scenefx for visual effects:
 ## Running
 
 ```bash
-macwc                           # Start with default settings
-macwc -s 'status-bar-command'   # Start with a status bar
+dwl                           # Start with default settings
+dwl -s 'status-bar-command'   # Start with a status bar
 ```
 
 Environment variables for status bar scripts: `WAYLAND_DISPLAY`, `DISPLAY` (if XWayland enabled)

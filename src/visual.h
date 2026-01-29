@@ -5,7 +5,7 @@
 #ifndef VISUAL_H
 #define VISUAL_H
 
-#include "macwc.h"
+#include "dwl.h"
 
 /* Scene buffer iteration callbacks */
 void iter_xdg_scene_buffers(struct wlr_scene_buffer *buffer, int sx, int sy, void *user_data);

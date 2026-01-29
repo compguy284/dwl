@@ -1,0 +1,5 @@
+[Desktop Entry]
+Name=dwl
+Comment=dwl - Wayland compositor
+Exec=dwl
+Type=Application

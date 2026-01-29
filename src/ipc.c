@@ -1,5 +1,5 @@
 /*
- * ipc.c - IPC server for macwc
+ * ipc.c - IPC server for dwl
  * See LICENSE file for copyright and license details.
  */
 #define _GNU_SOURCE
@@ -13,7 +13,7 @@
 #include <wayland-server-core.h>
 
 #include "ipc.h"
-#include "macwc.h"
+#include "dwl.h"
 #include "client.h"
 #include "layout.h"
 #include "monitor.h"
@@ -1160,7 +1160,9 @@ ipc_client_readable(int fd, uint32_t mask, void *data)
 	if (ic->buf_len >= IPC_BUF_CAP - 1) {
 		char *response = ipc_error("request too large");
 		if (response) {
-			write(ic->fd, response, strlen(response));
+			if (write(ic->fd, response, strlen(response)) < 0) {
+				/* best-effort error response */
+			}
 			free(response);
 		}
 		ipc_client_destroy(ic);
@@ -1212,7 +1214,7 @@ ipc_init(void)
 	}
 
 	snprintf(ipc_sock_path, sizeof(ipc_sock_path),
-		"%s/macwc-ipc.%s.sock", runtime_dir, wayland_display);
+		"%s/dwl-ipc.%s.sock", runtime_dir, wayland_display);
 
 	/* Remove stale socket */
 	unlink(ipc_sock_path);
@@ -1247,7 +1249,7 @@ ipc_init(void)
 	ipc_listen_source = wl_event_loop_add_fd(event_loop, ipc_listen_fd,
 		WL_EVENT_READABLE, ipc_accept, NULL);
 
-	setenv("MACWC_SOCK", ipc_sock_path, 1);
+	setenv("DWL_SOCK", ipc_sock_path, 1);
 	fprintf(stderr, "ipc: listening on %s\n", ipc_sock_path);
 }
 

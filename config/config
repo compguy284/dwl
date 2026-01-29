@@ -1,6 +1,6 @@
-# macwc configuration file
-# Place at $XDG_CONFIG_HOME/macwc/config (default: ~/.config/macwc/config)
-# Reload with: kill -SIGHUP $(pidof macwc)
+# dwl configuration file
+# Place at $XDG_CONFIG_HOME/dwl/config (default: ~/.config/dwl/config)
+# Reload with: kill -SIGHUP $(pidof dwl)
 # Lines starting with # are comments. Format: key = value
 
 # --- Appearance ---

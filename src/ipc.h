@@ -1,5 +1,5 @@
 /*
- * ipc.h - IPC server for macwc
+ * ipc.h - IPC server for dwl
  * See LICENSE file for copyright and license details.
  */
 #ifndef IPC_H

@@ -5,7 +5,7 @@
 #include "session.h"
 #include "client.h"
 
-/* Forward declarations for functions still in macwc.c */
+/* Forward declarations for functions still in dwl.c */
 void arrangelayers(Monitor *m);
 void focusclient(Client *c, int lift);
 Client *focustop(Monitor *m);

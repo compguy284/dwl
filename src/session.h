@@ -5,7 +5,7 @@
 #ifndef SESSION_H
 #define SESSION_H
 
-#include "macwc.h"
+#include "dwl.h"
 
 /* Layer surface functions */
 void commitlayersurfacenotify(struct wl_listener *listener, void *data);

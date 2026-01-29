@@ -5,7 +5,7 @@
 #ifndef INPUT_H
 #define INPUT_H
 
-#include "macwc.h"
+#include "dwl.h"
 
 void createkeyboard(struct wlr_keyboard *keyboard);
 KeyboardGroup *createkeyboardgroup(void);
