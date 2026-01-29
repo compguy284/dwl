@@ -1,0 +1,227 @@
+.Dd January 28, 2026
+.Dt DWLCTL 1
+.Os
+.Sh NAME
+.Nm dwlctl
+.Nd command-line client for the dwl IPC interface
+.Sh SYNOPSIS
+.Nm
+.Op Fl h
+.Op Fl s Ar path
+.Ar command
+.Op Ar args ...
+.Sh DESCRIPTION
+.Nm
+communicates with a running
+.Xr dwl 1
+compositor over a Unix domain socket using a JSON-based IPC protocol.
+It can query compositor state, invoke actions, and modify configuration
+at runtime.
+.Pp
+All responses are printed to standard output as JSON objects containing
+a
+.Dq success
+boolean field and either a
+.Dq data
+or
+.Dq error
+field.
+.Nm
+exits 0 on success or 1 on failure.
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl h
+Print usage information and exit.
+.It Fl s Ar path
+Override the IPC socket path.
+By default,
+.Nm
+discovers the socket automatically (see
+.Sx ENVIRONMENT ) .
+.El
+.Sh COMMANDS
+.Bl -tag -width Ds
+.It Ic get Ar target
+Query compositor state.
+.Ar target
+is one of:
+.Bl -tag -width "keybinds" -offset indent -compact
+.It Cm monitors
+List all monitors with layout, geometry, gaps, and focus state.
+.It Cm clients
+List all clients with app_id, title, geometry, and window state.
+.It Cm focused
+Get the currently focused client, or null if none.
+.It Cm config
+Dump the current runtime configuration.
+.It Cm keybinds
+List all active keybindings.
+.It Cm layouts
+List available layout modes.
+.El
+.It Ic action Ar name Op Ar value ...
+Invoke a compositor action by name.
+Actions correspond to the functions available in keybinding configuration.
+If multiple
+.Ar value
+arguments are given, they are passed as an array (used by
+.Cm spawn ) .
+.Pp
+Available actions:
+.Bl -tag -width "scroller_cycle_proportion" -offset indent -compact
+.It Cm spawn Ar cmd ...
+Launch a program.
+.It Cm killclient
+Close the focused window.
+.It Cm quit
+Exit the compositor.
+.It Cm focusstack Ar n
+Move focus up
+.Pq Ar n Ns =\-1
+or down
+.Pq Ar n Ns =+1
+the stack.
+.It Cm focusdir Ar dir
+Directional focus:
+.Ar dir
+is 0 (left), 1 (right), 2 (up), or 3 (down).
+.It Cm zoom
+Swap the focused client with the master.
+.It Cm setmfact Ar delta
+Adjust master area factor (e.g.\&
+.Ar +0.05
+or
+.Ar \-0.05 ) .
+.It Cm setlayout Ar layout
+Set the layout.
+.Ar layout
+is one of
+.Cm tile , floating , monocle , scroller ,
+or a layout symbol.
+.It Cm togglefloating
+Toggle the focused window between tiled and floating.
+.It Cm togglefullscreen
+Toggle the focused window between normal and fullscreen.
+.It Cm incnmaster Ar n
+Increase or decrease the number of master windows.
+.It Cm incgaps Ar n
+Adjust all gaps.
+.It Cm incigaps Ar n
+Adjust inner gaps.
+.It Cm incihgaps Ar n
+Adjust inner horizontal gaps.
+.It Cm incivgaps Ar n
+Adjust inner vertical gaps.
+.It Cm incogaps Ar n
+Adjust outer gaps.
+.It Cm incohgaps Ar n
+Adjust outer horizontal gaps.
+.It Cm incovgaps Ar n
+Adjust outer vertical gaps.
+.It Cm togglegaps
+Toggle gaps on or off.
+.It Cm defaultgaps
+Reset gaps to default values.
+.It Cm scroller_cycle_proportion Ar n
+Cycle scroller column proportion
+.Pq Ar n Ns =+1 or Ar n Ns =\-1 .
+.It Cm consume_or_expel Ar n
+Consume
+.Pq Ar n Ns =0
+or expel
+.Pq Ar n Ns =1
+a window in scroller layout.
+.It Cm focusmon Ar dir
+Move focus to another monitor.
+.Ar dir
+is
+.Cm left
+or
+.Cm right .
+.It Cm movetomon Ar dir
+Move the focused window to another monitor.
+.Ar dir
+is
+.Cm left
+or
+.Cm right .
+.It Cm moveresize Ar mode
+Begin interactive move
+.Pq Cm move
+or resize
+.Pq Cm resize .
+.It Cm chvt Ar n
+Switch to virtual terminal
+.Ar n .
+.El
+.It Ic set Ar key Ar value
+Set a runtime configuration value.
+.Ar key
+and
+.Ar value
+correspond to settings in the
+.Xr dwl 1
+configuration file.
+Changes take effect immediately.
+.It Ic reload
+Reload the configuration file from disk, equivalent to sending
+.Dv SIGHUP
+to the compositor.
+.It Ic version
+Print the compositor version.
+.El
+.Sh ENVIRONMENT
+.Nm
+locates the IPC socket using the following methods, in order of priority:
+.Bl -enum -offset indent -compact
+.It
+The
+.Fl s
+option, if given.
+.It
+The
+.Ev DWL_SOCK
+environment variable, if set.
+.It
+.Pa $XDG_RUNTIME_DIR/dwl-ipc.$WAYLAND_DISPLAY.sock
+.El
+.Pp
+The
+.Ev DWL_SOCK
+variable is set automatically by
+.Xr dwl 1
+for child processes.
+.Bl -tag -width WAYLAND_DISPLAY
+.It Ev DWL_SOCK
+Full path to the IPC Unix domain socket.
+.It Ev XDG_RUNTIME_DIR
+Base directory for user runtime files.
+.It Ev WAYLAND_DISPLAY
+Name of the Wayland display, used to construct the default socket path.
+.El
+.Sh EXAMPLES
+List all monitors:
+.Dl dwlctl get monitors
+.Pp
+Get the focused window:
+.Dl dwlctl get focused
+.Pp
+Launch a terminal:
+.Dl dwlctl action spawn alacritty
+.Pp
+Switch to monocle layout:
+.Dl dwlctl action setlayout monocle
+.Pp
+Increase master factor:
+.Dl dwlctl action setmfact 0.05
+.Pp
+Set border width to 2:
+.Dl dwlctl set borderpx 2
+.Pp
+Reload configuration:
+.Dl dwlctl reload
+.Pp
+Connect to a specific socket:
+.Dl dwlctl -s /run/user/1000/dwl-ipc.wayland-1.sock get clients
+.Sh SEE ALSO
+.Xr dwl 1

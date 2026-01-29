@@ -126,6 +126,7 @@ executable('dwlctl',
 
 # --- Install ---
 install_man('dwl.1')
+install_man('dwlctl.1')
 install_data('dwl.desktop',
   install_dir: get_option('datadir') / 'wayland-sessions',
 )
