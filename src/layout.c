@@ -336,14 +336,16 @@ scroller(Monitor *m)
 {
 	Client *c, *focused;
 	int n = 0, j, found;
-	int colwidth, viewport_x;
+	int viewport_x;
 	int focus_col, focus_x_start, focus_x_end;
 	int col_visible_start, col_visible_end;
 	int oe = enablegaps;
-	float proportion;
+	int prop_idx;
 	/* Column grouping: map scroller_col to display columns */
 	int col_ids[128];      /* scroller_col values in order */
 	int col_counts[128];   /* windows per display column */
+	int col_widths[128];   /* pixel width of each column */
+	int col_x[128];        /* x position of each column (cumulative) */
 	int num_cols = 0;
 	int col_pos[128] = {0}; /* current position within each column */
 
@@ -364,6 +366,11 @@ scroller(Monitor *m)
 		if (!found && num_cols < 128) {
 			col_ids[num_cols] = c->scroller_col;
 			col_counts[num_cols] = 1;
+			/* Use this client's proportion for the column width */
+			prop_idx = c->scroller_proportion_idx;
+			if (prop_idx < 0 || prop_idx >= (int)cfg.scroller_proportions_count)
+				prop_idx = cfg.scroller_default_proportion;
+			col_widths[num_cols] = (int)(m->w.width * cfg.scroller_proportions[prop_idx]);
 			num_cols++;
 		}
 	}
@@ -371,9 +378,10 @@ scroller(Monitor *m)
 	if (n == 0)
 		return;
 
-	/* Calculate column width from proportion */
-	proportion = cfg.scroller_proportions[m->scroller_proportion_idx];
-	colwidth = (int)(m->w.width * proportion);
+	/* Calculate cumulative column x positions */
+	col_x[0] = 0;
+	for (j = 1; j < num_cols; j++)
+		col_x[j] = col_x[j - 1] + col_widths[j - 1];
 
 	/* Find focused window's display column */
 	focused = focustop(m);
@@ -386,25 +394,28 @@ scroller(Monitor *m)
 			}
 		}
 	}
-	focus_x_start = focus_col * colwidth;
-	focus_x_end = focus_x_start + colwidth;
+	focus_x_start = col_x[focus_col];
+	focus_x_end = focus_x_start + col_widths[focus_col];
 
 	/* Calculate viewport based on centering mode */
-	if (cfg.scroller_center_mode == ScrollerCenterAlways) {
-		viewport_x = focus_x_start - (m->w.width - colwidth) / 2;
-	} else { /* ScrollerCenterOnOverflow */
-		col_visible_start = m->scroller_viewport_x;
-		col_visible_end = m->scroller_viewport_x + m->w.width;
+	{
+		int focus_colwidth = col_widths[focus_col];
+		if (cfg.scroller_center_mode == ScrollerCenterAlways) {
+			viewport_x = focus_x_start - (m->w.width - focus_colwidth) / 2;
+		} else { /* ScrollerCenterOnOverflow */
+			col_visible_start = m->scroller_viewport_x;
+			col_visible_end = m->scroller_viewport_x + m->w.width;
 
-		if (focus_x_start < col_visible_start) {
-			/* Scroll left: center the focused column */
-			viewport_x = focus_x_start - (m->w.width - colwidth) / 2;
-		} else if (focus_x_end > col_visible_end) {
-			/* Scroll right: center the focused column */
-			viewport_x = focus_x_start - (m->w.width - colwidth) / 2;
-		} else {
-			/* Keep current viewport */
-			viewport_x = m->scroller_viewport_x;
+			if (focus_x_start < col_visible_start) {
+				/* Scroll left: center the focused column */
+				viewport_x = focus_x_start - (m->w.width - focus_colwidth) / 2;
+			} else if (focus_x_end > col_visible_end) {
+				/* Scroll right: center the focused column */
+				viewport_x = focus_x_start - (m->w.width - focus_colwidth) / 2;
+			} else {
+				/* Keep current viewport */
+				viewport_x = m->scroller_viewport_x;
+			}
 		}
 	}
 
@@ -435,9 +446,9 @@ scroller(Monitor *m)
 		/* Calculate window geometry with vertical stacking */
 		total_height = m->w.height - 2*m->gappoh*oe;
 		per_win_height = (total_height - (col_win_count - 1) * m->gappiv*oe) / col_win_count;
-		win_x = m->w.x + (col * colwidth) - viewport_x + m->gappov*oe;
+		win_x = m->w.x + col_x[col] - viewport_x + m->gappov*oe;
 		win_y = m->w.y + m->gappoh*oe + pos_in_col * (per_win_height + m->gappiv*oe);
-		win_width = colwidth - 2*m->gappov*oe;
+		win_width = col_widths[col] - 2*m->gappov*oe;
 		win_height = per_win_height;
 
 		/* Check if window overlaps with monitor at all */
@@ -603,11 +614,12 @@ scroller(Monitor *m)
 void
 scroller_cycle_proportion(const Arg *arg)
 {
+	Client *c = focustop(selmon);
 	int len = (int)cfg.scroller_proportions_count;
-	if (!selmon)
+	if (!selmon || !c || c->isfloating || c->isfullscreen)
 		return;
 	/* arg->i: +1 to cycle forward, -1 to cycle backward */
-	selmon->scroller_proportion_idx = (selmon->scroller_proportion_idx + arg->i + len) % len;
+	c->scroller_proportion_idx = (c->scroller_proportion_idx + arg->i + len) % len;
 	arrange(selmon);
 }
 

@@ -143,6 +143,7 @@ typedef struct {
 	int has_shadow_enabled;
 	struct wlr_scene_rect *round_border;
 	int scroller_col; /* Column index for scroller layout grouping */
+	int scroller_proportion_idx; /* Per-client proportion index for scroller column width */
 	struct wlr_foreign_toplevel_handle_v1 *foreign_toplevel;
 	struct wl_listener foreign_toplevel_request_maximize;
 	struct wl_listener foreign_toplevel_request_minimize;

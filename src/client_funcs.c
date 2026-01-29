@@ -275,6 +275,7 @@ mapnotify(struct wl_listener *listener, void *data)
 
 	/* Assign unique scroller column for new windows */
 	c->scroller_col = scroller_col_counter++;
+	c->scroller_proportion_idx = cfg.scroller_default_proportion;
 
 	/* Create foreign toplevel handle for external clients (taskbars, docks, etc.) */
 	c->foreign_toplevel = wlr_foreign_toplevel_handle_v1_create(foreign_toplevel_mgr);
