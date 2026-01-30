@@ -234,63 +234,41 @@ void focusdir(const Arg *arg)
 	/* Focus the left, right, up, down client relative to the current focused client on selmon */
 	Client *c, *sel = focustop(selmon);
 	Client *newsel = NULL;
-	Client *prev = NULL;
-	int dist = INT_MAX;
-	int newdist = INT_MAX;
+	int dist, newdist = INT_MAX;
+	int is_scroller = selmon->lt[selmon->sellt]->arrange == scroller;
 
 	if (!sel || sel->isfullscreen)
 		return;
 
-	/* For left/right in scroller layout, use list order instead of geometry */
-	if (selmon->lt[selmon->sellt]->arrange == scroller && (arg->ui == 0 || arg->ui == 1)) {
-		wl_list_for_each(c, &clients, link) {
-			if (!VISIBLEON(c, selmon) || c->isfloating || c->isfullscreen)
-				continue;
-			if (c == sel) {
-				if (arg->ui == 0 && prev) /* left */
-					newsel = prev;
-				else if (arg->ui == 1) { /* right - get next */
-					c = wl_container_of(c->link.next, c, link);
-					while (&c->link != &clients) {
-						if (VISIBLEON(c, selmon) && !c->isfloating && !c->isfullscreen) {
-							newsel = c;
-							break;
-						}
-						c = wl_container_of(c->link.next, c, link);
-					}
-				}
-				break;
-			}
-			prev = c;
-		}
-	} else {
-		/* Use geometry for other layouts */
-		wl_list_for_each(c, &clients, link) {
-			if (!VISIBLEON(c, selmon))
-				continue; /* skip non visible windows */
-			if (!c->scene->node.enabled)
-				continue; /* skip windows hidden by layout */
+	wl_list_for_each(c, &clients, link) {
+		if (c == sel || !VISIBLEON(c, selmon))
+			continue;
+		/* In non-scroller layouts, skip windows hidden by layout */
+		if (!is_scroller && !c->scene->node.enabled)
+			continue;
+		/* In scroller, skip floating/fullscreen for directional nav */
+		if (is_scroller && (c->isfloating || c->isfullscreen))
+			continue;
 
-			if (arg->ui == 0 && sel->geom.x <= c->geom.x)
-				continue; /* Client isn't on our left */
-			if (arg->ui == 1 && sel->geom.x >= c->geom.x)
-				continue; /* Client isn't on our right */
-			if (arg->ui == 2 && sel->geom.y <= c->geom.y)
-				continue; /* Client isn't above us */
-			if (arg->ui == 3 && sel->geom.y >= c->geom.y)
-				continue; /* Client isn't below us */
+		if (arg->ui == 0 && sel->geom.x <= c->geom.x)
+			continue; /* Client isn't on our left */
+		if (arg->ui == 1 && sel->geom.x >= c->geom.x)
+			continue; /* Client isn't on our right */
+		if (arg->ui == 2 && sel->geom.y <= c->geom.y)
+			continue; /* Client isn't above us */
+		if (arg->ui == 3 && sel->geom.y >= c->geom.y)
+			continue; /* Client isn't below us */
 
-			dist = abs(sel->geom.x - c->geom.x) + abs(sel->geom.y - c->geom.y);
-			if (dist < newdist) {
-				newdist = dist;
-				newsel = c;
-			}
+		dist = abs(sel->geom.x - c->geom.x) + abs(sel->geom.y - c->geom.y);
+		if (dist < newdist) {
+			newdist = dist;
+			newsel = c;
 		}
 	}
 
 	if (newsel) {
 		focusclient(newsel, 1);
-		arrange(selmon);  /* Update scroller viewport to show focused window */
+		arrange(selmon);
 	}
 }
 
@@ -490,6 +468,9 @@ scroller(Monitor *m)
 
 		/* Skip further processing for completely invisible windows */
 		if (!visible) {
+			/* Store virtual geometry so focusdir can navigate to off-screen columns */
+			c->geom = (struct wlr_box){ .x = win_x, .y = win_y,
+				.width = win_width, .height = win_height };
 			/* Clear any existing clip on hidden windows */
 			scene_tree_apply_clip(&c->scene_surface->node, NULL);
 			continue;
