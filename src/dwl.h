@@ -96,7 +96,7 @@
 enum { CurNormal, CurPressed, CurMove, CurResize }; /* cursor */
 enum { XDGShell, LayerShell, X11 }; /* client types */
 enum { LyrBg, LyrBlur, LyrBottom, LyrTile, LyrFloat, LyrTop, LyrFS, LyrOverlay, LyrBlock, NUM_LAYERS }; /* scene layers */
-enum { ScrollerCenterAlways, ScrollerCenterOnOverflow }; /* scroller centering modes */
+enum { ScrollerCenterAlways, ScrollerCenterOnOverflow, ScrollerCenterPreferCenter }; /* scroller centering modes */
 
 /* type definitions */
 typedef struct {

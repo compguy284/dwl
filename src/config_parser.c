@@ -264,6 +264,7 @@ parse_scroller_center_mode(const char *s, int *out)
 {
 	if (strcmp(s, "always") == 0) { *out = 0; return 0; } /* ScrollerCenterAlways */
 	if (strcmp(s, "on_overflow") == 0) { *out = 1; return 0; } /* ScrollerCenterOnOverflow */
+	if (strcmp(s, "prefer_center") == 0) { *out = 2; return 0; } /* ScrollerCenterPreferCenter */
 	return -1;
 }
 

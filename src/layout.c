@@ -402,6 +402,39 @@ scroller(Monitor *m)
 		int focus_colwidth = col_widths[focus_col];
 		if (cfg.scroller_center_mode == ScrollerCenterAlways) {
 			viewport_x = focus_x_start - (m->w.width - focus_colwidth) / 2;
+		} else if (cfg.scroller_center_mode == ScrollerCenterPreferCenter) {
+			if (num_cols == 1) {
+				/* Single column (workspace was empty): always center */
+				viewport_x = focus_x_start - (m->w.width - focus_colwidth) / 2;
+			} else if (col_visible_start = m->scroller_viewport_x,
+					col_visible_end = m->scroller_viewport_x + m->w.width,
+					focus_x_start >= col_visible_start && focus_x_end <= col_visible_end) {
+				/* Focused column fully visible, keep current viewport */
+				viewport_x = m->scroller_viewport_x;
+			} else {
+				/* Need to scroll - check if focused + adjacent column fit together */
+				int adjacent_col = -1;
+				int can_fit = 0;
+
+				if (focus_x_start < col_visible_start && focus_col + 1 < num_cols)
+					adjacent_col = focus_col + 1; /* scrolling left */
+				else if (focus_x_end > col_visible_end && focus_col - 1 >= 0)
+					adjacent_col = focus_col - 1; /* scrolling right */
+
+				if (adjacent_col >= 0)
+					can_fit = (col_widths[focus_col] + col_widths[adjacent_col] <= m->w.width);
+
+				if (can_fit) {
+					/* Both columns fit: position focused at the edge */
+					if (focus_x_start < col_visible_start)
+						viewport_x = focus_x_start;
+					else
+						viewport_x = focus_x_end - m->w.width;
+				} else {
+					/* Can't fit together: center the focused column */
+					viewport_x = focus_x_start - (m->w.width - focus_colwidth) / 2;
+				}
+			}
 		} else { /* ScrollerCenterOnOverflow */
 			col_visible_start = m->scroller_viewport_x;
 			col_visible_end = m->scroller_viewport_x + m->w.width;
