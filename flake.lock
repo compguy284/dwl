@@ -53,8 +53,7 @@
       "inputs": {
         "flake-parts": "flake-parts",
         "nixpkgs": "nixpkgs",
-        "scenefx": "scenefx",
-        "wlroots": "wlroots"
+        "scenefx": "scenefx"
       }
     },
     "scenefx": {
@@ -76,24 +75,6 @@
         "repo": "scenefx",
         "rev": "3a6cfb12e4ba97b43326357d14f7b3e40897adfc",
         "type": "github"
-      }
-    },
-    "wlroots": {
-      "flake": false,
-      "locked": {
-        "host": "gitlab.freedesktop.org",
-        "lastModified": 1770438989,
-        "narHash": "sha256-QdY0mw0dx2RhwlL1+bp1r8cC13PWP86yAtK48nLFsiI=",
-        "owner": "wlroots",
-        "repo": "wlroots",
-        "rev": "436bcf9a4755b24f7fadc100ba8deaa7f343ba86",
-        "type": "gitlab"
-      },
-      "original": {
-        "host": "gitlab.freedesktop.org",
-        "owner": "wlroots",
-        "repo": "wlroots",
-        "type": "gitlab"
       }
     }
   },

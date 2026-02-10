@@ -8,11 +8,11 @@
       url = "github:wlrfx/scenefx/3a6cfb12e4ba97b43326357d14f7b3e40897adfc";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    wlroots = {
-      # url = "https://gitlab.freedesktop.org/wlroots/wlroots.git";
-      url = "gitlab:wlroots/wlroots?host=gitlab.freedesktop.org";
-      flake = false;
-    };
+    # wlroots = {
+    #   # url = "https://gitlab.freedesktop.org/wlroots/wlroots.git";
+    #   # url = "gitlab:wlroots/wlroots?host=gitlab.freedesktop.org";
+    #   flake = false;
+    # };
   };
 
   outputs =
@@ -47,7 +47,7 @@
           );
           dwl = pkgs.callPackage ./nix/default.nix {
             scenefx = inputs.scenefx.packages.${pkgs.stdenv.hostPlatform.system}.default;
-            wlroots_0_19 = my_wlroots;
+            # wlroots_0_19 = my_wlroots;
           };
           shellOverride = old: {
             nativeBuildInputs = old.nativeBuildInputs ++ [ ];
