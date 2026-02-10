@@ -314,6 +314,13 @@ static inline void
 client_set_border_color(Client *c, const float color[static 4])
 {
 	int i;
+#ifdef SCENEFX
+	/* When using rounded corners, update the round_border color instead */
+	if (c->round_border) {
+		wlr_scene_rect_set_color(c->round_border, color);
+		return;
+	}
+#endif
 	for (i = 0; i < 4; i++)
 		wlr_scene_rect_set_color(c->border[i], color);
 }

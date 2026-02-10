@@ -14,6 +14,39 @@ static const float urgentcolor[]           = COLOR(0xff0000ff);
 /* This conforms to the xdg-protocol. Set the alpha to zero to restore the old behavior */
 static const float fullscreen_bg[]         = {0.0f, 0.0f, 0.0f, 1.0f}; /* You can also use glsl colors */
 
+#ifdef SCENEFX
+/* Rounded corners */
+static const int corner_radius             = 10;
+static const int corner_radius_inner       = 10;  /* For the client surface */
+static const int corner_floating_only      = 0;   /* Only round floating windows */
+
+/* Shadows */
+static const int shadow                    = 1;   /* Enable shadows */
+static const int shadow_floating_only      = 0;   /* Only show shadows on floating windows */
+static const float shadow_color[]          = COLOR(0x00000088);
+static const float shadow_color_focus[]    = COLOR(0x000000aa);
+static const int shadow_blur_sigma         = 20;  /* Blur sigma for unfocused windows */
+static const int shadow_blur_sigma_focus   = 30;  /* Blur sigma for focused windows */
+
+/* Opacity */
+static const int opacity                   = 0;   /* Enable opacity */
+static const float opacity_active          = 1.0f;
+static const float opacity_inactive        = 0.8f;
+
+/* Blur */
+static const int blur                      = 1;   /* Enable blur */
+static const int blur_optimized            = 1;   /* Use optimized blur */
+static const int blur_ignore_transparent   = 1;   /* Don't blur transparent regions */
+static const struct blur_data blur_data    = {
+	.num_passes = 3,
+	.radius = 5,
+	.noise = 0.02f,
+	.brightness = 0.9f,
+	.contrast = 0.9f,
+	.saturation = 1.1f,
+};
+#endif
+
 /* tagging - TAGCOUNT must be no greater than 31 */
 #define TAGCOUNT (9)
 

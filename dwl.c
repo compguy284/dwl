@@ -44,7 +44,15 @@
 #include <wlr/types/wlr_primary_selection.h>
 #include <wlr/types/wlr_primary_selection_v1.h>
 #include <wlr/types/wlr_relative_pointer_v1.h>
+#ifdef SCENEFX
+#include <scenefx/render/fx_renderer/fx_renderer.h>
+#include <scenefx/types/fx/blur_data.h>
+#include <scenefx/types/fx/corner_location.h>
+#include <scenefx/types/fx/clipped_region.h>
+#include <scenefx/types/wlr_scene.h>
+#else
 #include <wlr/types/wlr_scene.h>
+#endif
 #include <wlr/types/wlr_screencopy_v1.h>
 #include <wlr/types/wlr_seat.h>
 #include <wlr/types/wlr_server_decoration.h>
@@ -84,7 +92,11 @@
 /* enums */
 enum { CurNormal, CurPressed, CurMove, CurResize }; /* cursor */
 enum { XDGShell, LayerShell, X11 }; /* client types */
+#ifdef SCENEFX
+enum { LyrBg, LyrBlur, LyrBottom, LyrTile, LyrFloat, LyrTop, LyrFS, LyrOverlay, LyrBlock, NUM_LAYERS }; /* scene layers */
+#else
 enum { LyrBg, LyrBottom, LyrTile, LyrFloat, LyrTop, LyrFS, LyrOverlay, LyrBlock, NUM_LAYERS }; /* scene layers */
+#endif
 
 typedef union {
 	int i;
@@ -139,6 +151,12 @@ typedef struct {
 	uint32_t tags;
 	int isfloating, isurgent, isfullscreen;
 	uint32_t resize; /* configure serial of a pending resize */
+#ifdef SCENEFX
+	float opacity;
+	int corner_radius;
+	struct wlr_scene_shadow *shadow;
+	struct wlr_scene_rect *round_border;
+#endif
 } Client;
 
 typedef struct {
@@ -205,6 +223,9 @@ struct Monitor {
 	int nmaster;
 	char ltsymbol[16];
 	int asleep;
+#ifdef SCENEFX
+	struct wlr_scene_optimized_blur *blur_layer;
+#endif
 };
 
 typedef struct {
@@ -351,6 +372,17 @@ static Monitor *xytomon(double x, double y);
 static void xytonode(double x, double y, struct wlr_surface **psurface,
 		Client **pc, LayerSurface **pl, double *nx, double *ny);
 static void zoom(const Arg *arg);
+
+#ifdef SCENEFX
+static int client_should_have_decoration(Client *c);
+static int client_should_have_shadow(Client *c);
+static void update_client_corner_radius(Client *c);
+static void update_client_shadow(Client *c, int focused);
+static void update_client_opacity(Client *c, int focused);
+static void update_client_decorations(Client *c, int focused);
+static void resize_client_shadow(Client *c);
+static void resize_client_round_border(Client *c);
+#endif
 
 /* variables */
 static pid_t child_pid = -1;
@@ -1103,6 +1135,12 @@ createmon(struct wl_listener *listener, void *data)
 	m->fullscreen_bg = wlr_scene_rect_create(layers[LyrFS], 0, 0, fullscreen_bg);
 	wlr_scene_node_set_enabled(&m->fullscreen_bg->node, 0);
 
+#ifdef SCENEFX
+	if (blur && blur_optimized) {
+		m->blur_layer = wlr_scene_optimized_blur_create(layers[LyrBlur], 0, 0);
+	}
+#endif
+
 	/* Adds this to the output layout in the order it was configured.
 	 *
 	 * The output layout utility automatically adds a wl_output global to the
@@ -1432,8 +1470,12 @@ focusclient(Client *c, int lift)
 
 		/* Don't change border color if there is an exclusive focus or we are
 		 * handling a drag operation */
-		if (!exclusive_focus && !seat->drag)
+		if (!exclusive_focus && !seat->drag) {
 			client_set_border_color(c, focuscolor);
+#ifdef SCENEFX
+			update_client_decorations(c, 1);
+#endif
+		}
 	}
 
 	/* Deactivate old client if focus is changing */
@@ -1451,7 +1493,9 @@ focusclient(Client *c, int lift)
 		 * and probably other clients */
 		} else if (old_c && !client_is_unmanaged(old_c) && (!c || !client_wants_focus(c))) {
 			client_set_border_color(old_c, bordercolor);
-
+#ifdef SCENEFX
+			update_client_decorations(old_c, 0);
+#endif
 			client_activate_surface(old, 0);
 		}
 	}
@@ -1772,6 +1816,21 @@ mapnotify(struct wl_listener *listener, void *data)
 				c->isurgent ? urgentcolor : bordercolor);
 		c->border[i]->node.data = c;
 	}
+
+#ifdef SCENEFX
+	/* Create rounded border for scenefx (replaces the 4 separate border rects visually) */
+	if (corner_radius > 0) {
+		c->round_border = wlr_scene_rect_create(c->scene, 0, 0,
+				c->isurgent ? urgentcolor : bordercolor);
+		c->round_border->node.data = c;
+		wlr_scene_rect_set_corner_radius(c->round_border, corner_radius, CORNER_LOCATION_ALL);
+		/* Hide the regular borders since we're using the rounded border */
+		for (i = 0; i < 4; i++)
+			wlr_scene_node_set_enabled(&c->border[i]->node, 0);
+	}
+	c->opacity = 1.0f;
+	c->corner_radius = 0;
+#endif
 
 	/* Initialize client geometry with room for border */
 	client_set_tiled(c, WLR_EDGE_TOP | WLR_EDGE_BOTTOM | WLR_EDGE_LEFT | WLR_EDGE_RIGHT);
@@ -2233,6 +2292,11 @@ resize(Client *c, struct wlr_box geo, int interact)
 			c->geom.height - 2 * c->bw);
 	client_get_clip(c, &clip);
 	wlr_scene_subsurface_tree_set_clip(&c->scene_surface->node, &clip);
+
+#ifdef SCENEFX
+	resize_client_shadow(c);
+	resize_client_round_border(c);
+#endif
 }
 
 void
@@ -2341,6 +2405,14 @@ setfloating(Client *c, int floating)
 	wlr_scene_node_reparent(&c->scene->node, layers[c->isfullscreen ||
 			(p && p->isfullscreen) ? LyrFS
 			: c->isfloating ? LyrFloat : LyrTile]);
+#ifdef SCENEFX
+	/* Update decorations based on floating status */
+	update_client_corner_radius(c);
+	if (c->shadow)
+		wlr_scene_node_set_enabled(&c->shadow->node, client_should_have_shadow(c));
+	if (c->round_border)
+		wlr_scene_node_set_enabled(&c->round_border->node, client_should_have_decoration(c));
+#endif
 	arrange(c->mon);
 	printstatus();
 }
@@ -2355,6 +2427,15 @@ setfullscreen(Client *c, int fullscreen)
 	client_set_fullscreen(c, fullscreen);
 	wlr_scene_node_reparent(&c->scene->node, layers[c->isfullscreen
 			? LyrFS : c->isfloating ? LyrFloat : LyrTile]);
+
+#ifdef SCENEFX
+	/* Hide/show decorations for fullscreen */
+	if (c->shadow)
+		wlr_scene_node_set_enabled(&c->shadow->node, !fullscreen && client_should_have_shadow(c));
+	if (c->round_border)
+		wlr_scene_node_set_enabled(&c->round_border->node, !fullscreen && client_should_have_decoration(c));
+	update_client_corner_radius(c);
+#endif
 
 	if (fullscreen) {
 		c->prev = c->geom;
@@ -2474,11 +2555,21 @@ setup(void)
 	drag_icon = wlr_scene_tree_create(&scene->tree);
 	wlr_scene_node_place_below(&drag_icon->node, &layers[LyrBlock]->node);
 
+#ifdef SCENEFX
+	if (blur)
+		wlr_scene_set_blur_data(scene, blur_data.num_passes, blur_data.radius,
+			blur_data.noise, blur_data.brightness, blur_data.contrast, blur_data.saturation);
+#endif
+
 	/* Autocreates a renderer, either Pixman, GLES2 or Vulkan for us. The user
 	 * can also specify a renderer using the WLR_RENDERER env var.
 	 * The renderer is responsible for defining the various pixel formats it
 	 * supports for shared memory, this configures that for clients. */
+#ifdef SCENEFX
+	if (!(drw = fx_renderer_create(backend)))
+#else
 	if (!(drw = wlr_renderer_autocreate(backend)))
+#endif
 		die("couldn't create renderer");
 	wl_signal_add(&drw->events.lost, &gpu_reset);
 
@@ -2893,6 +2984,13 @@ updatemons(struct wl_listener *listener, void *data)
 		wlr_scene_node_set_position(&m->fullscreen_bg->node, m->m.x, m->m.y);
 		wlr_scene_rect_set_size(m->fullscreen_bg, m->m.width, m->m.height);
 
+#ifdef SCENEFX
+		if (m->blur_layer) {
+			wlr_scene_node_set_position(&m->blur_layer->node, m->m.x, m->m.y);
+			wlr_scene_optimized_blur_set_size(m->blur_layer, m->m.width, m->m.height);
+		}
+#endif
+
 		if (m->lock_surface) {
 			struct wlr_scene_tree *scene_tree = m->lock_surface->surface->data;
 			wlr_scene_node_set_position(&scene_tree->node, m->m.x, m->m.y);
@@ -3074,6 +3172,156 @@ zoom(const Arg *arg)
 	focusclient(sel, 1);
 	arrange(selmon);
 }
+
+#ifdef SCENEFX
+static int
+client_should_have_decoration(Client *c)
+{
+	/* X11 clients don't support rounded corners well, and unmanaged clients
+	 * shouldn't have decorations */
+	if (client_is_x11(c) || client_is_unmanaged(c))
+		return 0;
+	if (c->isfullscreen)
+		return 0;
+	if (corner_floating_only && !c->isfloating)
+		return 0;
+	return corner_radius > 0;
+}
+
+static int
+client_should_have_shadow(Client *c)
+{
+	if (!shadow)
+		return 0;
+	if (client_is_x11(c) || client_is_unmanaged(c))
+		return 0;
+	if (c->isfullscreen)
+		return 0;
+	if (shadow_floating_only && !c->isfloating)
+		return 0;
+	return 1;
+}
+
+static void
+update_client_corner_radius(Client *c)
+{
+	struct wlr_scene_buffer *buf;
+	struct wlr_scene_node *node;
+	int radius = client_should_have_decoration(c) ? corner_radius : 0;
+	int inner_radius = client_should_have_decoration(c) ? corner_radius_inner : 0;
+
+	if (c->corner_radius == radius)
+		return;
+	c->corner_radius = radius;
+
+	/* Update the rounded border */
+	if (c->round_border)
+		wlr_scene_rect_set_corner_radius(c->round_border, radius, CORNER_LOCATION_ALL);
+
+	/* Update the surface's corner radius */
+	wl_list_for_each(node, &c->scene_surface->children, link) {
+		if (node->type == WLR_SCENE_NODE_BUFFER) {
+			buf = wlr_scene_buffer_from_node(node);
+			wlr_scene_buffer_set_corner_radius(buf, inner_radius, CORNER_LOCATION_ALL);
+		}
+	}
+}
+
+static void
+update_client_shadow(Client *c, int focused)
+{
+	int should_have_shadow = client_should_have_shadow(c);
+	int blur_sigma = focused ? shadow_blur_sigma_focus : shadow_blur_sigma;
+	const float *color = focused ? shadow_color_focus : shadow_color;
+
+	if (!should_have_shadow) {
+		if (c->shadow) {
+			wlr_scene_node_set_enabled(&c->shadow->node, 0);
+		}
+		return;
+	}
+
+	if (!c->shadow) {
+		/* Create shadow if it doesn't exist */
+		c->shadow = wlr_scene_shadow_create(c->scene,
+			c->geom.width, c->geom.height, corner_radius, blur_sigma, color);
+		if (c->shadow) {
+			wlr_scene_node_lower_to_bottom(&c->shadow->node);
+			/* Position the shadow behind the window */
+			wlr_scene_node_set_position(&c->shadow->node, 0, 0);
+		}
+	}
+
+	if (c->shadow) {
+		wlr_scene_node_set_enabled(&c->shadow->node, 1);
+		wlr_scene_shadow_set_blur_sigma(c->shadow, blur_sigma);
+		wlr_scene_shadow_set_color(c->shadow, color);
+	}
+}
+
+static void
+update_client_opacity(Client *c, int focused)
+{
+	struct wlr_scene_buffer *buf;
+	struct wlr_scene_node *node;
+	float op;
+
+	if (!opacity)
+		return;
+
+	op = focused ? opacity_active : opacity_inactive;
+	if (c->opacity == op)
+		return;
+	c->opacity = op;
+
+	wl_list_for_each(node, &c->scene_surface->children, link) {
+		if (node->type == WLR_SCENE_NODE_BUFFER) {
+			buf = wlr_scene_buffer_from_node(node);
+			wlr_scene_buffer_set_opacity(buf, op);
+		}
+	}
+}
+
+static void
+update_client_decorations(Client *c, int focused)
+{
+	update_client_corner_radius(c);
+	update_client_shadow(c, focused);
+	update_client_opacity(c, focused);
+}
+
+static void
+resize_client_shadow(Client *c)
+{
+	if (c->shadow) {
+		wlr_scene_shadow_set_size(c->shadow, c->geom.width, c->geom.height);
+		wlr_scene_shadow_set_corner_radius(c->shadow, c->corner_radius);
+	}
+}
+
+static void
+resize_client_round_border(Client *c)
+{
+	struct clipped_region clip = clipped_region_get_default();
+
+	if (!c->round_border)
+		return;
+
+	wlr_scene_rect_set_size(c->round_border, c->geom.width, c->geom.height);
+	wlr_scene_rect_set_corner_radius(c->round_border, c->corner_radius, CORNER_LOCATION_ALL);
+
+	/* Set up clipping region to show only the border (hollow out the inside) */
+	clip.area = (struct wlr_box){
+		.x = c->bw,
+		.y = c->bw,
+		.width = c->geom.width - 2 * c->bw,
+		.height = c->geom.height - 2 * c->bw,
+	};
+	clip.corner_radius = c->corner_radius > (int)c->bw ? c->corner_radius - c->bw : 0;
+	clip.corners = CORNER_LOCATION_ALL;
+	wlr_scene_rect_set_clipped_region(c->round_border, clip);
+}
+#endif
 
 #ifdef XWAYLAND
 void
