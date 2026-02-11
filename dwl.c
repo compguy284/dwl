@@ -116,7 +116,8 @@ typedef struct {
 } Button;
 
 typedef struct Monitor Monitor;
-typedef struct {
+typedef struct Client Client;
+struct Client {
 	/* Must keep this field first */
 	unsigned int type; /* XDGShell or X11* */
 
@@ -154,13 +155,15 @@ typedef struct {
 	uint32_t tags;
 	int isfloating, isurgent, isfullscreen;
 	uint32_t resize; /* configure serial of a pending resize */
+	Client *column_next;         /* Next client in same column (vertical stack) */
+	Client *column_prev;         /* Previous client in same column */
 #ifdef SCENEFX
 	float opacity;
 	int corner_radius;
 	struct wlr_scene_shadow *shadow;
 	struct wlr_scene_rect *round_border;
 #endif
-} Client;
+};
 
 typedef struct {
 	uint32_t mod;
@@ -231,6 +234,9 @@ struct Monitor {
 	int nmaster;
 	char ltsymbol[16];
 	int asleep;
+	/* Scroller layout state */
+	int scroll_offset;           /* Current scroll position in pixels */
+	float scroller_ratio;        /* Column width as ratio of monitor (0.8 = 80%) */
 #ifdef SCENEFX
 	struct wlr_scene_optimized_blur *blur_layer;
 #endif
@@ -371,6 +377,14 @@ static void setsel(struct wl_listener *listener, void *data);
 static void setup(void);
 static void spawn(const Arg *arg);
 static void startdrag(struct wl_listener *listener, void *data);
+static void scroller(Monitor *m);
+static void consume_or_expel(const Arg *arg);
+static inline int is_column_head(Client *c);
+static inline Client *get_column_head(Client *c);
+static inline Client *get_column_tail(Client *c);
+static inline int count_column_clients(Client *head);
+static int get_column_index(Client *target, Monitor *m);
+static Client *get_adjacent_column_head(Client *c, int dir, Monitor *m);
 static void tag(const Arg *arg);
 static void tagmon(const Arg *arg);
 static void tile(Monitor *m);
@@ -1125,6 +1139,8 @@ createmon(struct wl_listener *listener, void *data)
 	m->gappoh = gappoh;
 	m->gappov = gappov;
 	m->sel = NULL;
+	m->scroll_offset = 0;
+	m->scroller_ratio = scroller_ratio;
 
 	wlr_output_state_init(&state);
 	/* Initialize monitor state using configured rules */
@@ -1701,12 +1717,53 @@ focusclient(Client *c, int lift)
 
 	/* Activate the new client */
 	client_activate_surface(client_surface(c), 1);
+
+	/* Auto-scroll to center focused client in scroller layout */
+	if (c->mon && c->mon->lt[c->mon->sellt]->arrange == scroller
+			&& !c->isfloating && !c->isfullscreen) {
+		int col_width = (int)roundf(c->mon->w.width * c->mon->scroller_ratio);
+		int focused_col = get_column_index(c, c->mon);
+		/* Center this column on screen */
+		int target_offset = focused_col * col_width - (c->mon->w.width - col_width) / 2;
+		if (c->mon->scroll_offset != target_offset) {
+			c->mon->scroll_offset = target_offset;
+			arrange(c->mon);
+		}
+	}
 }
 
 void
 focusdir(const Arg *arg) {
-	Client *c = NULL;
-	c = direction_select(arg);
+	Client *c = NULL, *sel;
+
+	/* Use column-based navigation for scroller layout */
+	if (selmon && selmon->lt[selmon->sellt]->arrange == scroller) {
+		sel = focustop(selmon);
+		if (!sel)
+			return;
+
+		switch (arg->i) {
+		case LEFT:
+			/* Go to previous column */
+			c = get_adjacent_column_head(sel, -1, selmon);
+			break;
+		case RIGHT:
+			/* Go to next column */
+			c = get_adjacent_column_head(sel, +1, selmon);
+			break;
+		case UP:
+			/* Go to previous client in column stack */
+			c = sel->column_prev;
+			break;
+		case DOWN:
+			/* Go to next client in column stack */
+			c = sel->column_next;
+			break;
+		}
+	} else {
+		c = direction_select(arg);
+	}
+
 	if (c)
 		focusclient(c, 1);
 }
@@ -2082,6 +2139,10 @@ mapnotify(struct wl_listener *listener, void *data)
 		goto unset_fullscreen;
 	}
 
+	/* Initialize column pointers for scroller layout */
+	c->column_next = NULL;
+	c->column_prev = NULL;
+
 	for (i = 0; i < 4; i++) {
 		c->border[i] = wlr_scene_rect_create(c->scene, 0, 0,
 				c->isurgent ? urgentcolor : bordercolor);
@@ -2108,8 +2169,17 @@ mapnotify(struct wl_listener *listener, void *data)
 	c->geom.width += 2 * c->bw;
 	c->geom.height += 2 * c->bw;
 
-	/* Insert this client into client lists. */
-	wl_list_insert(&clients, &c->link);
+	/* Insert this client into client lists.
+	 * For scroller layout, insert after focused client so new windows
+	 * appear to the right of the currently focused one. */
+	{
+		Client *focused = focustop(selmon);
+		if (focused && selmon && selmon->lt[selmon->sellt]->arrange == scroller
+				&& !focused->isfloating && !focused->isfullscreen)
+			wl_list_insert(&focused->link, &c->link);
+		else
+			wl_list_insert(&clients, &c->link);
+	}
 	wl_list_insert(&fstack, &c->flink);
 
 	/* Set initial monitor, tags, floating status, and focus:
@@ -3130,6 +3200,266 @@ tile(Monitor *m)
 	}
 }
 
+/* Helper: check if client is a column head (first in its column) */
+static inline int
+is_column_head(Client *c)
+{
+	return c->column_prev == NULL;
+}
+
+/* Helper: get the head of a column */
+static inline Client *
+get_column_head(Client *c)
+{
+	while (c->column_prev)
+		c = c->column_prev;
+	return c;
+}
+
+/* Helper: get the tail of a column */
+static inline Client *
+get_column_tail(Client *c)
+{
+	while (c->column_next)
+		c = c->column_next;
+	return c;
+}
+
+/* Helper: count clients in a column */
+static inline int
+count_column_clients(Client *head)
+{
+	int count = 0;
+	Client *c = head;
+	while (c) {
+		count++;
+		c = c->column_next;
+	}
+	return count;
+}
+
+/* Helper: get the column index for a client */
+static int
+get_column_index(Client *target, Monitor *m)
+{
+	Client *c;
+	int col = 0;
+	Client *target_head = get_column_head(target);
+
+	wl_list_for_each(c, &clients, link) {
+		if (!VISIBLEON(c, m) || c->isfloating || c->isfullscreen)
+			continue;
+		if (!is_column_head(c))
+			continue;
+		if (c == target_head)
+			return col;
+		col++;
+	}
+	return 0;
+}
+
+/* Helper: get adjacent column head in a direction */
+static Client *
+get_adjacent_column_head(Client *c, int dir, Monitor *m)
+{
+	Client *iter;
+	Client *prev_head = NULL;
+	Client *c_head = get_column_head(c);
+	int found = 0;
+
+	wl_list_for_each(iter, &clients, link) {
+		if (!VISIBLEON(iter, m) || iter->isfloating || iter->isfullscreen)
+			continue;
+		if (!is_column_head(iter))
+			continue;
+
+		if (found && dir > 0)
+			return iter;  /* Return next column head */
+
+		if (iter == c_head) {
+			found = 1;
+			if (dir < 0)
+				return prev_head;  /* Return previous column head */
+		}
+
+		prev_head = iter;
+	}
+	return NULL;
+}
+
+void
+scroller(Monitor *m)
+{
+	Client *c, *col_client;
+	int n = 0;          /* total columns */
+	int col = 0;        /* current column index */
+	int col_width;      /* width of each column */
+	int x_pos;          /* x position for current column */
+	int oe = enablegaps, ie = enablegaps;
+	int col_count, y_pos, available_height, client_height, remainder, idx, h;
+	int mon_left, mon_right, client_left, client_right, vis_left, vis_right;
+	struct wlr_box geo, clip;
+
+	/* Count columns (only column heads) */
+	wl_list_for_each(c, &clients, link)
+		if (VISIBLEON(c, m) && !c->isfloating && !c->isfullscreen && is_column_head(c))
+			n++;
+
+	if (n == 0)
+		return;
+
+	if (smartgaps == n)
+		oe = 0;
+
+	/* Calculate column width */
+	col_width = (int)roundf(m->w.width * m->scroller_ratio);
+
+	/* Iterate through columns */
+	wl_list_for_each(c, &clients, link) {
+		if (!VISIBLEON(c, m) || c->isfloating || c->isfullscreen)
+			continue;
+
+		if (!is_column_head(c))
+			continue;  /* Skip non-heads, they're handled with their head */
+
+		/* Calculate x position for this column */
+		x_pos = m->w.x + col * col_width - m->scroll_offset + m->gappov * oe;
+
+		/* Count clients in this column */
+		col_count = count_column_clients(c);
+
+		/* Arrange clients vertically in this column */
+		y_pos = m->w.y + m->gappoh * oe;
+		available_height = m->w.height - 2 * m->gappoh * oe - m->gappih * ie * (col_count - 1);
+		client_height = available_height / col_count;
+		remainder = available_height % col_count;
+
+		col_client = c;
+		idx = 0;
+		while (col_client) {
+			/* Give extra pixels to first clients to handle remainder */
+			h = client_height + (idx < remainder ? 1 : 0);
+
+			geo.x = x_pos;
+			geo.y = y_pos;
+			geo.width = col_width - m->gappiv * ie;
+			geo.height = h;
+
+			/* Clip calculation: determine visible portion */
+			mon_left = m->w.x;
+			mon_right = m->w.x + m->w.width;
+			client_left = geo.x;
+			client_right = geo.x + geo.width;
+
+			/* Calculate visible region */
+			vis_left = MAX(client_left, mon_left);
+			vis_right = MIN(client_right, mon_right);
+
+			if (vis_right <= vis_left) {
+				/* Completely off-screen */
+				wlr_scene_node_set_enabled(&col_client->scene->node, 0);
+			} else {
+				wlr_scene_node_set_enabled(&col_client->scene->node, 1);
+				/* Use interact=1 to avoid applybounds clamping */
+				resize(col_client, geo, 1);
+
+				/* Apply custom clipping for partially visible clients */
+				if (client_left < mon_left || client_right > mon_right) {
+					clip.x = MAX(0, mon_left - client_left);
+					clip.y = 0;
+					clip.width = vis_right - vis_left;
+					clip.height = geo.height;
+					wlr_scene_subsurface_tree_set_clip(&col_client->scene_surface->node, &clip);
+				}
+			}
+
+			/* Always update geometry so focus navigation works correctly */
+			col_client->geom = geo;
+
+			y_pos += h + m->gappih * ie;
+			col_client = col_client->column_next;
+			idx++;
+		}
+		col++;
+	}
+
+	/* Update layout symbol to show column count */
+	snprintf(m->ltsymbol, LENGTH(m->ltsymbol), "[%d>", n);
+
+	/* Raise focused client to top */
+	if ((c = focustop(m)))
+		wlr_scene_node_raise_to_top(&c->scene->node);
+}
+
+void
+consume_or_expel(const Arg *arg)
+{
+	Client *focused, *target, *tail, *target_tail, *head, *remaining_head, *remaining_tail;
+	int dir, col_width, focused_col, target_offset;
+
+	focused = focustop(selmon);
+	if (!focused || focused->isfloating || focused->isfullscreen)
+		return;
+
+	/* Only works in scroller layout */
+	if (selmon->lt[selmon->sellt]->arrange != scroller)
+		return;
+
+	dir = arg->i;  /* -1 = left, +1 = right */
+
+	/* Check if focused is part of a column stack */
+	if (focused->column_prev || focused->column_next) {
+		/* EXPEL: unlink the focused client from its column */
+		/* Determine what will be the remaining column head after expelling */
+		if (focused->column_prev)
+			remaining_head = get_column_head(focused);
+		else
+			remaining_head = focused->column_next;
+
+		if (focused->column_prev)
+			focused->column_prev->column_next = focused->column_next;
+		if (focused->column_next)
+			focused->column_next->column_prev = focused->column_prev;
+		focused->column_prev = focused->column_next = NULL;
+
+		/* Reposition in clients list based on direction */
+		wl_list_remove(&focused->link);
+		if (dir < 0) {
+			/* Expel left: insert before the remaining column head */
+			wl_list_insert(remaining_head->link.prev, &focused->link);
+		} else {
+			/* Expel right: insert after the remaining column tail */
+			remaining_tail = get_column_tail(remaining_head);
+			wl_list_insert(&remaining_tail->link, &focused->link);
+		}
+	} else {
+		/* CONSUME: find adjacent column head in that direction */
+		target = get_adjacent_column_head(focused, dir, selmon);
+		if (target) {
+			if (dir > 0) {
+				/* Consume right: append target column to focused column */
+				tail = get_column_tail(focused);
+				tail->column_next = target;
+				target->column_prev = tail;
+			} else {
+				/* Consume left: prepend target column to focused column */
+				target_tail = get_column_tail(target);
+				head = get_column_head(focused);
+				target_tail->column_next = head;
+				head->column_prev = target_tail;
+			}
+		}
+	}
+
+	/* Update scroll to center focused client */
+	col_width = (int)roundf(selmon->w.width * selmon->scroller_ratio);
+	focused_col = get_column_index(focused, selmon);
+	target_offset = focused_col * col_width - (selmon->w.width - col_width) / 2;
+	selmon->scroll_offset = target_offset;
+
+	arrange(selmon);
+}
+
 void
 togglefloating(const Arg *arg)
 {
@@ -3213,6 +3543,13 @@ unmapnotify(struct wl_listener *listener, void *data)
 		cursor_mode = CurNormal;
 		grabc = NULL;
 	}
+
+	/* Unlink from column chain if part of one */
+	if (c->column_prev)
+		c->column_prev->column_next = c->column_next;
+	if (c->column_next)
+		c->column_next->column_prev = c->column_prev;
+	c->column_prev = c->column_next = NULL;
 
 	if (client_is_unmanaged(c)) {
 		if (c == exclusive_focus) {
