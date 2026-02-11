@@ -3,6 +3,7 @@
  */
 #include <getopt.h>
 #include <libinput.h>
+#include <limits.h>
 #include <linux/input-event-codes.h>
 #include <math.h>
 #include <signal.h>
@@ -98,6 +99,7 @@ enum { LyrBg, LyrBlur, LyrBottom, LyrTile, LyrFloat, LyrTop, LyrFS, LyrOverlay, 
 #else
 enum { LyrBg, LyrBottom, LyrTile, LyrFloat, LyrTop, LyrFS, LyrOverlay, LyrBlock, NUM_LAYERS }; /* scene layers */
 #endif
+enum { UP, DOWN, LEFT, RIGHT };
 
 typedef union {
 	int i;
@@ -220,6 +222,7 @@ struct Monitor {
 	int gappiv;           /* vertical gap between windows */
 	int gappoh;           /* horizontal outer gaps */
 	int gappov;           /* vertical outer gaps */
+	Client *sel, *prevsel;
 	unsigned int seltags;
 	unsigned int sellt;
 	uint32_t tagset[2];
@@ -308,8 +311,10 @@ static void destroynotify(struct wl_listener *listener, void *data);
 static void destroypointerconstraint(struct wl_listener *listener, void *data);
 static void destroysessionlock(struct wl_listener *listener, void *data);
 static void destroykeyboardgroup(struct wl_listener *listener, void *data);
+static Client *direction_select(const Arg *arg);
 static Monitor *dirtomon(enum wlr_direction dir);
 static void focusclient(Client *c, int lift);
+static void focusdir(const Arg *arg);
 static void focusmon(const Arg *arg);
 static void focusstack(const Arg *arg);
 static Client *focustop(Monitor *m);
@@ -768,7 +773,7 @@ cleanup(void)
 
 	wl_display_destroy(dpy);
 	/* Destroy after the wayland display (when the monitors are already destroyed)
-	   to avoid destroying them with an invalid scene output. */
+		 to avoid destroying them with an invalid scene output. */
 	wlr_scene_node_destroy(&scene->tree.node);
 }
 
@@ -1119,6 +1124,7 @@ createmon(struct wl_listener *listener, void *data)
 	m->gappiv = gappiv;
 	m->gappoh = gappoh;
 	m->gappov = gappov;
+	m->sel = NULL;
 
 	wlr_output_state_init(&state);
 	/* Initialize monitor state using configured rules */
@@ -1460,6 +1466,140 @@ destroykeyboardgroup(struct wl_listener *listener, void *data)
 	free(group);
 }
 
+Client *
+direction_select(const Arg *arg) {
+		Client *c,*tempClients[100];
+		Client *tc = selmon->sel;
+		int last = -1;
+
+		if(!tc)
+			return NULL;
+
+		if (tc && tc->isfullscreen)
+			return NULL;
+
+		wl_list_for_each(c, &clients, link)
+			if (c && (c->tags & c->mon->tagset[c->mon->seltags])){
+				last++;
+				tempClients[last] = c;
+			}
+		if (last < 0)
+			return NULL;
+		int sel_x = tc->geom.x;
+		int sel_y = tc->geom.y;
+		long long int distance = LLONG_MAX;
+		// int temp_focus = 0;
+		Client *tempFocusClients = NULL;
+
+		switch (arg->i) {
+		case UP:
+			for (int _i = 0; _i <= last; _i++) {
+				if (tempClients[_i]->geom.y < sel_y && tempClients[_i]->geom.x == sel_x) {
+					int dis_x = tempClients[_i]->geom.x - sel_x;
+					int dis_y = tempClients[_i]->geom.y - sel_y;
+					long long int tmp_distance = dis_x * dis_x + dis_y * dis_y; // 计算距离
+					if (tmp_distance < distance) {
+						distance = tmp_distance;
+						tempFocusClients = tempClients[_i];
+					}
+				}
+			}
+			if (!tempFocusClients) {
+				for (int _i = 0; _i <= last; _i++) {
+					if (tempClients[_i]->geom.y < sel_y ) {
+						int dis_x = tempClients[_i]->geom.x - sel_x;
+						int dis_y = tempClients[_i]->geom.y - sel_y;
+						long long int tmp_distance = dis_x * dis_x + dis_y * dis_y; // 计算距离
+						if (tmp_distance < distance) {
+							distance = tmp_distance;
+							tempFocusClients = tempClients[_i];
+						}
+					}
+				}
+			}
+			break;
+		case DOWN:
+			for (int _i = 0; _i <= last; _i++) {
+				if (tempClients[_i]->geom.y > sel_y && tempClients[_i]->geom.x == sel_x) {
+					int dis_x = tempClients[_i]->geom.x - sel_x;
+					int dis_y = tempClients[_i]->geom.y - sel_y;
+					long long int tmp_distance = dis_x * dis_x + dis_y * dis_y; // 计算距离
+					if (tmp_distance < distance) {
+						distance = tmp_distance;
+						tempFocusClients = tempClients[_i];
+					}
+				}
+			}
+			if (!tempFocusClients) {
+				for (int _i = 0; _i <= last; _i++) {
+					if (tempClients[_i]->geom.y > sel_y ) {
+						int dis_x = tempClients[_i]->geom.x - sel_x;
+						int dis_y = tempClients[_i]->geom.y - sel_y;
+						long long int tmp_distance = dis_x * dis_x + dis_y * dis_y; // 计算距离
+						if (tmp_distance < distance) {
+							distance = tmp_distance;
+							tempFocusClients = tempClients[_i];
+						}
+					}
+				}
+			}
+			break;
+		case LEFT:
+			for (int _i = 0; _i <= last; _i++) {
+				if (tempClients[_i]->geom.x < sel_x && tempClients[_i]->geom.y == sel_y) {
+					int dis_x = tempClients[_i]->geom.x - sel_x;
+					int dis_y = tempClients[_i]->geom.y - sel_y;
+					long long int tmp_distance = dis_x * dis_x + dis_y * dis_y; // 计算距离
+					if (tmp_distance < distance) {
+						distance = tmp_distance;
+						tempFocusClients = tempClients[_i];
+					}
+				}
+			}
+			if(!tempFocusClients) {
+				for (int _i = 0; _i <= last; _i++) {
+					if (tempClients[_i]->geom.x < sel_x ) {
+						int dis_x = tempClients[_i]->geom.x - sel_x;
+						int dis_y = tempClients[_i]->geom.y - sel_y;
+						long long int tmp_distance = dis_x * dis_x + dis_y * dis_y; // 计算距离
+						if (tmp_distance < distance) {
+							distance = tmp_distance;
+							tempFocusClients = tempClients[_i];
+						}
+					}
+				}
+			}
+			break;
+		case RIGHT:
+			for (int _i = 0; _i <= last; _i++) {
+				if (tempClients[_i]->geom.x > sel_x && tempClients[_i]->geom.y == sel_y) {
+					int dis_x = tempClients[_i]->geom.x - sel_x;
+					int dis_y = tempClients[_i]->geom.y - sel_y;
+					long long int tmp_distance = dis_x * dis_x + dis_y * dis_y; // 计算距离
+					if (tmp_distance < distance) {
+						distance = tmp_distance;
+						tempFocusClients = tempClients[_i];
+					}
+				}
+			}
+			if(!tempFocusClients) {
+				for (int _i = 0; _i <= last; _i++) {
+					if (tempClients[_i]->geom.x > sel_x ) {
+						int dis_x = tempClients[_i]->geom.x - sel_x;
+						int dis_y = tempClients[_i]->geom.y - sel_y;
+						long long int tmp_distance = dis_x * dis_x + dis_y * dis_y; // 计算距离
+						if (tmp_distance < distance) {
+							distance = tmp_distance;
+							tempFocusClients = tempClients[_i];
+						}
+					}
+				}
+			}
+			break;
+		}
+		return tempFocusClients;
+}
+
 Monitor *
 dirtomon(enum wlr_direction dir)
 {
@@ -1493,6 +1633,13 @@ focusclient(Client *c, int lift)
 
 	if (c && client_surface(c) == old)
 		return;
+
+	if (c && c->mon && c->mon != selmon) {
+		selmon = c->mon;
+	}
+
+	if (selmon)
+		selmon->sel = c;
 
 	if ((old_client_type = toplevel_from_wlr_surface(old, &old_c, &old_l)) == XDGShell) {
 		struct wlr_xdg_popup *popup, *tmp;
@@ -1554,6 +1701,14 @@ focusclient(Client *c, int lift)
 
 	/* Activate the new client */
 	client_activate_surface(client_surface(c), 1);
+}
+
+void
+focusdir(const Arg *arg) {
+	Client *c = NULL;
+	c = direction_select(arg);
+	if (c)
+		focusclient(c, 1);
 }
 
 void
@@ -2762,7 +2917,7 @@ setup(void)
 	output_layout = wlr_output_layout_create(dpy);
 	wl_signal_add(&output_layout->events.change, &layout_change);
 
-    wlr_xdg_output_manager_v1_create(dpy, output_layout);
+	wlr_xdg_output_manager_v1_create(dpy, output_layout);
 
 	/* Configure a listener to be notified when new outputs are available on the
 	 * backend. */
@@ -2852,8 +3007,8 @@ setup(void)
 	wl_signal_add(&virtual_keyboard_mgr->events.new_virtual_keyboard,
 			&new_virtual_keyboard);
 	virtual_pointer_mgr = wlr_virtual_pointer_manager_v1_create(dpy);
-    wl_signal_add(&virtual_pointer_mgr->events.new_virtual_pointer,
-            &new_virtual_pointer);
+	wl_signal_add(&virtual_pointer_mgr->events.new_virtual_pointer,
+			&new_virtual_pointer);
 
 	seat = wlr_seat_create(dpy, "seat0");
 	wl_signal_add(&seat->events.request_set_cursor, &request_cursor);
