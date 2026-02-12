@@ -1,0 +1,256 @@
+# dwl Configuration File
+# Place this file at:
+#   $XDG_CONFIG_HOME/dwl/config.toml
+#   ~/.config/dwl/config.toml
+#   /etc/dwl/config.toml
+
+[general]
+# Number of tags (workspaces), max 31
+tag_count = 9
+# Default modifier key: "super", "alt", "ctrl", or "shift"
+# Use "mod" in keybindings to reference this
+modkey = "alt"
+
+[appearance]
+# Focus follows mouse
+sloppyfocus = true
+# Idle inhibitors work even when surface isn't visible
+bypass_surface_visibility = false
+# No outer gaps when only one window
+smartgaps = false
+# Outer gaps in monocle layout
+monoclegaps = false
+# Border width in pixels
+border_width = 1
+# Gaps between windows (inner) and screen edges (outer)
+gap_inner_h = 10
+gap_inner_v = 10
+gap_outer_h = 10
+gap_outer_v = 10
+# Column width ratio for scroller layout
+scroller_ratio = 0.8
+
+[appearance.colors]
+# Colors in hex format: "#RRGGBB" or "#RRGGBBAA"
+root = "#222222"
+border = "#444444"
+focus = "#005577"
+urgent = "#ff0000"
+fullscreen_bg = "#000000"
+
+# SceneFX visual effects (only if compiled with SCENEFX=1)
+[scenefx.corners]
+radius = 10
+radius_inner = 10
+floating_only = false
+
+[scenefx.shadows]
+enabled = true
+floating_only = false
+blur_sigma = 20
+blur_sigma_focus = 30
+color = "#00000088"
+color_focus = "#000000aa"
+
+[scenefx.opacity]
+enabled = false
+active = 1.0
+inactive = 0.8
+
+[scenefx.blur]
+enabled = true
+optimized = true
+ignore_transparent = true
+passes = 3
+radius = 5
+noise = 0.02
+brightness = 0.9
+contrast = 0.9
+saturation = 1.1
+
+[keyboard]
+# Enable numlock on startup
+numlock = true
+# Key repeat rate (keys per second)
+repeat_rate = 25
+# Delay before repeat starts (ms)
+repeat_delay = 600
+
+[keyboard.xkb]
+# XKB keyboard layout settings
+# Uncomment and modify as needed
+# rules = "evdev"
+# model = "pc105"
+layout = "us"
+# variant = ""
+# options = "ctrl:nocaps"
+
+[pointer]
+# Trackpad settings
+tap_to_click = true
+tap_and_drag = true
+drag_lock = true
+natural_scrolling = false
+disable_while_typing = true
+left_handed = false
+middle_button_emulation = false
+# Scroll method: "two_finger", "edge", "button", "none"
+scroll_method = "two_finger"
+# Click method: "button_areas", "clickfinger", "none"
+click_method = "button_areas"
+# Acceleration profile: "adaptive" or "flat"
+accel_profile = "adaptive"
+accel_speed = 0.0
+# Button map: "lrm" (left/right/middle) or "lmr" (left/middle/right)
+button_map = "lrm"
+# Send events: "enabled", "disabled", "disabled_on_external_mouse"
+send_events = "enabled"
+
+# Window rules - applied when windows are created
+# Tags are bitmasks: 1=tag1, 2=tag2, 4=tag3, 8=tag4, 256=tag9, etc.
+[[rules]]
+app_id = "Gimp"
+floating = true
+monitor = -1  # -1 = current monitor
+
+[[rules]]
+app_id = "firefox"
+tags = 256  # Tag 9 (1 << 8)
+floating = false
+
+# Monitor rules - applied when monitors are connected
+# name = null matches any monitor (default rule)
+[[monitors]]
+# name = "eDP-1"
+mfact = 0.55
+nmaster = 1
+scale = 1.0
+layout = "tile"  # "tile", "float", "monocle", "scroller"
+transform = "normal"  # "normal", "90", "180", "270", "flipped", etc.
+x = -1  # -1 = auto-position
+y = -1
+
+# Keybindings
+# Format: "modifiers+key" = { action = "name", arg = value }
+# Modifiers: super, shift, ctrl, alt (combine with +)
+# Keys: Any XKB key name (Return, space, a-z, 0-9, F1-F12, etc.)
+#
+# If this section is present, ONLY these keybindings will be used
+# (except CHVT bindings which are always active)
+# If this section is absent, minimal default keybindings are used
+#
+# Modifier keys: super, alt, ctrl, shift, mod (alias for modkey above)
+# You can use "mod" to reference the modkey setting from [general]
+
+[keybindings]
+# Application launchers - use command = ["program", "arg1", "arg2"]
+"mod+p" = { action = "spawn", command = ["wmenu-run"] }
+"mod+shift+Return" = { action = "spawn", command = ["alacritty"] }
+
+# Window focus
+"mod+j" = { action = "focusstack", arg = 1 }
+"mod+k" = { action = "focusstack", arg = -1 }
+"mod+Left" = { action = "focusdir", arg = "left" }
+"mod+Right" = { action = "focusdir", arg = "right" }
+"mod+Up" = { action = "focusdir", arg = "up" }
+"mod+Down" = { action = "focusdir", arg = "down" }
+
+# Master area
+"mod+i" = { action = "incnmaster", arg = 1 }
+"mod+d" = { action = "incnmaster", arg = -1 }
+"mod+h" = { action = "setmfact", arg = -0.05 }
+"mod+l" = { action = "setmfact", arg = 0.05 }
+
+# Gaps
+"mod+logo+h" = { action = "incgaps", arg = 1 }
+"mod+logo+l" = { action = "incgaps", arg = -1 }
+"mod+logo+0" = { action = "togglegaps" }
+"mod+logo+shift+parenright" = { action = "defaultgaps" }
+
+# Window actions
+"mod+Return" = { action = "zoom" }
+"mod+shift+c" = { action = "killclient" }
+"mod+shift+space" = { action = "togglefloating" }
+"mod+e" = { action = "togglefullscreen" }
+
+# Layouts
+"mod+t" = { action = "setlayout", arg = "tile" }
+"mod+f" = { action = "setlayout", arg = "float" }
+"mod+m" = { action = "setlayout", arg = "monocle" }
+"mod+s" = { action = "setlayout", arg = "scroller" }
+"mod+space" = { action = "setlayout" }
+
+# Scroller layout
+"mod+bracketleft" = { action = "consume_or_expel", arg = -1 }
+"mod+bracketright" = { action = "consume_or_expel", arg = 1 }
+
+# Tags (workspaces)
+"mod+Tab" = { action = "view" }
+"mod+0" = { action = "view", arg = -1 }  # -1 = all tags (~0)
+"mod+shift+parenright" = { action = "tag", arg = -1 }
+
+# Tag 1-9
+"mod+1" = { action = "view", arg = 1 }
+"mod+2" = { action = "view", arg = 2 }
+"mod+3" = { action = "view", arg = 4 }
+"mod+4" = { action = "view", arg = 8 }
+"mod+5" = { action = "view", arg = 16 }
+"mod+6" = { action = "view", arg = 32 }
+"mod+7" = { action = "view", arg = 64 }
+"mod+8" = { action = "view", arg = 128 }
+"mod+9" = { action = "view", arg = 256 }
+
+"mod+ctrl+1" = { action = "toggleview", arg = 1 }
+"mod+ctrl+2" = { action = "toggleview", arg = 2 }
+"mod+ctrl+3" = { action = "toggleview", arg = 4 }
+"mod+ctrl+4" = { action = "toggleview", arg = 8 }
+"mod+ctrl+5" = { action = "toggleview", arg = 16 }
+"mod+ctrl+6" = { action = "toggleview", arg = 32 }
+"mod+ctrl+7" = { action = "toggleview", arg = 64 }
+"mod+ctrl+8" = { action = "toggleview", arg = 128 }
+"mod+ctrl+9" = { action = "toggleview", arg = 256 }
+
+"mod+shift+exclam" = { action = "tag", arg = 1 }
+"mod+shift+at" = { action = "tag", arg = 2 }
+"mod+shift+numbersign" = { action = "tag", arg = 4 }
+"mod+shift+dollar" = { action = "tag", arg = 8 }
+"mod+shift+percent" = { action = "tag", arg = 16 }
+"mod+shift+asciicircum" = { action = "tag", arg = 32 }
+"mod+shift+ampersand" = { action = "tag", arg = 64 }
+"mod+shift+asterisk" = { action = "tag", arg = 128 }
+"mod+shift+parenleft" = { action = "tag", arg = 256 }
+
+"mod+ctrl+shift+exclam" = { action = "toggletag", arg = 1 }
+"mod+ctrl+shift+at" = { action = "toggletag", arg = 2 }
+"mod+ctrl+shift+numbersign" = { action = "toggletag", arg = 4 }
+"mod+ctrl+shift+dollar" = { action = "toggletag", arg = 8 }
+"mod+ctrl+shift+percent" = { action = "toggletag", arg = 16 }
+"mod+ctrl+shift+asciicircum" = { action = "toggletag", arg = 32 }
+"mod+ctrl+shift+ampersand" = { action = "toggletag", arg = 64 }
+"mod+ctrl+shift+asterisk" = { action = "toggletag", arg = 128 }
+"mod+ctrl+shift+parenleft" = { action = "toggletag", arg = 256 }
+
+# Multi-monitor
+"mod+comma" = { action = "focusmon", arg = "left" }
+"mod+period" = { action = "focusmon", arg = "right" }
+"mod+shift+less" = { action = "tagmon", arg = "left" }
+"mod+shift+greater" = { action = "tagmon", arg = "right" }
+
+# Session
+"mod+shift+q" = { action = "quit" }
+"mod+shift+r" = { action = "reload_config" }
+
+# Note: Ctrl+Alt+F1-F12 (VT switching) is always available
+# and cannot be overridden in the config file
+
+# Button bindings (mouse)
+# Format: "modifiers+button" = { action = "name", arg = value }
+# Buttons: left, middle, right, side, extra
+#
+# If this section is present, ONLY these button bindings will be used
+# If this section is absent, default button bindings from config.def.h are used
+
+[buttons]
+"mod+left" = { action = "moveresize", arg = "move" }
+"mod+middle" = { action = "togglefloating" }
+"mod+right" = { action = "moveresize", arg = "resize" }

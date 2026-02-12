@@ -79,6 +79,7 @@
 #endif
 
 #include "util.h"
+#include "config_parser.h"
 
 /* macros */
 #define MAX(A, B)               ((A) > (B) ? (A) : (B))
@@ -286,6 +287,7 @@ static void buttonpress(struct wl_listener *listener, void *data);
 static void chvt(const Arg *arg);
 static void checkidleinhibitor(struct wlr_surface *exclude);
 static void cleanup(void);
+void config_apply_internal(void);
 static void cleanupmon(struct wl_listener *listener, void *data);
 static void cleanuplisteners(void);
 static void closemon(Monitor *m);
@@ -358,6 +360,7 @@ static void pointerfocus(Client *c, struct wlr_surface *surface,
 static void printstatus(void);
 static void powermgrsetmode(struct wl_listener *listener, void *data);
 static void quit(const Arg *arg);
+static void reload_config(const Arg *arg);
 static void rendermon(struct wl_listener *listener, void *data);
 static void requestdecorationmode(struct wl_listener *listener, void *data);
 static void requeststartdrag(struct wl_listener *listener, void *data);
@@ -517,8 +520,155 @@ static struct wl_listener xwayland_ready = {.notify = xwaylandready};
 static struct wlr_xwayland *xwayland;
 #endif
 
-/* configuration, allows nested code to access above variables */
-#include "config.h"
+/* ===== CONFIGURATION ===== */
+
+/* Taken from https://github.com/djpohly/dwl/issues/466 */
+#define COLOR(hex)    { ((hex >> 24) & 0xFF) / 255.0f, \
+                        ((hex >> 16) & 0xFF) / 255.0f, \
+                        ((hex >> 8) & 0xFF) / 255.0f, \
+                        (hex & 0xFF) / 255.0f }
+
+/* tagging - TAGCOUNT must be no greater than 31 */
+#define TAGCOUNT (9)
+
+/* Layout functions - must be compiled in */
+const Layout layouts[] = {
+	/* symbol     arrange function */
+	{ "[]=",      tile },
+	{ "><>",      NULL },    /* no layout function means floating behavior */
+	{ "[M]",      monocle },
+	{ "[>]",      scroller },
+};
+
+/* Default rules - used when no [[rules]] in config.toml */
+static const Rule rules[] = {
+	/* app_id             title       tags mask     isfloating   monitor */
+	{ "Gimp_EXAMPLE",     NULL,       0,            1,           -1 },
+	{ "firefox_EXAMPLE",  NULL,       1 << 8,       0,           -1 },
+};
+
+/* Default monitor rules - used when no [[monitors]] in config.toml */
+static const MonitorRule monrules[] = {
+	/* name        mfact  nmaster scale layout       rotate/reflect                x    y */
+	{ NULL,       0.55f, 1,      1,    &layouts[0], WL_OUTPUT_TRANSFORM_NORMAL,   -1,  -1 },
+};
+
+/* Modifier key for default bindings */
+#define MODKEY WLR_MODIFIER_ALT
+
+/* Helper macros */
+#define TAGKEYS(KEY,SKEY,TAG) \
+	{ MODKEY,                    KEY,            view,            {.ui = 1 << TAG} }, \
+	{ MODKEY|WLR_MODIFIER_CTRL,  KEY,            toggleview,      {.ui = 1 << TAG} }, \
+	{ MODKEY|WLR_MODIFIER_SHIFT, SKEY,           tag,             {.ui = 1 << TAG} }, \
+	{ MODKEY|WLR_MODIFIER_CTRL|WLR_MODIFIER_SHIFT,SKEY,toggletag, {.ui = 1 << TAG} }
+
+#define SHCMD(cmd) { .v = (const char*[]){ "/bin/sh", "-c", cmd, NULL } }
+
+/*
+ * CHVT keys - ALWAYS active, cannot be overridden by config file
+ * These are essential for switching virtual terminals
+ */
+#define CHVT(n) { WLR_MODIFIER_CTRL|WLR_MODIFIER_ALT, XKB_KEY_XF86Switch_VT_##n, chvt, {.ui = (n)} }
+static const Key chvt_keys[] = {
+	CHVT(1), CHVT(2), CHVT(3), CHVT(4), CHVT(5), CHVT(6),
+	CHVT(7), CHVT(8), CHVT(9), CHVT(10), CHVT(11), CHVT(12),
+};
+
+/*
+ * Default button bindings - used when no [buttons] section in config.toml
+ * These can be fully replaced by the config file.
+ */
+static const Button buttons[] = {
+	{ MODKEY, BTN_LEFT,   moveresize,     {.ui = CurMove} },
+	{ MODKEY, BTN_MIDDLE, togglefloating, {0} },
+	{ MODKEY, BTN_RIGHT,  moveresize,     {.ui = CurResize} },
+};
+
+/*
+ * Default keybindings - used when no [keybindings] section in config.toml
+ * These are minimal fallbacks; users should configure via config.toml
+ */
+static const Key keys[] = {
+	/* modifier                  key                  function          argument */
+	{ MODKEY,                    XKB_KEY_j,           focusstack,       {.i = +1} },
+	{ MODKEY,                    XKB_KEY_k,           focusstack,       {.i = -1} },
+	{ MODKEY,                    XKB_KEY_Return,      zoom,             {0} },
+	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_c,           killclient,       {0} },
+	{ MODKEY,                    XKB_KEY_t,           setlayout,        {.v = &layouts[0]} },
+	{ MODKEY,                    XKB_KEY_f,           setlayout,        {.v = &layouts[1]} },
+	{ MODKEY,                    XKB_KEY_m,           setlayout,        {.v = &layouts[2]} },
+	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_space,       togglefloating,   {0} },
+	{ MODKEY,                    XKB_KEY_e,           togglefullscreen, {0} },
+	{ MODKEY,                    XKB_KEY_0,           view,             {.ui = ~0} },
+	{ MODKEY,                    XKB_KEY_comma,       focusmon,         {.i = WLR_DIRECTION_LEFT} },
+	{ MODKEY,                    XKB_KEY_period,      focusmon,         {.i = WLR_DIRECTION_RIGHT} },
+	TAGKEYS(          XKB_KEY_1, XKB_KEY_exclam,                        0),
+	TAGKEYS(          XKB_KEY_2, XKB_KEY_at,                            1),
+	TAGKEYS(          XKB_KEY_3, XKB_KEY_numbersign,                    2),
+	TAGKEYS(          XKB_KEY_4, XKB_KEY_dollar,                        3),
+	TAGKEYS(          XKB_KEY_5, XKB_KEY_percent,                       4),
+	TAGKEYS(          XKB_KEY_6, XKB_KEY_asciicircum,                   5),
+	TAGKEYS(          XKB_KEY_7, XKB_KEY_ampersand,                     6),
+	TAGKEYS(          XKB_KEY_8, XKB_KEY_asterisk,                      7),
+	TAGKEYS(          XKB_KEY_9, XKB_KEY_parenleft,                     8),
+	{ MODKEY|WLR_MODIFIER_SHIFT, XKB_KEY_q,           quit,             {0} },
+	/* Ctrl-Alt-Backspace to quit */
+	{ WLR_MODIFIER_CTRL|WLR_MODIFIER_ALT, XKB_KEY_Terminate_Server, quit, {0} },
+};
+
+/* ===== END CONFIGURATION ===== */
+
+/* Action lookup table for config parser */
+static const struct {
+	const char *name;
+	void (*func)(const Arg *);
+} action_entries[] = {
+	{ "focusstack", focusstack },
+	{ "focusdir", focusdir },
+	{ "incnmaster", incnmaster },
+	{ "setmfact", setmfact },
+	{ "zoom", zoom },
+	{ "view", view },
+	{ "killclient", killclient },
+	{ "togglefloating", togglefloating },
+	{ "togglefullscreen", togglefullscreen },
+	{ "tag", tag },
+	{ "toggletag", toggletag },
+	{ "toggleview", toggleview },
+	{ "focusmon", focusmon },
+	{ "tagmon", tagmon },
+	{ "setlayout", setlayout },
+	{ "spawn", spawn },
+	{ "moveresize", moveresize },
+	{ "quit", quit },
+	{ "incgaps", incgaps },
+	{ "incigaps", incigaps },
+	{ "incogaps", incogaps },
+	{ "incihgaps", incihgaps },
+	{ "incivgaps", incivgaps },
+	{ "incohgaps", incohgaps },
+	{ "incovgaps", incovgaps },
+	{ "togglegaps", togglegaps },
+	{ "defaultgaps", defaultgaps },
+	{ "consume_or_expel", consume_or_expel },
+	{ "reload_config", reload_config },
+	{ NULL, NULL }
+};
+
+/* External action lookup for config parser */
+ActionFunc
+action_lookup(const char *name)
+{
+	size_t i;
+	if (!name)
+		return NULL;
+	for (i = 0; action_entries[i].name; i++) {
+		if (strcmp(name, action_entries[i].name) == 0)
+			return (ActionFunc)action_entries[i].func;
+	}
+	return NULL;
+}
 
 /* attempt to encapsulate suck into one file */
 #include "client.h"
@@ -548,21 +698,38 @@ applyrules(Client *c)
 	const char *appid, *title;
 	uint32_t newtags = 0;
 	int i;
-	const Rule *r;
 	Monitor *mon = selmon, *m;
 
 	appid = client_get_appid(c);
 	title = client_get_title(c);
 
-	for (r = rules; r < END(rules); r++) {
-		if ((!r->title || strstr(title, r->title))
-				&& (!r->id || strstr(appid, r->id))) {
-			c->isfloating = r->isfloating;
-			newtags |= r->tags;
-			i = 0;
-			wl_list_for_each(m, &mons, link) {
-				if (r->monitor == i++)
-					mon = m;
+	/* Use config rules if available, otherwise fall back to compiled-in rules */
+	if (cfg.rules_count > 0) {
+		for (size_t ri = 0; ri < cfg.rules_count; ri++) {
+			ConfigRule *r = &cfg.rules[ri];
+			if ((!r->title || strstr(title, r->title))
+					&& (!r->id || strstr(appid, r->id))) {
+				c->isfloating = r->isfloating;
+				newtags |= r->tags;
+				i = 0;
+				wl_list_for_each(m, &mons, link) {
+					if (r->monitor == i++)
+						mon = m;
+				}
+			}
+		}
+	} else {
+		const Rule *r;
+		for (r = rules; r < END(rules); r++) {
+			if ((!r->title || strstr(title, r->title))
+					&& (!r->id || strstr(appid, r->id))) {
+				c->isfloating = r->isfloating;
+				newtags |= r->tags;
+				i = 0;
+				wl_list_for_each(m, &mons, link) {
+					if (r->monitor == i++)
+						mon = m;
+				}
 			}
 		}
 	}
@@ -711,11 +878,24 @@ buttonpress(struct wl_listener *listener, void *data)
 
 		keyboard = wlr_seat_get_keyboard(seat);
 		mods = keyboard ? wlr_keyboard_get_modifiers(keyboard) : 0;
-		for (b = buttons; b < END(buttons); b++) {
-			if (CLEANMASK(mods) == CLEANMASK(b->mod) &&
-					event->button == b->button && b->func) {
-				b->func(&b->arg);
-				return;
+
+		/* Check config button bindings if present */
+		if (cfg.buttons_from_config && cfg.buttons_count > 0) {
+			for (size_t i = 0; i < cfg.buttons_count; i++) {
+				if (CLEANMASK(mods) == CLEANMASK(cfg.buttons[i].mod) &&
+						event->button == cfg.buttons[i].button && cfg.buttons[i].func) {
+					cfg.buttons[i].func(&cfg.buttons[i].arg);
+					return;
+				}
+			}
+		} else {
+			/* Fall back to compiled-in button bindings */
+			for (b = buttons; b < END(buttons); b++) {
+				if (CLEANMASK(mods) == CLEANMASK(b->mod) &&
+						event->button == b->button && b->func) {
+					b->func(&b->arg);
+					return;
+				}
 			}
 		}
 		break;
@@ -754,7 +934,7 @@ checkidleinhibitor(struct wlr_surface *exclude)
 	wl_list_for_each(inhibitor, &idle_inhibit_mgr->inhibitors, link) {
 		struct wlr_surface *surface = wlr_surface_get_root_surface(inhibitor->surface);
 		struct wlr_scene_tree *tree = surface->data;
-		if (exclude != surface && (bypass_surface_visibility || (!tree
+		if (exclude != surface && (cfg.bypass_surface_visibility || (!tree
 				|| wlr_scene_node_coords(&tree->node, &unused_lx, &unused_ly)))) {
 			inhibited = 1;
 			break;
@@ -789,6 +969,40 @@ cleanup(void)
 	/* Destroy after the wayland display (when the monitors are already destroyed)
 		 to avoid destroying them with an invalid scene output. */
 	wlr_scene_node_destroy(&scene->tree.node);
+
+	/* Free configuration data */
+	config_free();
+}
+
+void
+config_apply_internal(void)
+{
+	Monitor *m;
+	Client *c;
+
+	/* Update root background color */
+	if (root_bg)
+		wlr_scene_rect_set_color(root_bg, cfg.rootcolor);
+
+	/* Update all monitors */
+	wl_list_for_each(m, &mons, link) {
+		m->gappih = cfg.gappih;
+		m->gappiv = cfg.gappiv;
+		m->gappoh = cfg.gappoh;
+		m->gappov = cfg.gappov;
+		m->scroller_ratio = cfg.scroller_ratio;
+		/* Trigger re-arrange */
+		arrange(m);
+	}
+
+	/* Update all client borders */
+	wl_list_for_each(c, &clients, link) {
+		int i;
+		for (i = 0; i < 4; i++) {
+			if (c->border[i])
+				wlr_scene_rect_set_color(c->border[i], cfg.bordercolor);
+		}
+	}
 }
 
 void
@@ -1023,18 +1237,27 @@ createkeyboardgroup(void)
 	KeyboardGroup *group = ecalloc(1, sizeof(*group));
 	struct xkb_context *context;
 	struct xkb_keymap *keymap;
+	/* Use config XKB settings if available, otherwise use compiled-in defaults */
+	struct xkb_rule_names xkb_rules_cfg = {
+		.rules = cfg.xkb_rules,
+		.model = cfg.xkb_model,
+		.layout = cfg.xkb_layout,
+		.variant = cfg.xkb_variant,
+		.options = cfg.xkb_options,
+	};
 
 	group->wlr_group = wlr_keyboard_group_create();
 	group->wlr_group->data = group;
 
 	/* Prepare an XKB keymap and assign it to the keyboard group. */
+
 	context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
-	if (!(keymap = xkb_keymap_new_from_names(context, &xkb_rules,
+	if (!(keymap = xkb_keymap_new_from_names(context, &xkb_rules_cfg,
 				XKB_KEYMAP_COMPILE_NO_FLAGS)))
 		die("failed to compile keymap");
 
 	wlr_keyboard_set_keymap(&group->wlr_group->keyboard, keymap);
-	if (numlock) {
+	if (cfg.numlock) {
 		xkb_mod_index_t mod_index = xkb_keymap_mod_get_index(keymap, XKB_MOD_NAME_NUM);
 		if (mod_index != XKB_MOD_INVALID)
 			locked_mods |= (uint32_t)1 << mod_index;
@@ -1046,7 +1269,7 @@ createkeyboardgroup(void)
 	xkb_keymap_unref(keymap);
 	xkb_context_unref(context);
 
-	wlr_keyboard_set_repeat_info(&group->wlr_group->keyboard, repeat_rate, repeat_delay);
+	wlr_keyboard_set_repeat_info(&group->wlr_group->keyboard, cfg.repeat_rate, cfg.repeat_delay);
 
 	/* Set up listeners for keyboard events */
 	LISTEN(&group->wlr_group->keyboard.events.key, &group->key, keypress);
@@ -1124,6 +1347,7 @@ createmon(struct wl_listener *listener, void *data)
 	size_t i;
 	struct wlr_output_state state;
 	Monitor *m;
+	int rule_matched = 0;
 
 	if (!wlr_output_init_render(wlr_output, alloc, drw))
 		return;
@@ -1134,29 +1358,54 @@ createmon(struct wl_listener *listener, void *data)
 	for (i = 0; i < LENGTH(m->layers); i++)
 		wl_list_init(&m->layers[i]);
 
-	m->gappih = gappih;
-	m->gappiv = gappiv;
-	m->gappoh = gappoh;
-	m->gappov = gappov;
+	/* Use config gap values */
+	m->gappih = cfg.gappih;
+	m->gappiv = cfg.gappiv;
+	m->gappoh = cfg.gappoh;
+	m->gappov = cfg.gappov;
 	m->sel = NULL;
 	m->scroll_offset = 0;
-	m->scroller_ratio = scroller_ratio;
+	m->scroller_ratio = cfg.scroller_ratio;
 
 	wlr_output_state_init(&state);
 	/* Initialize monitor state using configured rules */
 	m->tagset[0] = m->tagset[1] = 1;
-	for (r = monrules; r < END(monrules); r++) {
-		if (!r->name || strstr(wlr_output->name, r->name)) {
-			m->m.x = r->x;
-			m->m.y = r->y;
-			m->mfact = r->mfact;
-			m->nmaster = r->nmaster;
-			m->lt[0] = r->lt;
-			m->lt[1] = &layouts[LENGTH(layouts) > 1 && r->lt != &layouts[1]];
-			strncpy(m->ltsymbol, m->lt[m->sellt]->symbol, LENGTH(m->ltsymbol));
-			wlr_output_state_set_scale(&state, r->scale);
-			wlr_output_state_set_transform(&state, r->rr);
-			break;
+
+	/* Try config monitor rules first */
+	if (cfg.monrules_count > 0) {
+		for (size_t ri = 0; ri < cfg.monrules_count; ri++) {
+			ConfigMonitorRule *cr = &cfg.monrules[ri];
+			if (!cr->name || strstr(wlr_output->name, cr->name)) {
+				m->m.x = cr->x;
+				m->m.y = cr->y;
+				m->mfact = cr->mfact;
+				m->nmaster = cr->nmaster;
+				m->lt[0] = &layouts[cr->layout_index];
+				m->lt[1] = &layouts[LENGTH(layouts) > 1 && cr->layout_index != 1];
+				strncpy(m->ltsymbol, m->lt[m->sellt]->symbol, LENGTH(m->ltsymbol));
+				wlr_output_state_set_scale(&state, cr->scale);
+				wlr_output_state_set_transform(&state, cr->transform);
+				rule_matched = 1;
+				break;
+			}
+		}
+	}
+
+	/* Fall back to compiled-in rules */
+	if (!rule_matched) {
+		for (r = monrules; r < END(monrules); r++) {
+			if (!r->name || strstr(wlr_output->name, r->name)) {
+				m->m.x = r->x;
+				m->m.y = r->y;
+				m->mfact = r->mfact;
+				m->nmaster = r->nmaster;
+				m->lt[0] = r->lt;
+				m->lt[1] = &layouts[LENGTH(layouts) > 1 && r->lt != &layouts[1]];
+				strncpy(m->ltsymbol, m->lt[m->sellt]->symbol, LENGTH(m->ltsymbol));
+				wlr_output_state_set_scale(&state, r->scale);
+				wlr_output_state_set_transform(&state, r->rr);
+				break;
+			}
 		}
 	}
 
@@ -1187,11 +1436,11 @@ createmon(struct wl_listener *listener, void *data)
 	 *
 	 */
 	/* updatemons() will resize and set correct position */
-	m->fullscreen_bg = wlr_scene_rect_create(layers[LyrFS], 0, 0, fullscreen_bg);
+	m->fullscreen_bg = wlr_scene_rect_create(layers[LyrFS], 0, 0, cfg.fullscreen_bg);
 	wlr_scene_node_set_enabled(&m->fullscreen_bg->node, 0);
 
 #ifdef SCENEFX
-	if (blur && blur_optimized) {
+	if (cfg.blur && cfg.blur_optimized) {
 		m->blur_layer = wlr_scene_optimized_blur_create(layers[LyrBlur], 0, 0);
 	}
 #endif
@@ -1219,7 +1468,7 @@ createnotify(struct wl_listener *listener, void *data)
 	/* Allocate a Client for this surface */
 	c = toplevel->base->data = ecalloc(1, sizeof(*c));
 	c->surface.xdg = toplevel->base;
-	c->bw = borderpx;
+	c->bw = cfg.borderpx;
 
 	LISTEN(&toplevel->base->surface->events.commit, &c->commit, commitnotify);
 	LISTEN(&toplevel->base->surface->events.map, &c->map, mapnotify);
@@ -1238,36 +1487,36 @@ createpointer(struct wlr_pointer *pointer)
 			&& (device = wlr_libinput_get_device_handle(&pointer->base))) {
 
 		if (libinput_device_config_tap_get_finger_count(device)) {
-			libinput_device_config_tap_set_enabled(device, tap_to_click);
-			libinput_device_config_tap_set_drag_enabled(device, tap_and_drag);
-			libinput_device_config_tap_set_drag_lock_enabled(device, drag_lock);
-			libinput_device_config_tap_set_button_map(device, button_map);
+			libinput_device_config_tap_set_enabled(device, cfg.tap_to_click);
+			libinput_device_config_tap_set_drag_enabled(device, cfg.tap_and_drag);
+			libinput_device_config_tap_set_drag_lock_enabled(device, cfg.drag_lock);
+			libinput_device_config_tap_set_button_map(device, cfg.button_map);
 		}
 
 		if (libinput_device_config_scroll_has_natural_scroll(device))
-			libinput_device_config_scroll_set_natural_scroll_enabled(device, natural_scrolling);
+			libinput_device_config_scroll_set_natural_scroll_enabled(device, cfg.natural_scrolling);
 
 		if (libinput_device_config_dwt_is_available(device))
-			libinput_device_config_dwt_set_enabled(device, disable_while_typing);
+			libinput_device_config_dwt_set_enabled(device, cfg.disable_while_typing);
 
 		if (libinput_device_config_left_handed_is_available(device))
-			libinput_device_config_left_handed_set(device, left_handed);
+			libinput_device_config_left_handed_set(device, cfg.left_handed);
 
 		if (libinput_device_config_middle_emulation_is_available(device))
-			libinput_device_config_middle_emulation_set_enabled(device, middle_button_emulation);
+			libinput_device_config_middle_emulation_set_enabled(device, cfg.middle_button_emulation);
 
 		if (libinput_device_config_scroll_get_methods(device) != LIBINPUT_CONFIG_SCROLL_NO_SCROLL)
-			libinput_device_config_scroll_set_method(device, scroll_method);
+			libinput_device_config_scroll_set_method(device, cfg.scroll_method);
 
 		if (libinput_device_config_click_get_methods(device) != LIBINPUT_CONFIG_CLICK_METHOD_NONE)
-			libinput_device_config_click_set_method(device, click_method);
+			libinput_device_config_click_set_method(device, cfg.click_method);
 
 		if (libinput_device_config_send_events_get_modes(device))
-			libinput_device_config_send_events_set_mode(device, send_events_mode);
+			libinput_device_config_send_events_set_mode(device, cfg.send_events_mode);
 
 		if (libinput_device_config_accel_is_available(device)) {
-			libinput_device_config_accel_set_profile(device, accel_profile);
-			libinput_device_config_accel_set_speed(device, accel_speed);
+			libinput_device_config_accel_set_profile(device, cfg.accel_profile);
+			libinput_device_config_accel_set_speed(device, cfg.accel_speed);
 		}
 	}
 
@@ -1333,7 +1582,7 @@ cursorwarptohint(void)
 void
 defaultgaps(const Arg *arg)
 {
-	setgaps(gappoh, gappov, gappih, gappiv);
+	setgaps(cfg.gappoh, cfg.gappov, cfg.gappih, cfg.gappiv);
 }
 
 void
@@ -1673,7 +1922,7 @@ focusclient(Client *c, int lift)
 		/* Don't change border color if there is an exclusive focus or we are
 		 * handling a drag operation */
 		if (!exclusive_focus && !seat->drag) {
-			client_set_border_color(c, focuscolor);
+			client_set_border_color(c, cfg.focuscolor);
 #ifdef SCENEFX
 			update_client_decorations(c, 1);
 #endif
@@ -1694,7 +1943,7 @@ focusclient(Client *c, int lift)
 		/* Don't deactivate old client if the new one wants focus, as this causes issues with winecfg
 		 * and probably other clients */
 		} else if (old_c && !client_is_unmanaged(old_c) && (!c || !client_wants_focus(c))) {
-			client_set_border_color(old_c, bordercolor);
+			client_set_border_color(old_c, cfg.bordercolor);
 #ifdef SCENEFX
 			update_client_decorations(old_c, 0);
 #endif
@@ -1985,15 +2234,39 @@ keybinding(uint32_t mods, xkb_keysym_t sym)
 	 * processing keys, rather than passing them on to the client for its own
 	 * processing.
 	 */
-	const Key *k;
-	for (k = keys; k < END(keys); k++) {
-		if (CLEANMASK(mods) == CLEANMASK(k->mod)
-				&& xkb_keysym_to_lower(sym) == xkb_keysym_to_lower(k->keysym)
-				&& k->func) {
-			k->func(&k->arg);
+
+	/* Check config keybindings if [keybindings] section was present */
+	if (cfg.keys_from_config && cfg.keys_count > 0) {
+		for (size_t i = 0; i < cfg.keys_count; i++) {
+			if (CLEANMASK(mods) == CLEANMASK(cfg.keys[i].mod)
+					&& xkb_keysym_to_lower(sym) == xkb_keysym_to_lower(cfg.keys[i].keysym)
+					&& cfg.keys[i].func) {
+				cfg.keys[i].func(&cfg.keys[i].arg);
+				return 1;
+			}
+		}
+	} else {
+		/* Fall back to compiled-in keybindings */
+		const Key *k;
+		for (k = keys; k < END(keys); k++) {
+			if (CLEANMASK(mods) == CLEANMASK(k->mod)
+					&& xkb_keysym_to_lower(sym) == xkb_keysym_to_lower(k->keysym)
+					&& k->func) {
+				k->func(&k->arg);
+				return 1;
+			}
+		}
+	}
+
+	/* Always check hardcoded CHVT keys (Ctrl+Alt+F1-F12) */
+	for (size_t i = 0; i < LENGTH(chvt_keys); i++) {
+		if (CLEANMASK(mods) == CLEANMASK(chvt_keys[i].mod)
+				&& sym == chvt_keys[i].keysym) {
+			chvt_keys[i].func(&chvt_keys[i].arg);
 			return 1;
 		}
 	}
+
 	return 0;
 }
 
@@ -2145,17 +2418,17 @@ mapnotify(struct wl_listener *listener, void *data)
 
 	for (i = 0; i < 4; i++) {
 		c->border[i] = wlr_scene_rect_create(c->scene, 0, 0,
-				c->isurgent ? urgentcolor : bordercolor);
+				c->isurgent ? cfg.urgentcolor : cfg.bordercolor);
 		c->border[i]->node.data = c;
 	}
 
 #ifdef SCENEFX
 	/* Create rounded border for scenefx (replaces the 4 separate border rects visually) */
-	if (corner_radius > 0) {
+	if (cfg.corner_radius > 0) {
 		c->round_border = wlr_scene_rect_create(c->scene, 0, 0,
-				c->isurgent ? urgentcolor : bordercolor);
+				c->isurgent ? cfg.urgentcolor : cfg.bordercolor);
 		c->round_border->node.data = c;
-		wlr_scene_rect_set_corner_radius(c->round_border, corner_radius, CORNER_LOCATION_ALL);
+		wlr_scene_rect_set_corner_radius(c->round_border, cfg.corner_radius, CORNER_LOCATION_ALL);
 		/* Hide the regular borders since we're using the rounded border */
 		for (i = 0; i < 4; i++)
 			wlr_scene_node_set_enabled(&c->border[i]->node, 0);
@@ -2229,11 +2502,11 @@ monocle(Monitor *m)
 	wl_list_for_each(c, &clients, link) {
 		if (!VISIBLEON(c, m) || c->isfloating || c->isfullscreen)
 			continue;
-		if (!monoclegaps)
+		if (!cfg.monoclegaps)
 			resize(c, m->w, 0);
 		else
-			resize(c, (struct wlr_box){.x = m->w.x + gappoh, .y = m->w.y + gappov,
-				.width = m->w.width - 2 * gappoh, .height = m->w.height - 2 * gappov}, 0);
+			resize(c, (struct wlr_box){.x = m->w.x + cfg.gappoh, .y = m->w.y + cfg.gappov,
+				.width = m->w.width - 2 * cfg.gappoh, .height = m->w.height - 2 * cfg.gappov}, 0);
 		n++;
 	}
 	if (n)
@@ -2313,7 +2586,7 @@ motionnotify(uint32_t time, struct wlr_input_device *device, double dx, double d
 		wlr_idle_notifier_v1_notify_activity(idle_notifier, seat);
 
 		/* Update selmon (even while dragging a window) */
-		if (sloppyfocus)
+		if (cfg.sloppyfocus)
 			selmon = xytomon(cursor->x, cursor->y);
 	}
 
@@ -2468,7 +2741,7 @@ pointerfocus(Client *c, struct wlr_surface *surface, double sx, double sy,
 	struct timespec now;
 
 	if (surface != seat->pointer_state.focused_surface &&
-			sloppyfocus && time && c && !client_is_unmanaged(c))
+			cfg.sloppyfocus && time && c && !client_is_unmanaged(c))
 		focusclient(c, 0);
 
 	/* If surface is NULL, clear pointer focus */
@@ -2549,6 +2822,15 @@ void
 quit(const Arg *arg)
 {
 	wl_display_terminate(dpy);
+}
+
+void
+reload_config(const Arg *arg)
+{
+	if (config_reload() == 0) {
+		config_apply_internal();
+		wlr_log(WLR_INFO, "Configuration reloaded successfully");
+	}
 }
 
 void
@@ -2768,7 +3050,7 @@ setfullscreen(Client *c, int fullscreen)
 	c->isfullscreen = fullscreen;
 	if (!c->mon || !client_surface(c)->mapped)
 		return;
-	c->bw = fullscreen ? 0 : borderpx;
+	c->bw = fullscreen ? 0 : cfg.borderpx;
 	client_set_fullscreen(c, fullscreen);
 	wlr_scene_node_reparent(&c->scene->node, layers[c->isfullscreen
 			? LyrFS : c->isfloating ? LyrFloat : LyrTile]);
@@ -2890,7 +3172,10 @@ setup(void)
 	for (i = 0; i < (int)LENGTH(sig); i++)
 		sigaction(sig[i], &sa, NULL);
 
-	wlr_log_init(log_level, NULL);
+	/* Load configuration before initializing wlr_log so we can use cfg.log_level */
+	config_load(NULL);
+
+	wlr_log_init(cfg.log_level, NULL);
 
 	/* The Wayland display is managed by libwayland. It handles accepting
 	 * clients from the Unix socket, manging Wayland globals, and so on. */
@@ -2906,16 +3191,16 @@ setup(void)
 
 	/* Initialize the scene graph used to lay out windows */
 	scene = wlr_scene_create();
-	root_bg = wlr_scene_rect_create(&scene->tree, 0, 0, rootcolor);
+	root_bg = wlr_scene_rect_create(&scene->tree, 0, 0, cfg.rootcolor);
 	for (i = 0; i < NUM_LAYERS; i++)
 		layers[i] = wlr_scene_tree_create(&scene->tree);
 	drag_icon = wlr_scene_tree_create(&scene->tree);
 	wlr_scene_node_place_below(&drag_icon->node, &layers[LyrBlock]->node);
 
 #ifdef SCENEFX
-	if (blur)
-		wlr_scene_set_blur_data(scene, blur_data.num_passes, blur_data.radius,
-			blur_data.noise, blur_data.brightness, blur_data.contrast, blur_data.saturation);
+	if (cfg.blur)
+		wlr_scene_set_blur_data(scene, cfg.blur_data.num_passes, cfg.blur_data.radius,
+			cfg.blur_data.noise, cfg.blur_data.brightness, cfg.blur_data.contrast, cfg.blur_data.saturation);
 #endif
 
 	/* Autocreates a renderer, either Pixman, GLES2 or Vulkan for us. The user
@@ -3170,7 +3455,7 @@ tile(Monitor *m)
 	if (n == 0)
 		return;
 
-	if (smartgaps == n) {
+	if (cfg.smartgaps == n) {
 		oe = 0; // outer gaps disabled
 	}
 
@@ -3308,7 +3593,7 @@ scroller(Monitor *m)
 	if (n == 0)
 		return;
 
-	if (smartgaps == n)
+	if (cfg.smartgaps == n)
 		oe = 0;
 
 	/* Calculate column width */
@@ -3701,7 +3986,7 @@ urgent(struct wl_listener *listener, void *data)
 	printstatus();
 
 	if (client_surface(c)->mapped)
-		client_set_border_color(c, urgentcolor);
+		client_set_border_color(c, cfg.urgentcolor);
 }
 
 void
@@ -3823,21 +4108,21 @@ client_should_have_decoration(Client *c)
 		return 0;
 	if (c->isfullscreen)
 		return 0;
-	if (corner_floating_only && !c->isfloating)
+	if (cfg.corner_floating_only && !c->isfloating)
 		return 0;
-	return corner_radius > 0;
+	return cfg.corner_radius > 0;
 }
 
 static int
 client_should_have_shadow(Client *c)
 {
-	if (!shadow)
+	if (!cfg.shadow)
 		return 0;
 	if (client_is_x11(c) || client_is_unmanaged(c))
 		return 0;
 	if (c->isfullscreen)
 		return 0;
-	if (shadow_floating_only && !c->isfloating)
+	if (cfg.shadow_floating_only && !c->isfloating)
 		return 0;
 	return 1;
 }
@@ -3847,8 +4132,8 @@ update_client_corner_radius(Client *c)
 {
 	struct wlr_scene_buffer *buf;
 	struct wlr_scene_node *node;
-	int radius = client_should_have_decoration(c) ? corner_radius : 0;
-	int inner_radius = client_should_have_decoration(c) ? corner_radius_inner : 0;
+	int radius = client_should_have_decoration(c) ? cfg.corner_radius : 0;
+	int inner_radius = client_should_have_decoration(c) ? cfg.corner_radius_inner : 0;
 
 	if (c->corner_radius == radius)
 		return;
@@ -3871,8 +4156,8 @@ static void
 update_client_shadow(Client *c, int focused)
 {
 	int should_have_shadow = client_should_have_shadow(c);
-	int blur_sigma = focused ? shadow_blur_sigma_focus : shadow_blur_sigma;
-	const float *color = focused ? shadow_color_focus : shadow_color;
+	int blur_sigma = focused ? cfg.shadow_blur_sigma_focus : cfg.shadow_blur_sigma;
+	const float *color = focused ? cfg.shadow_color_focus : cfg.shadow_color;
 
 	if (!should_have_shadow) {
 		if (c->shadow) {
@@ -3884,7 +4169,7 @@ update_client_shadow(Client *c, int focused)
 	if (!c->shadow) {
 		/* Create shadow if it doesn't exist */
 		c->shadow = wlr_scene_shadow_create(c->scene,
-			c->geom.width, c->geom.height, corner_radius, blur_sigma, color);
+			c->geom.width, c->geom.height, cfg.corner_radius, blur_sigma, color);
 		if (c->shadow) {
 			wlr_scene_node_lower_to_bottom(&c->shadow->node);
 			/* Position the shadow behind the window */
@@ -3906,10 +4191,10 @@ update_client_opacity(Client *c, int focused)
 	struct wlr_scene_node *node;
 	float op;
 
-	if (!opacity)
+	if (!cfg.opacity)
 		return;
 
-	op = focused ? opacity_active : opacity_inactive;
+	op = focused ? cfg.opacity_active : cfg.opacity_inactive;
 	if (c->opacity == op)
 		return;
 	c->opacity = op;
@@ -4018,7 +4303,7 @@ createnotifyx11(struct wl_listener *listener, void *data)
 	c = xsurface->data = ecalloc(1, sizeof(*c));
 	c->surface.xwayland = xsurface;
 	c->type = X11;
-	c->bw = client_is_unmanaged(c) ? 0 : borderpx;
+	c->bw = client_is_unmanaged(c) ? 0 : cfg.borderpx;
 
 	/* Listen to the various events it can emit */
 	LISTEN(&xsurface->events.associate, &c->associate, associatex11);
@@ -4051,7 +4336,7 @@ sethints(struct wl_listener *listener, void *data)
 	printstatus();
 
 	if (c->isurgent && surface && surface->mapped)
-		client_set_border_color(c, urgentcolor);
+		client_set_border_color(c, cfg.urgentcolor);
 }
 
 void
@@ -4076,12 +4361,13 @@ main(int argc, char *argv[])
 {
 	char *startup_cmd = NULL;
 	int c;
+	int debug_logging = 0;
 
 	while ((c = getopt(argc, argv, "s:hdv")) != -1) {
 		if (c == 's')
 			startup_cmd = optarg;
 		else if (c == 'd')
-			log_level = WLR_DEBUG;
+			debug_logging = 1;
 		else if (c == 'v')
 			die("dwl " VERSION);
 		else
@@ -4089,6 +4375,10 @@ main(int argc, char *argv[])
 	}
 	if (optind < argc)
 		goto usage;
+
+	/* Override config log level if -d flag is passed */
+	if (debug_logging)
+		cfg.log_level = WLR_DEBUG;
 
 	/* Wayland requires XDG_RUNTIME_DIR for creating its communications socket */
 	if (!getenv("XDG_RUNTIME_DIR"))
