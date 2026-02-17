@@ -575,6 +575,25 @@ void dwl_client_set_monitor_internal(DwlClient *client, DwlMonitor *mon)
         client->mon = mon;
 }
 
+float dwl_client_get_scroller_ratio(const DwlClient *client)
+{
+    return client ? client->scroller_ratio : 0.0f;
+}
+
+DwlError dwl_client_set_scroller_ratio(DwlClient *client, float ratio)
+{
+    if (!client)
+        return DWL_ERR_INVALID_ARG;
+
+    if (ratio < 0.0f)
+        ratio = 0.0f;
+    if (ratio > 1.0f)
+        ratio = 1.0f;
+
+    client->scroller_ratio = ratio;
+    return DWL_OK;
+}
+
 DwlError dwl_client_close(DwlClient *client)
 {
     if (!client)

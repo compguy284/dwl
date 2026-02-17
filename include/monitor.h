@@ -58,6 +58,7 @@ const DwlLayout *dwl_monitor_get_layout(const DwlMonitor *mon);
 struct wlr_output *dwl_monitor_get_wlr_output(const DwlMonitor *mon);
 
 float dwl_monitor_get_mfact(const DwlMonitor *mon);
+float dwl_monitor_get_scroller_ratio(const DwlMonitor *mon);
 int dwl_monitor_get_nmaster(const DwlMonitor *mon);
 DwlError dwl_monitor_set_mfact(DwlMonitor *mon, float mfact);
 DwlError dwl_monitor_set_nmaster(DwlMonitor *mon, int nmaster);

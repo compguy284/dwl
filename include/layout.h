@@ -13,6 +13,7 @@ typedef struct DwlLayoutClient {
     bool preserve_aspect;
     int min_width, min_height;
     int max_width, max_height;
+    float column_ratio;  // Per-client width ratio for scroller (0.0 = use layout default)
 } DwlLayoutClient;
 
 typedef struct DwlLayoutParams {

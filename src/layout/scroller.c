@@ -1,37 +1,59 @@
 #include "layout.h"
 #include <math.h>
+#include <stdlib.h>
 
 static void scroller_arrange(DwlLayoutParams *params)
 {
     if (!params || params->client_count == 0)
         return;
 
-    // Match dwl_mac's scroller calculation exactly:
-    // col_width = roundf(m->w.width * m->scroller_ratio)
-    // geo.width = col_width - gappiv
-    // geo.height = m->w.height - 2 * gappoh
-    int col_width = (int)roundf(params->area_width * params->master_factor);
-
-    // Total dimensions (including borders) - dwl_client_resize will subtract borders
-    int total_w = col_width - params->gap_inner_h;
-    int total_h = params->area_height - 2 * params->gap_outer_v;
-
-    // Calculate scroll offset to center focused window
+    int n = (int)params->client_count;
     int focused = params->focused_index;
     if (focused < 0)
         focused = 0;
 
-    // Position focused window at center of screen
-    int center_x = params->area_x + (params->area_width - col_width) / 2;
-    int scroll_offset = center_x - (focused * col_width);
+    // Compute per-client column widths
+    // Each client uses its own column_ratio if set, otherwise the layout default (master_factor)
+    int *col_w = calloc(n, sizeof(int));
+    if (!col_w)
+        return;
 
-    for (size_t i = 0; i < params->client_count; i++) {
+    for (int i = 0; i < n; i++) {
+        float ratio = params->clients[i].column_ratio > 0.0f
+            ? params->clients[i].column_ratio
+            : params->master_factor;
+        col_w[i] = (int)roundf(params->area_width * ratio);
+    }
+
+    // Compute accumulated x position for each client (before offset)
+    // acc_x[i] = sum of col_w[0..i-1]
+    int *acc_x = calloc(n, sizeof(int));
+    if (!acc_x) {
+        free(col_w);
+        return;
+    }
+
+    acc_x[0] = 0;
+    for (int i = 1; i < n; i++)
+        acc_x[i] = acc_x[i - 1] + col_w[i - 1];
+
+    // Center the focused client on screen
+    int focused_center = acc_x[focused] + col_w[focused] / 2;
+    int screen_center = params->area_x + params->area_width / 2;
+    int offset = screen_center - focused_center;
+
+    int total_h = params->area_height - 2 * params->gap_outer_v;
+
+    for (int i = 0; i < n; i++) {
         DwlLayoutClient *c = &params->clients[i];
-        c->x = scroll_offset + (int)i * col_width + params->gap_outer_h;
+        c->x = offset + acc_x[i] + params->gap_outer_h;
         c->y = params->area_y + params->gap_outer_v;
-        c->width = total_w;
+        c->width = col_w[i] - params->gap_inner_h;
         c->height = total_h;
     }
+
+    free(col_w);
+    free(acc_x);
 }
 
 static int scroller_focus_next(const DwlLayoutParams *params, int current, int direction)

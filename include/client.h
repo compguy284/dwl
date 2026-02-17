@@ -67,6 +67,9 @@ DwlError dwl_client_set_border_width(DwlClient *client, int width);
 DwlError dwl_client_set_urgent(DwlClient *client, bool urgent);
 DwlError dwl_client_zoom(DwlClientManager *mgr);
 
+float dwl_client_get_scroller_ratio(const DwlClient *client);
+DwlError dwl_client_set_scroller_ratio(DwlClient *client, float ratio);
+
 // Direction: 0=up, 1=down, 2=left, 3=right
 DwlClient *dwl_client_in_direction(DwlClientManager *mgr, DwlClient *from, int direction);
 

@@ -569,6 +569,71 @@ static void action_moveresize(DwlCompositor *comp, const char *arg)
     }
 }
 
+static void action_cycle_ratio(DwlCompositor *comp, const char *arg)
+{
+    (void)arg;
+    DwlClientManager *clients = dwl_compositor_get_clients(comp);
+    DwlClient *focused = dwl_client_focused(clients);
+    if (!focused)
+        return;
+
+    DwlConfig *cfg = dwl_compositor_get_config(comp);
+    const char *ratios_str = dwl_config_get_string(cfg, "appearance.scroller_ratios",
+                                                    "0.4,0.6,0.8,1.0");
+
+    // Parse comma-separated float list
+    float ratios[32];
+    int count = 0;
+    char *copy = strdup(ratios_str);
+    if (!copy)
+        return;
+
+    char *saveptr = NULL;
+    char *token = strtok_r(copy, ",", &saveptr);
+    while (token && count < 32) {
+        while (*token == ' ') token++;
+        ratios[count] = strtof(token, NULL);
+        if (ratios[count] > 0.0f && ratios[count] <= 1.0f)
+            count++;
+        token = strtok_r(NULL, ",", &saveptr);
+    }
+    free(copy);
+
+    if (count == 0)
+        return;
+
+    // Get the client's current ratio; 0.0 means "default"
+    float current = dwl_client_get_scroller_ratio(focused);
+
+    // Get the monitor's default scroller_ratio for matching 0.0
+    DwlMonitor *mon = dwl_client_get_monitor(focused);
+    if (!mon) {
+        DwlOutputManager *output = dwl_compositor_get_output(comp);
+        mon = dwl_monitor_get_focused(output);
+    }
+    float default_ratio = mon ? dwl_monitor_get_scroller_ratio(mon) : 0.8f;
+    float effective = (current > 0.0f) ? current : default_ratio;
+
+    // Find the closest match in the list
+    int best = 0;
+    float best_diff = 2.0f;
+    for (int i = 0; i < count; i++) {
+        float diff = (ratios[i] - effective > 0) ? (ratios[i] - effective) : (effective - ratios[i]);
+        if (diff < best_diff) {
+            best_diff = diff;
+            best = i;
+        }
+    }
+
+    // Advance to next (wrap)
+    int next = (best + 1) % count;
+    dwl_client_set_scroller_ratio(focused, ratios[next]);
+
+    // Re-arrange the monitor
+    if (mon)
+        dwl_monitor_arrange(mon);
+}
+
 static void action_chvt(DwlCompositor *comp, const char *arg)
 {
     if (!arg)
@@ -835,6 +900,7 @@ void dwl_action_register_builtins(DwlKeybindingManager *mgr)
     dwl_action_register(mgr, "dec-mfact", action_dec_mfact);
     dwl_action_register(mgr, "focusdir", action_focusdir);
     dwl_action_register(mgr, "moveresize", action_moveresize);
+    dwl_action_register(mgr, "cycle-ratio", action_cycle_ratio);
     dwl_action_register(mgr, "chvt", action_chvt);
 
     // Try to load keybindings from config

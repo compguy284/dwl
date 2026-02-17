@@ -44,6 +44,8 @@ struct DwlClient {
     bool focused;
     bool mapped;
 
+    float scroller_ratio;  // Per-client scroller column ratio (0.0 = use default)
+
 #ifdef DWL_XWAYLAND
     struct wlr_xwayland_surface *xwayland;
     bool is_x11;

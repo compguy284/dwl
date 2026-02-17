@@ -31,6 +31,7 @@ struct DwlMonitor {
     const DwlLayout *prev_layout;
 
     float mfact;
+    float scroller_ratio;
     int nmaster;
     int gap_inner_h, gap_inner_v;
     int gap_outer_h, gap_outer_v;
@@ -144,6 +145,7 @@ static void handle_new_output(struct wl_listener *listener, void *data)
 
     DwlConfig *cfg = dwl_compositor_get_config(mgr->comp);
     mon->mfact = dwl_config_get_float(cfg, "appearance.mfact", 0.55f);
+    mon->scroller_ratio = dwl_config_get_float(cfg, "appearance.scroller_ratio", 0.8f);
     mon->nmaster = dwl_config_get_int(cfg, "appearance.nmaster", 1);
     mon->gap_inner_h = dwl_config_get_int(cfg, "appearance.gap_inner_h", 10);
     mon->gap_inner_v = dwl_config_get_int(cfg, "appearance.gap_inner_v", 10);
@@ -405,6 +407,11 @@ static void apply_monitor_rules(DwlMonitor *mon)
     snprintf(key, sizeof(key), "monitors.%s.mfact", name);
     if (dwl_config_has_key(cfg, key)) {
         mon->mfact = dwl_config_get_float(cfg, key, mon->mfact);
+    }
+
+    snprintf(key, sizeof(key), "monitors.%s.scroller_ratio", name);
+    if (dwl_config_has_key(cfg, key)) {
+        mon->scroller_ratio = dwl_config_get_float(cfg, key, mon->scroller_ratio);
     }
 
     snprintf(key, sizeof(key), "monitors.%s.nmaster", name);
@@ -680,6 +687,11 @@ float dwl_monitor_get_mfact(const DwlMonitor *mon)
     return mon ? mon->mfact : 0.55f;
 }
 
+float dwl_monitor_get_scroller_ratio(const DwlMonitor *mon)
+{
+    return mon ? mon->scroller_ratio : 0.8f;
+}
+
 int dwl_monitor_get_nmaster(const DwlMonitor *mon)
 {
     return mon ? mon->nmaster : 1;
@@ -793,6 +805,10 @@ void dwl_monitor_arrange(DwlMonitor *mon)
             }
         }
 
+        // Use scroller_ratio instead of mfact when layout is scroller
+        bool is_scroller = mon->layout->name && strcmp(mon->layout->name, "scroller") == 0;
+        float layout_mfact = is_scroller ? mon->scroller_ratio : mon->mfact;
+
         DwlLayoutParams params = {
             .area_x = mon->usable_x,
             .area_y = mon->usable_y,
@@ -802,7 +818,7 @@ void dwl_monitor_arrange(DwlMonitor *mon)
             .gap_inner_v = mon->gap_inner_v,
             .gap_outer_h = mon->gap_outer_h,
             .gap_outer_v = mon->gap_outer_v,
-            .master_factor = mon->mfact,
+            .master_factor = layout_mfact,
             .master_count = mon->nmaster,
             .client_count = col.count,
             .focused_index = focused_index,
@@ -814,6 +830,8 @@ void dwl_monitor_arrange(DwlMonitor *mon)
             params.clients[i].id = info.id;
             params.clients[i].width = info.geometry.width;
             params.clients[i].height = info.geometry.height;
+            if (is_scroller)
+                params.clients[i].column_ratio = dwl_client_get_scroller_ratio(col.clients[i]);
         }
 
         mon->layout->arrange(&params);
