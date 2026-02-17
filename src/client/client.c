@@ -441,6 +441,19 @@ DwlClient *dwl_client_focused(DwlClientManager *mgr)
     return mgr ? mgr->focused : NULL;
 }
 
+DwlClient *dwl_client_focus_top_on_monitor(DwlClientManager *mgr, DwlMonitor *mon)
+{
+    if (!mgr || !mon)
+        return NULL;
+    uint32_t tags = dwl_monitor_get_tags(mon);
+    DwlClient *c;
+    wl_list_for_each(c, &mgr->focus_stack, flink) {
+        if (c->mapped && c->mon == mon && (c->tags & tags))
+            return c;
+    }
+    return NULL;
+}
+
 DwlClient *dwl_client_by_id(DwlClientManager *mgr, uint32_t id)
 {
     if (!mgr)

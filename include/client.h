@@ -39,6 +39,7 @@ void dwl_client_foreach_on_tag(DwlClientManager *mgr, uint32_t tags,
 
 DwlClient *dwl_client_at(DwlClientManager *mgr, double x, double y);
 DwlClient *dwl_client_focused(DwlClientManager *mgr);
+DwlClient *dwl_client_focus_top_on_monitor(DwlClientManager *mgr, DwlMonitor *mon);
 DwlClient *dwl_client_by_id(DwlClientManager *mgr, uint32_t id);
 bool dwl_client_is_valid(DwlClient *client);
 DwlClient *dwl_client_by_surface(DwlClientManager *mgr, struct wlr_surface *surface);

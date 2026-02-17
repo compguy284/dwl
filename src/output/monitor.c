@@ -780,8 +780,11 @@ void dwl_monitor_arrange(DwlMonitor *mon)
     }
 
     if (mon->layout && mon->layout->arrange) {
-        // Find focused client index
+        // Find focused client index — fall back to focus stack if global
+        // focus is on another monitor so the scroller stays in place
         DwlClient *focused = dwl_client_focused(clients);
+        if (!focused || dwl_client_get_monitor(focused) != mon)
+            focused = dwl_client_focus_top_on_monitor(clients, mon);
         int focused_index = -1;
         for (size_t i = 0; i < col.count; i++) {
             if (col.clients[i] == focused) {
@@ -828,7 +831,7 @@ void dwl_monitor_arrange(DwlMonitor *mon)
     free(col.clients);
 
     DwlClient *focused = dwl_client_focused(clients);
-    if (focused)
+    if (focused && dwl_client_get_monitor(focused) == mon)
         dwl_client_focus(focused);
 }
 
