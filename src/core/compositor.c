@@ -431,6 +431,7 @@ DwlError dwl_compositor_run(DwlCompositor *comp)
         return DWL_ERR_BACKEND;
 
     setenv("WAYLAND_DISPLAY", socket, 1);
+    setenv("XDG_CURRENT_DESKTOP", "wlroots", 1);
 
 #ifdef DWL_XWAYLAND
     if (comp->xwayland) {
@@ -439,6 +440,19 @@ DwlError dwl_compositor_run(DwlCompositor *comp)
             setenv("DISPLAY", xdisplay, 1);
     }
 #endif
+
+    // Import environment variables into D-Bus and systemd user session
+    // This enables portals, notifications, and other D-Bus services
+    if (fork() == 0) {
+#ifdef DWL_XWAYLAND
+        execlp("dbus-update-activation-environment", "dbus-update-activation-environment",
+            "--systemd", "WAYLAND_DISPLAY", "XDG_CURRENT_DESKTOP", "DISPLAY", NULL);
+#else
+        execlp("dbus-update-activation-environment", "dbus-update-activation-environment",
+            "--systemd", "WAYLAND_DISPLAY", "XDG_CURRENT_DESKTOP", NULL);
+#endif
+        _exit(1);
+    }
 
     if (comp->startup_cmd) {
         if (fork() == 0) {
