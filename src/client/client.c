@@ -193,8 +193,10 @@ static void client_handle_map(struct wl_listener *listener, void *data)
             c->title = strdup(c->xdg->title);
         }
 
-        c->width = c->xdg->current.width;
-        c->height = c->xdg->current.height;
+        // Use surface geometry (client's actual size) rather than
+        // current state (last server-sent configure, which may be 0,0)
+        c->width = c->xdg->base->geometry.width;
+        c->height = c->xdg->base->geometry.height;
     }
 
     // Auto-float windows that have a parent (dialogs) or fixed size
@@ -204,14 +206,6 @@ static void client_handle_map(struct wl_listener *listener, void *data)
                 c->xdg->current.min_width == c->xdg->current.max_width &&
                 c->xdg->current.min_height == c->xdg->current.max_height))
             c->floating = true;
-    }
-
-    // For floating windows, use size hints if current size is zero
-    if (c->floating && c->xdg) {
-        if (!c->width && c->xdg->current.min_width)
-            c->width = c->xdg->current.min_width;
-        if (!c->height && c->xdg->current.min_height)
-            c->height = c->xdg->current.min_height;
     }
 
     // Apply window rules (may override auto-float)
