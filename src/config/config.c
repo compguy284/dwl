@@ -114,6 +114,7 @@ static void clear_entries(DwlConfig *cfg)
         if (cfg->entries[i].type == CONFIG_STRING)
             free(cfg->entries[i].value.s);
     }
+    memset(cfg->entries, 0, cfg->count * sizeof(ConfigEntry));
     cfg->count = 0;
 }
 
