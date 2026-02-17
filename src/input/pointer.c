@@ -5,6 +5,7 @@
 #include <wlr/backend/libinput.h>
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/types/wlr_data_device.h>
+#include <wlr/types/wlr_idle_notify_v1.h>
 #include <wlr/types/wlr_pointer.h>
 #include <scenefx/types/wlr_scene.h>
 #include <libinput.h>
@@ -65,6 +66,8 @@ void handle_cursor_motion(struct wl_listener *listener, void *data)
     DwlInput *input = wl_container_of(listener, input, cursor_motion);
     struct wlr_pointer_motion_event *event = data;
 
+    wlr_idle_notifier_v1_notify_activity(
+        dwl_compositor_get_idle_notifier(input->comp), input->seat);
     wlr_cursor_move(input->cursor, &event->pointer->base, event->delta_x, event->delta_y);
     process_cursor_motion(input, event->time_msec);
 }
@@ -74,6 +77,8 @@ void handle_cursor_motion_abs(struct wl_listener *listener, void *data)
     DwlInput *input = wl_container_of(listener, input, cursor_motion_abs);
     struct wlr_pointer_motion_absolute_event *event = data;
 
+    wlr_idle_notifier_v1_notify_activity(
+        dwl_compositor_get_idle_notifier(input->comp), input->seat);
     wlr_cursor_warp_absolute(input->cursor, &event->pointer->base, event->x, event->y);
     process_cursor_motion(input, event->time_msec);
 }
@@ -105,6 +110,9 @@ void handle_cursor_button(struct wl_listener *listener, void *data)
 {
     DwlInput *input = wl_container_of(listener, input, cursor_button);
     struct wlr_pointer_button_event *event = data;
+
+    wlr_idle_notifier_v1_notify_activity(
+        dwl_compositor_get_idle_notifier(input->comp), input->seat);
 
     // End move/resize on button release
     if (event->state == WL_POINTER_BUTTON_STATE_RELEASED) {
@@ -141,6 +149,8 @@ void handle_cursor_axis(struct wl_listener *listener, void *data)
     DwlInput *input = wl_container_of(listener, input, cursor_axis);
     struct wlr_pointer_axis_event *event = data;
 
+    wlr_idle_notifier_v1_notify_activity(
+        dwl_compositor_get_idle_notifier(input->comp), input->seat);
     wlr_seat_pointer_notify_axis(input->seat, event->time_msec, event->orientation,
         event->delta, event->delta_discrete, event->source, event->relative_direction);
 }

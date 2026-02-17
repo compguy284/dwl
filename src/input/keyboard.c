@@ -1,6 +1,8 @@
 #include "input_internal.h"
+#include "compositor.h"
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_keyboard.h>
+#include <wlr/types/wlr_idle_notify_v1.h>
 #include <wlr/types/wlr_seat.h>
 #include <linux/input-event-codes.h>
 
@@ -38,6 +40,9 @@ void handle_keyboard_key(struct wl_listener *listener, void *data)
     DwlInput *input = wl_container_of(listener, input, keyboard_key);
     struct wlr_keyboard_key_event *event = data;
     struct wlr_keyboard *kb = &input->kb_group->keyboard;
+
+    wlr_idle_notifier_v1_notify_activity(
+        dwl_compositor_get_idle_notifier(input->comp), input->seat);
 
     uint32_t keycode = event->keycode + 8;
     const xkb_keysym_t *syms;
