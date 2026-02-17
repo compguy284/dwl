@@ -48,6 +48,8 @@ size_t dwl_client_count_visible(DwlClientManager *mgr, DwlMonitor *mon);
 DwlClientInfo dwl_client_get_info(const DwlClient *client);
 DwlMonitor *dwl_client_get_monitor(const DwlClient *client);
 struct wlr_surface *dwl_client_get_surface(const DwlClient *client);
+const char *dwl_client_get_output_name(const DwlClient *client);
+void dwl_client_set_monitor_internal(DwlClient *client, DwlMonitor *mon);
 
 DwlError dwl_client_close(DwlClient *client);
 DwlError dwl_client_focus(DwlClient *client);

@@ -60,6 +60,24 @@ static void handle_new_output(struct wl_listener *listener, void *data);
 static void handle_layout_change(struct wl_listener *listener, void *data);
 static void apply_monitor_rules(DwlMonitor *mon);
 
+/* Data structure for restore_client_to_monitor callback */
+typedef struct {
+    DwlMonitor *mon;
+    const char *output_name;
+    bool restored;
+} RestoreMonitorData;
+
+static bool restore_client_to_monitor(DwlClient *c, void *data)
+{
+    RestoreMonitorData *rd = data;
+    const char *client_output = dwl_client_get_output_name(c);
+    if (client_output && strcmp(client_output, rd->output_name) == 0) {
+        dwl_client_set_monitor_internal(c, rd->mon);
+        rd->restored = true;
+    }
+    return true;
+}
+
 DwlOutputManager *dwl_output_create(DwlCompositor *comp)
 {
     DwlOutputManager *mgr = calloc(1, sizeof(*mgr));
@@ -200,6 +218,22 @@ static void handle_new_output(struct wl_listener *listener, void *data)
 
     if (!mgr->focused)
         mgr->focused = mon;
+
+    // Restore clients that were previously on this monitor
+    DwlClientManager *clients = dwl_compositor_get_clients(mgr->comp);
+    if (clients) {
+        RestoreMonitorData rdata = {
+            .mon = mon,
+            .output_name = output->name,
+            .restored = false
+        };
+
+        dwl_client_foreach(clients, restore_client_to_monitor, &rdata);
+
+        if (rdata.restored) {
+            dwl_monitor_arrange(mon);
+        }
+    }
 
     DwlEventBus *bus = dwl_compositor_get_event_bus(mgr->comp);
     dwl_event_bus_emit_simple(bus, DWL_EVENT_MONITOR_ADD, mon);

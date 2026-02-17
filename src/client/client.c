@@ -14,6 +14,7 @@
 #include <wayland-server-core.h>
 #include <scenefx/types/wlr_scene.h>
 #include <wlr/types/wlr_seat.h>
+#include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_xdg_shell.h>
 #include <wlr/util/edges.h>
 #ifdef DWL_XWAYLAND
@@ -34,6 +35,7 @@ struct DwlClient {
     uint32_t id;
     DwlClientManager *mgr;
     DwlMonitor *mon;
+    char *output_name;  // Remember which output this client was on (for restore-monitor)
 
     struct wlr_xdg_toplevel *xdg;
     ClientSceneData *scene_data;
@@ -322,6 +324,15 @@ static void x11_handle_map(struct wl_listener *listener, void *data)
 
     dwl_client_focus(c);
 
+    // Store the output name for restore-monitor feature
+    if (c->mon) {
+        struct wlr_output *output = dwl_monitor_get_wlr_output(c->mon);
+        if (output && output->name) {
+            free(c->output_name);
+            c->output_name = strdup(output->name);
+        }
+    }
+
     DwlEventBus *bus = dwl_compositor_get_event_bus(c->mgr->comp);
     dwl_event_bus_emit_simple(bus, DWL_EVENT_CLIENT_CREATE, c);
 
@@ -387,6 +398,7 @@ static void x11_handle_destroy(struct wl_listener *listener, void *data)
 
     free(c->app_id);
     free(c->title);
+    free(c->output_name);
     c->magic = 0;
     free(c);
 }
@@ -532,6 +544,15 @@ static void client_handle_map(struct wl_listener *listener, void *data)
 
     dwl_client_focus(c);
 
+    // Store the output name for restore-monitor feature
+    if (c->mon) {
+        struct wlr_output *output = dwl_monitor_get_wlr_output(c->mon);
+        if (output && output->name) {
+            free(c->output_name);
+            c->output_name = strdup(output->name);
+        }
+    }
+
     DwlEventBus *bus = dwl_compositor_get_event_bus(c->mgr->comp);
     dwl_event_bus_emit_simple(bus, DWL_EVENT_CLIENT_CREATE, c);
 
@@ -589,6 +610,7 @@ static void client_handle_destroy(struct wl_listener *listener, void *data)
 
     free(c->app_id);
     free(c->title);
+    free(c->output_name);
     c->magic = 0;
     free(c);
 }
@@ -831,6 +853,17 @@ struct wlr_surface *dwl_client_get_surface(const DwlClient *client)
     return NULL;
 }
 
+const char *dwl_client_get_output_name(const DwlClient *client)
+{
+    return client ? client->output_name : NULL;
+}
+
+void dwl_client_set_monitor_internal(DwlClient *client, DwlMonitor *mon)
+{
+    if (client)
+        client->mon = mon;
+}
+
 DwlError dwl_client_close(DwlClient *client)
 {
     if (!client)
@@ -1000,6 +1033,13 @@ DwlError dwl_client_move_to_monitor(DwlClient *client, DwlMonitor *mon)
 
     DwlMonitor *old = client->mon;
     client->mon = mon;
+
+    // Update the stored output name for restore-monitor feature
+    struct wlr_output *output = dwl_monitor_get_wlr_output(mon);
+    if (output && output->name) {
+        free(client->output_name);
+        client->output_name = strdup(output->name);
+    }
 
     if (old && old != mon)
         dwl_monitor_arrange(old);
