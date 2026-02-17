@@ -32,6 +32,7 @@ struct DwlLayoutRegistry *dwl_compositor_get_layouts(DwlCompositor *comp);
 
 struct wl_display *dwl_compositor_get_wl_display(DwlCompositor *comp);
 struct wlr_backend *dwl_compositor_get_backend(DwlCompositor *comp);
+struct wlr_session *dwl_compositor_get_session(DwlCompositor *comp);
 struct wlr_allocator *dwl_compositor_get_allocator(DwlCompositor *comp);
 struct wlr_renderer *dwl_compositor_get_wlr_renderer(DwlCompositor *comp);
 struct wlr_scene *dwl_compositor_get_scene(DwlCompositor *comp);

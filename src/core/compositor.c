@@ -52,6 +52,7 @@ struct DwlCompositor {
     struct wl_display *display;
     struct wl_event_loop *event_loop;
     struct wlr_backend *backend;
+    struct wlr_session *session;
     struct wlr_renderer *renderer;
     struct wlr_allocator *allocator;
     struct wlr_scene *scene;
@@ -243,7 +244,7 @@ DwlError dwl_compositor_create(DwlCompositor **out, const DwlCompositorConfig *c
     comp->event_loop = wl_display_get_event_loop(comp->display);
 
     // Backend
-    comp->backend = wlr_backend_autocreate(comp->event_loop, NULL);
+    comp->backend = wlr_backend_autocreate(comp->event_loop, &comp->session);
     if (!comp->backend) {
         wl_display_destroy(comp->display);
         dwl_event_bus_destroy(comp->event_bus);
@@ -510,6 +511,11 @@ struct wl_display *dwl_compositor_get_wl_display(DwlCompositor *comp)
 struct wlr_backend *dwl_compositor_get_backend(DwlCompositor *comp)
 {
     return comp ? comp->backend : NULL;
+}
+
+struct wlr_session *dwl_compositor_get_session(DwlCompositor *comp)
+{
+    return comp ? comp->session : NULL;
 }
 
 struct wlr_allocator *dwl_compositor_get_allocator(DwlCompositor *comp)

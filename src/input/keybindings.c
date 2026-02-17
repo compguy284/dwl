@@ -13,6 +13,7 @@
 #include <string.h>
 #include <strings.h>
 #include <unistd.h>
+#include <wlr/backend/session.h>
 #include <wlr/types/wlr_keyboard.h>
 #include <xkbcommon/xkbcommon.h>
 
@@ -568,6 +569,20 @@ static void action_moveresize(DwlCompositor *comp, const char *arg)
     }
 }
 
+static void action_chvt(DwlCompositor *comp, const char *arg)
+{
+    if (!arg)
+        return;
+
+    int vt = atoi(arg);
+    if (vt < 1 || vt > 12)
+        return;
+
+    struct wlr_session *session = dwl_compositor_get_session(comp);
+    if (session)
+        wlr_session_change_vt(session, vt);
+}
+
 // Parse modifier string like "mod+shift+ctrl" and return modifier mask
 static uint32_t parse_modifiers(const char *str, uint32_t modkey)
 {
@@ -820,6 +835,7 @@ void dwl_action_register_builtins(DwlKeybindingManager *mgr)
     dwl_action_register(mgr, "dec-mfact", action_dec_mfact);
     dwl_action_register(mgr, "focusdir", action_focusdir);
     dwl_action_register(mgr, "moveresize", action_moveresize);
+    dwl_action_register(mgr, "chvt", action_chvt);
 
     // Try to load keybindings from config
     DwlConfig *cfg = dwl_compositor_get_config(mgr->comp);
@@ -838,7 +854,7 @@ void dwl_action_register_builtins(DwlKeybindingManager *mgr)
         // Load keybindings from config
         load_keybindings_from_config(mgr);
         load_buttons_from_config(mgr);
-        return;
+        goto hardcoded_chvt;
     }
 
     // Default keybindings (Mod = Alt)
@@ -911,4 +927,22 @@ void dwl_action_register_builtins(DwlKeybindingManager *mgr)
 
     #undef MOD
     #undef SHIFT
+
+hardcoded_chvt:
+    // Hardcoded VT switching keybindings (Ctrl+Alt+F1-F12)
+    // These are always registered regardless of config
+    #define CHVT_MODS (WLR_MODIFIER_CTRL | WLR_MODIFIER_ALT)
+    dwl_keybinding_add(mgr, &(DwlKeybinding){CHVT_MODS, XKB_KEY_XF86Switch_VT_1, "chvt", "1"});
+    dwl_keybinding_add(mgr, &(DwlKeybinding){CHVT_MODS, XKB_KEY_XF86Switch_VT_2, "chvt", "2"});
+    dwl_keybinding_add(mgr, &(DwlKeybinding){CHVT_MODS, XKB_KEY_XF86Switch_VT_3, "chvt", "3"});
+    dwl_keybinding_add(mgr, &(DwlKeybinding){CHVT_MODS, XKB_KEY_XF86Switch_VT_4, "chvt", "4"});
+    dwl_keybinding_add(mgr, &(DwlKeybinding){CHVT_MODS, XKB_KEY_XF86Switch_VT_5, "chvt", "5"});
+    dwl_keybinding_add(mgr, &(DwlKeybinding){CHVT_MODS, XKB_KEY_XF86Switch_VT_6, "chvt", "6"});
+    dwl_keybinding_add(mgr, &(DwlKeybinding){CHVT_MODS, XKB_KEY_XF86Switch_VT_7, "chvt", "7"});
+    dwl_keybinding_add(mgr, &(DwlKeybinding){CHVT_MODS, XKB_KEY_XF86Switch_VT_8, "chvt", "8"});
+    dwl_keybinding_add(mgr, &(DwlKeybinding){CHVT_MODS, XKB_KEY_XF86Switch_VT_9, "chvt", "9"});
+    dwl_keybinding_add(mgr, &(DwlKeybinding){CHVT_MODS, XKB_KEY_XF86Switch_VT_10, "chvt", "10"});
+    dwl_keybinding_add(mgr, &(DwlKeybinding){CHVT_MODS, XKB_KEY_XF86Switch_VT_11, "chvt", "11"});
+    dwl_keybinding_add(mgr, &(DwlKeybinding){CHVT_MODS, XKB_KEY_XF86Switch_VT_12, "chvt", "12"});
+    #undef CHVT_MODS
 }
