@@ -10,6 +10,37 @@
 #include <string.h>
 #include <stdio.h>
 
+typedef struct {
+    char *json;
+    int offset;
+    bool first;
+} GetWindowsCtx;
+
+static bool get_windows_iter(DwlClient *c, void *data)
+{
+    GetWindowsCtx *ctx = data;
+    DwlClientInfo info = dwl_client_get_info(c);
+
+    if (!ctx->first) ctx->offset += sprintf(ctx->json + ctx->offset, ",");
+    ctx->first = false;
+
+    ctx->offset += sprintf(ctx->json + ctx->offset,
+        "{\"id\":%u,\"app_id\":\"%s\",\"title\":\"%s\","
+        "\"x\":%d,\"y\":%d,\"width\":%d,\"height\":%d,"
+        "\"tags\":%u,\"floating\":%s,\"fullscreen\":%s,\"focused\":%s}",
+        info.id,
+        info.app_id ? info.app_id : "",
+        info.title ? info.title : "",
+        info.geometry.x, info.geometry.y,
+        info.geometry.width, info.geometry.height,
+        info.tags,
+        info.floating ? "true" : "false",
+        info.fullscreen ? "true" : "false",
+        info.focused ? "true" : "false");
+
+    return true;
+}
+
 static DwlIPCResponse cmd_get_windows(DwlCompositor *comp, const char *args)
 {
     (void)args;
@@ -21,38 +52,17 @@ static DwlIPCResponse cmd_get_windows(DwlCompositor *comp, const char *args)
         return r;
     }
 
-    char *json = malloc(BUFFER_SIZE);
-    int offset = 0;
-    offset += sprintf(json + offset, "[");
+    GetWindowsCtx ctx = {
+        .json = malloc(BUFFER_SIZE),
+        .offset = 0,
+        .first = true,
+    };
+    ctx.offset += sprintf(ctx.json + ctx.offset, "[");
 
-    bool first = true;
-    size_t count = dwl_client_count(mgr);
-    for (size_t i = 0; i < count; i++) {
-        DwlClient *c = dwl_client_by_id(mgr, i + 1);
-        if (!c) continue;
+    dwl_client_foreach(mgr, get_windows_iter, &ctx);
 
-        DwlClientInfo info = dwl_client_get_info(c);
-
-        if (!first) offset += sprintf(json + offset, ",");
-        first = false;
-
-        offset += sprintf(json + offset,
-            "{\"id\":%u,\"app_id\":\"%s\",\"title\":\"%s\","
-            "\"x\":%d,\"y\":%d,\"width\":%d,\"height\":%d,"
-            "\"tags\":%u,\"floating\":%s,\"fullscreen\":%s,\"focused\":%s}",
-            info.id,
-            info.app_id ? info.app_id : "",
-            info.title ? info.title : "",
-            info.geometry.x, info.geometry.y,
-            info.geometry.width, info.geometry.height,
-            info.tags,
-            info.floating ? "true" : "false",
-            info.fullscreen ? "true" : "false",
-            info.focused ? "true" : "false");
-    }
-
-    offset += sprintf(json + offset, "]");
-    r.json = json;
+    ctx.offset += sprintf(ctx.json + ctx.offset, "]");
+    r.json = ctx.json;
     return r;
 }
 
