@@ -1,16 +1,20 @@
 #include "layout.h"
+#include <math.h>
 
 static void scroller_arrange(DwlLayoutParams *params)
 {
     if (!params || params->client_count == 0)
         return;
 
-    int x = params->area_x + params->gap_outer_h;
-    int y = params->area_y + params->gap_outer_v;
-    int w = params->area_width - 2 * params->gap_outer_h;
-    int h = params->area_height - 2 * params->gap_outer_v;
+    // Match dwl_mac's scroller calculation exactly:
+    // col_width = roundf(m->w.width * m->scroller_ratio)
+    // geo.width = col_width - gappiv
+    // geo.height = m->w.height - 2 * gappoh
+    int col_width = (int)roundf(params->area_width * params->master_factor);
 
-    int col_width = (int)(w * params->master_factor);
+    // Total dimensions (including borders) - dwl_client_resize will subtract borders
+    int total_w = col_width - params->gap_inner_h;
+    int total_h = params->area_height - 2 * params->gap_outer_v;
 
     // Calculate scroll offset to center focused window
     int focused = params->focused_index;
@@ -18,15 +22,15 @@ static void scroller_arrange(DwlLayoutParams *params)
         focused = 0;
 
     // Position focused window at center of screen
-    int focused_x = x + (w - col_width) / 2;
-    int scroll_offset = focused_x - (focused * col_width);
+    int center_x = params->area_x + (params->area_width - col_width) / 2;
+    int scroll_offset = center_x - (focused * col_width);
 
     for (size_t i = 0; i < params->client_count; i++) {
         DwlLayoutClient *c = &params->clients[i];
-        c->x = scroll_offset + (int)i * col_width;
-        c->y = y;
-        c->width = col_width - params->gap_inner_h;
-        c->height = h;
+        c->x = scroll_offset + (int)i * col_width + params->gap_outer_h;
+        c->y = params->area_y + params->gap_outer_v;
+        c->width = total_w;
+        c->height = total_h;
     }
 }
 

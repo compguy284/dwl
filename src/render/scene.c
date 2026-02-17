@@ -207,8 +207,10 @@ void dwl_scene_client_set_size(DwlClient *client, int width, int height)
         wlr_scene_rect_set_clipped_region(data->border, clip);
     }
 
-    // Clip surface like dwl_mac's client_get_clip: (geo.x, geo.y, geom - bw)
-    // Since our width/height is content size, clip = (0, 0, width + bw, height + bw)
+    // Clip surface matching dwl_mac's client_get_clip():
+    // width = total - bw = (width + 2*bw) - bw = width + bw
+    // x, y = xdg geometry offset
+    struct wlr_xdg_toplevel *toplevel = dwl_client_get_xdg_toplevel(client);
     if (data->surface_tree) {
         struct wlr_box surface_clip = {
             .x = 0,
@@ -216,13 +218,16 @@ void dwl_scene_client_set_size(DwlClient *client, int width, int height)
             .width = width + bw,
             .height = height + bw,
         };
+        if (toplevel && toplevel->base->initialized) {
+            surface_clip.x = toplevel->base->geometry.x;
+            surface_clip.y = toplevel->base->geometry.y;
+        }
         wlr_scene_subsurface_tree_set_clip(&data->surface_tree->node, &surface_clip);
 
         // Update corner radius for properly clipped surface
         set_corner_radius_recursive(&data->surface_tree->node, inner_radius, CORNER_LOCATION_ALL);
     }
 
-    struct wlr_xdg_toplevel *toplevel = dwl_client_get_xdg_toplevel(client);
     if (toplevel && toplevel->base->initialized)
         wlr_xdg_toplevel_set_size(toplevel, width, height);
 }
@@ -271,8 +276,9 @@ void dwl_scene_update_client_size(DwlClient *client, int width, int height)
 
 void dwl_scene_client_apply_geometry(DwlClient *client)
 {
-    // Like dwl_mac: on every commit, apply clip and send configure.
-    // Do NOT resize borders - they stay at assigned size.
+    // On commit, clip surface to client's ACTUAL rendered geometry.
+    // This handles terminals like foot that snap to character cell boundaries.
+    // The border stays at assigned size, but the interior clip matches rendered size.
     if (!client)
         return;
 
@@ -284,25 +290,31 @@ void dwl_scene_client_apply_geometry(DwlClient *client)
     if (!toplevel || !toplevel->base->initialized)
         return;
 
-    DwlClientInfo info = dwl_client_get_info(client);
-    int w = info.geometry.width;
-    int h = info.geometry.height;
+    // Get client's actual rendered geometry
+    struct wlr_box geo = toplevel->base->geometry;
     int bw = data->border_width;
+    int inner_radius = data->corner_radius > bw ? data->corner_radius - bw : 0;
 
-    // Apply surface clip (matches dwl_mac's client_get_clip)
+    // Clip surface to actual rendered size
     if (data->surface_tree) {
-        struct wlr_box geo = toplevel->base->geometry;
         struct wlr_box surface_clip = {
             .x = geo.x,
             .y = geo.y,
-            .width = w + bw,
-            .height = h + bw,
+            .width = geo.width,
+            .height = geo.height,
         };
         wlr_scene_subsurface_tree_set_clip(&data->surface_tree->node, &surface_clip);
     }
 
-    // Send configure with assigned size
-    wlr_xdg_toplevel_set_size(toplevel, w, h);
+    // Update border interior clip to match actual rendered size (eliminates gap)
+    if (data->border && geo.width > 0 && geo.height > 0) {
+        struct clipped_region interior_clip = {
+            .area = { bw, bw, geo.width, geo.height },
+            .corner_radius = inner_radius,
+            .corners = CORNER_LOCATION_ALL,
+        };
+        wlr_scene_rect_set_clipped_region(data->border, interior_clip);
+    }
 }
 
 void dwl_scene_client_set_visible(DwlClient *client, bool visible)
@@ -472,13 +484,18 @@ void dwl_scene_client_clear_clip(DwlClient *client)
     int w = info.geometry.width;
     int h = info.geometry.height;
 
-    // Clip surface like dwl_mac's client_get_clip
+    // Clip surface matching dwl_mac's client_get_clip()
     struct wlr_box surface_clip = {
         .x = 0,
         .y = 0,
         .width = w + bw,
         .height = h + bw,
     };
+    struct wlr_xdg_toplevel *toplevel = dwl_client_get_xdg_toplevel(client);
+    if (toplevel && toplevel->base->initialized) {
+        surface_clip.x = toplevel->base->geometry.x;
+        surface_clip.y = toplevel->base->geometry.y;
+    }
     wlr_scene_subsurface_tree_set_clip(&data->surface_tree->node, &surface_clip);
 
     if (data->border) {

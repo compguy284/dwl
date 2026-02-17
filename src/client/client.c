@@ -15,6 +15,7 @@
 #include <scenefx/types/wlr_scene.h>
 #include <wlr/types/wlr_seat.h>
 #include <wlr/types/wlr_xdg_shell.h>
+#include <wlr/util/edges.h>
 #ifdef DWL_XWAYLAND
 #include <wlr/xwayland.h>
 #endif
@@ -512,6 +513,12 @@ static void client_handle_map(struct wl_listener *listener, void *data)
     if (c->mgr->rules)
         dwl_rule_engine_apply(c->mgr->rules, c);
 
+    // Tell client it's tiled on all edges (like dwl_mac)
+    if (c->xdg && c->xdg->base && c->xdg->base->initialized) {
+        uint32_t edges = WLR_EDGE_TOP | WLR_EDGE_BOTTOM | WLR_EDGE_LEFT | WLR_EDGE_RIGHT;
+        wlr_xdg_toplevel_set_tiled(c->xdg, edges);
+    }
+
     dwl_scene_client_create(c->mgr->scene_mgr, c);
 
     DwlRenderer *renderer = dwl_compositor_get_renderer(c->mgr->comp);
@@ -606,7 +613,12 @@ static void client_handle_commit(struct wl_listener *listener, void *data)
     if (!c->mapped)
         return;
 
-    // Nothing to do on regular commits - layout handles clipping
+    // Re-apply resize on every commit, like dwl_mac does
+    // This ensures the client receives the configure and resizes properly
+    int bw = c->border_width;
+    int total_w = c->width + 2 * bw;
+    int total_h = c->height + 2 * bw;
+    dwl_client_resize(c, c->x, c->y, total_w, total_h);
 }
 
 static void client_handle_request_fullscreen(struct wl_listener *listener, void *data)
@@ -1001,32 +1013,38 @@ DwlError dwl_client_resize(DwlClient *client, int x, int y, int w, int h)
     if (!client)
         return DWL_ERR_INVALID_ARG;
 
+    // w and h are TOTAL geometry (including borders), like dwl_mac
+    // Calculate content size by subtracting borders
+    int bw = client->border_width;
+    int content_w = w - 2 * bw;
+    int content_h = h - 2 * bw;
+
     client->x = x;
     client->y = y;
-    client->width = w;
-    client->height = h;
+    client->width = content_w;
+    client->height = content_h;
 
     dwl_scene_client_set_position(client, x, y);
-    dwl_scene_client_set_size(client, w, h);
+    dwl_scene_client_set_size(client, content_w, content_h);
 
 #ifdef DWL_XWAYLAND
     // Configure XWayland surface with its position and size
     if (client->is_x11 && client->xwayland) {
         wlr_xwayland_surface_configure(client->xwayland,
-            x + client->border_width, y + client->border_width, w, h);
+            x + bw, y + bw, content_w, content_h);
     }
 #endif
 
     // Apply clipping/visibility based on monitor boundaries
+    // Note: w and h are total geometry including borders
     if (client->mon) {
         int mx, my, mw, mh;
         dwl_monitor_get_usable_area(client->mon, &mx, &my, &mw, &mh);
 
-        int bw = client->border_width;
         int client_left = x;
         int client_top = y;
-        int client_right = x + w + 2 * bw;
-        int client_bottom = y + h + 2 * bw;
+        int client_right = x + w;
+        int client_bottom = y + h;
 
         // Check if client is completely outside monitor bounds
         if (client_right <= mx || client_left >= mx + mw ||
@@ -1041,8 +1059,8 @@ DwlError dwl_client_resize(DwlClient *client, int x, int y, int w, int h)
             // Calculate clip box in client-local coords (tree top-left is 0,0)
             int clip_x = (client_left < mx) ? (mx - client_left) : 0;
             int clip_y = (client_top < my) ? (my - client_top) : 0;
-            int clip_right = (client_right > mx + mw) ? (mx + mw - client_left) : (w + 2 * bw);
-            int clip_bottom = (client_bottom > my + mh) ? (my + mh - client_top) : (h + 2 * bw);
+            int clip_right = (client_right > mx + mw) ? (mx + mw - client_left) : w;
+            int clip_bottom = (client_bottom > my + mh) ? (my + mh - client_top) : h;
             int clip_w = clip_right - clip_x;
             int clip_h = clip_bottom - clip_y;
 
