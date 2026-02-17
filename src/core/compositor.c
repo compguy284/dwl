@@ -11,6 +11,8 @@
 #include "toplevel.h"
 #include "workspace.h"
 #include "xwayland.h"
+#include "../protocols/decoration.h"
+#include "../protocols/xdg_shell.h"
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -46,8 +48,6 @@
 extern void dwl_signal_init(void);
 extern int dwl_signal_should_quit(void);
 extern void dwl_signal_request_quit(void);
-
-extern DwlClient *dwl_client_create_xdg(DwlClientManager *mgr, struct wlr_xdg_toplevel *toplevel);
 
 struct DwlCompositor {
     struct wl_display *display;
@@ -95,106 +95,19 @@ struct DwlCompositor {
 static void handle_new_xdg_toplevel(struct wl_listener *listener, void *data)
 {
     DwlCompositor *comp = wl_container_of(listener, comp, new_xdg_toplevel);
-    struct wlr_xdg_toplevel *toplevel = data;
-
-    DwlClient *client = dwl_client_create_xdg(comp->clients, toplevel);
-    if (!client)
-        return;
-
-    DwlMonitor *mon = dwl_monitor_get_focused(comp->output);
-    if (mon)
-        dwl_client_move_to_monitor(client, mon);
+    dwl_xdg_shell_handle_new_toplevel(comp, data);
 }
 
 static void handle_new_xdg_popup(struct wl_listener *listener, void *data)
 {
-    DwlCompositor *comp = wl_container_of(listener, comp, new_xdg_popup);
-    struct wlr_xdg_popup *popup = data;
-    (void)comp;
-
-    struct wlr_xdg_surface *parent = wlr_xdg_surface_try_from_wlr_surface(popup->parent);
-    if (!parent)
-        return;
-
-    struct wlr_scene_tree *parent_tree = parent->data;
-    if (parent_tree)
-        popup->base->data = wlr_scene_xdg_surface_create(parent_tree, popup->base);
-}
-
-static void decoration_handle_request_mode(struct wl_listener *listener, void *data);
-
-typedef struct {
-    struct wlr_xdg_toplevel_decoration_v1 *decoration;
-    struct wl_listener request_mode;
-    struct wl_listener destroy;
-    struct wl_listener surface_commit;
-    bool mode_pending;
-} DecorationState;
-
-static void decoration_handle_surface_commit(struct wl_listener *listener, void *data)
-{
-    DecorationState *state = wl_container_of(listener, state, surface_commit);
-    (void)data;
-
-    if (state->mode_pending && state->decoration->toplevel->base->initialized) {
-        wlr_xdg_toplevel_decoration_v1_set_mode(state->decoration,
-            WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE);
-        state->mode_pending = false;
-        wl_list_remove(&state->surface_commit.link);
-    }
-}
-
-static void decoration_handle_destroy(struct wl_listener *listener, void *data)
-{
-    DecorationState *state = wl_container_of(listener, state, destroy);
-    (void)data;
-    wl_list_remove(&state->request_mode.link);
-    wl_list_remove(&state->destroy.link);
-    if (state->mode_pending)
-        wl_list_remove(&state->surface_commit.link);
-    free(state);
-}
-
-static void decoration_handle_request_mode(struct wl_listener *listener, void *data)
-{
-    DecorationState *state = wl_container_of(listener, state, request_mode);
-    (void)data;
-
-    if (state->decoration->toplevel->base->initialized) {
-        wlr_xdg_toplevel_decoration_v1_set_mode(state->decoration,
-            WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE);
-    } else {
-        // Defer until surface is initialized
-        state->mode_pending = true;
-        state->surface_commit.notify = decoration_handle_surface_commit;
-        wl_signal_add(&state->decoration->toplevel->base->surface->events.commit,
-            &state->surface_commit);
-    }
+    (void)listener;
+    dwl_xdg_shell_handle_new_popup(data);
 }
 
 static void handle_new_xdg_decoration(struct wl_listener *listener, void *data)
 {
-    DwlCompositor *comp = wl_container_of(listener, comp, new_xdg_decoration);
-    struct wlr_xdg_toplevel_decoration_v1 *decoration = data;
-    (void)comp;
-
-    DecorationState *state = calloc(1, sizeof(*state));
-    if (!state)
-        return;
-
-    state->decoration = decoration;
-
-    state->request_mode.notify = decoration_handle_request_mode;
-    wl_signal_add(&decoration->events.request_mode, &state->request_mode);
-
-    state->destroy.notify = decoration_handle_destroy;
-    wl_signal_add(&decoration->events.destroy, &state->destroy);
-
-    // If already initialized, set mode immediately
-    if (decoration->toplevel->base->initialized) {
-        wlr_xdg_toplevel_decoration_v1_set_mode(decoration,
-            WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE);
-    }
+    (void)listener;
+    dwl_decoration_handle_new(data);
 }
 
 static void handle_request_activate(struct wl_listener *listener, void *data)

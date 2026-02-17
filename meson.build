@@ -79,6 +79,8 @@ dwl_sources = files(
   'src/client/rules.c',
   # Input
   'src/input/input.c',
+  'src/input/keyboard.c',
+  'src/input/pointer.c',
   'src/input/keybindings.c',
   # Output
   'src/output/monitor.c',
@@ -97,6 +99,11 @@ dwl_sources = files(
   'src/render/scene.c',
   # IPC
   'src/ipc/ipc.c',
+  'src/ipc/socket.c',
+  'src/ipc/commands.c',
+  # Protocols
+  'src/protocols/decoration.c',
+  'src/protocols/xdg_shell.c',
   # Layer shell
   'src/layer/layer.c',
   # Foreign toplevel manager
@@ -114,7 +121,10 @@ dwl_deps = [
 ]
 
 if xwayland_opt
-  dwl_sources += files('src/xwayland/xwayland.c')
+  dwl_sources += files(
+    'src/xwayland/xwayland.c',
+    'src/client/client_x11.c',
+  )
   dwl_deps += [xcb, xcb_icccm]
 endif
 
