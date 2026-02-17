@@ -37,6 +37,7 @@
 #include <wlr/types/wlr_viewporter.h>
 #include <wlr/types/wlr_xdg_shell.h>
 #include <wlr/types/wlr_xdg_activation_v1.h>
+#include <wlr/types/wlr_server_decoration.h>
 #include <wlr/types/wlr_xdg_decoration_v1.h>
 #include <wlr/types/wlr_xdg_output_v1.h>
 #include <scenefx/render/fx_renderer/fx_renderer.h>
@@ -306,7 +307,12 @@ DwlError dwl_compositor_create(DwlCompositor **out, const DwlCompositorConfig *c
     comp->new_xdg_popup.notify = handle_new_xdg_popup;
     wl_signal_add(&comp->xdg_shell->events.new_popup, &comp->new_xdg_popup);
 
-    // XDG decoration
+    // Server decoration (older KDE protocol - used by Firefox, etc.)
+    wlr_server_decoration_manager_set_default_mode(
+        wlr_server_decoration_manager_create(comp->display),
+        WLR_SERVER_DECORATION_MANAGER_MODE_SERVER);
+
+    // XDG decoration (newer protocol)
     comp->xdg_decoration_mgr = wlr_xdg_decoration_manager_v1_create(comp->display);
     comp->new_xdg_decoration.notify = handle_new_xdg_decoration;
     wl_signal_add(&comp->xdg_decoration_mgr->events.new_toplevel_decoration,
