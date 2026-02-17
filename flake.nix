@@ -64,6 +64,7 @@
             packages = with pkgs; [
               meson
               ninja
+              cmocka
             ];
           };
           formatter = pkgs.nixfmt;

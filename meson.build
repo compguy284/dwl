@@ -127,3 +127,22 @@ executable('dwl',
 executable('dwlctl',
   sources: ['tools/dwlctl.c'],
   install: true)
+
+# Create static library for testable code (no main.c, no wlroots-dependent code)
+dwl_testable_sources = files(
+  'src/core/events.c',
+  'src/core/error.c',
+  'src/config/config.c',
+  'src/layout/registry.c',
+  'src/layout/tile.c',
+  'src/layout/monocle.c',
+  'src/layout/scroller.c',
+  'src/layout/floating.c',
+  'src/client/rules.c',
+)
+
+dwl_testable = static_library('dwl_testable',
+  sources: dwl_testable_sources,
+  include_directories: dwl_inc)
+
+subdir('tests')
