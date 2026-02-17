@@ -86,6 +86,10 @@ layout = "us"
 # options = "ctrl:nocaps"
 
 [pointer]
+# Cursor theme (uses XCURSOR_THEME if unset)
+# cursor_theme = "Adwaita"
+# Cursor size in pixels
+cursor_size = 24
 # Trackpad settings
 tap_to_click = true
 tap_and_drag = true

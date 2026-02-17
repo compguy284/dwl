@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 200809L
 #include "input_internal.h"
 #include "compositor.h"
 #include "config.h"
@@ -67,7 +68,17 @@ DwlInput *dwl_input_create(DwlCompositor *comp)
 
     wlr_cursor_attach_output_layout(input->cursor, layout);
 
-    input->xcursor_mgr = wlr_xcursor_manager_create(NULL, 24);
+    const char *cursor_theme = dwl_config_get_string(cfg, "pointer.cursor_theme", NULL);
+    int cursor_size = dwl_config_get_int(cfg, "pointer.cursor_size", 24);
+
+    // Export cursor theme settings so child processes (GTK, Qt) use them
+    if (cursor_theme)
+        setenv("XCURSOR_THEME", cursor_theme, 1);
+    char size_str[16];
+    snprintf(size_str, sizeof(size_str), "%d", cursor_size);
+    setenv("XCURSOR_SIZE", size_str, 1);
+
+    input->xcursor_mgr = wlr_xcursor_manager_create(cursor_theme, cursor_size);
     if (!input->xcursor_mgr) {
         wlr_cursor_destroy(input->cursor);
         free(input);
