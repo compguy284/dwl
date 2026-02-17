@@ -2,6 +2,7 @@
 #include "compositor.h"
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_keyboard.h>
+#include <wlr/interfaces/wlr_keyboard.h>
 #include <wlr/types/wlr_idle_notify_v1.h>
 #include <wlr/types/wlr_seat.h>
 #include <xkbcommon/xkbcommon.h>
@@ -33,14 +34,11 @@ void configure_keyboard(DwlInput *input, struct wlr_keyboard *kb)
         input->kb_config.repeat_rate > 0 ? input->kb_config.repeat_rate : 25,
         input->kb_config.repeat_delay > 0 ? input->kb_config.repeat_delay : 600);
 
-    if (input->kb_config.numlock && kb->xkb_state) {
+    if (input->kb_config.numlock && kb->keymap) {
         xkb_mod_index_t mod = xkb_keymap_mod_get_index(kb->keymap,
             XKB_MOD_NAME_NUM);
-        if (mod != XKB_MOD_INVALID &&
-            !xkb_state_mod_index_is_active(kb->xkb_state, mod,
-                XKB_STATE_MODS_LOCKED)) {
-            xkb_state_update_mask(kb->xkb_state,
-                0, 0, (uint32_t)1 << mod, 0, 0, 0);
+        if (mod != XKB_MOD_INVALID) {
+            wlr_keyboard_notify_modifiers(kb, 0, 0, (uint32_t)1 << mod, 0);
         }
     }
 

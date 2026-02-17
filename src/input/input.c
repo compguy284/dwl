@@ -90,17 +90,8 @@ DwlInput *dwl_input_create(DwlCompositor *comp)
 
     input->kb_group = wlr_keyboard_group_create();
 
-    // Set default keymap on the keyboard group
-    struct xkb_context *ctx = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
-    if (ctx) {
-        struct xkb_keymap *keymap = xkb_keymap_new_from_names(ctx, NULL,
-            XKB_KEYMAP_COMPILE_NO_FLAGS);
-        if (keymap) {
-            wlr_keyboard_set_keymap(&input->kb_group->keyboard, keymap);
-            xkb_keymap_unref(keymap);
-        }
-        xkb_context_unref(ctx);
-    }
+    // Apply user keyboard config (XKB layout, repeat rate, numlock)
+    configure_keyboard(input, &input->kb_group->keyboard);
 
     input->new_input.notify = handle_new_input;
     wl_signal_add(&backend->events.new_input, &input->new_input);
