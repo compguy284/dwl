@@ -473,6 +473,283 @@ static void test_config_type_mismatch(void **state)
     dwl_config_destroy(cfg);
 }
 
+static void test_config_hex_colors(void **state)
+{
+    (void)state;
+
+    char tmpfile[] = "/tmp/dwl_test_config_XXXXXX";
+    int fd = mkstemp(tmpfile);
+    assert_true(fd >= 0);
+
+    const char *content =
+        "[appearance.colors]\n"
+        "border = \"#445566\"\n"
+        "focus = \"#005577ff\"\n"
+        "urgent = \"#ff0000\"\n";
+
+    write(fd, content, strlen(content));
+    close(fd);
+
+    DwlConfig *cfg = dwl_config_create();
+    assert_non_null(cfg);
+
+    DwlError err = dwl_config_load_file(cfg, tmpfile);
+    assert_int_equal(err, DWL_OK);
+
+    float rgba[4] = {0};
+
+    /* #445566 -> 0x44/255, 0x55/255, 0x66/255, 1.0 */
+    err = dwl_config_get_color(cfg, "appearance.colors.border", rgba);
+    assert_int_equal(err, DWL_OK);
+    assert_float_equal(rgba[0], 0x44 / 255.0f, 0.002f);
+    assert_float_equal(rgba[1], 0x55 / 255.0f, 0.002f);
+    assert_float_equal(rgba[2], 0x66 / 255.0f, 0.002f);
+    assert_float_equal(rgba[3], 1.0f, 0.002f);
+
+    /* #005577ff -> 0x00, 0x55, 0x77, 0xff */
+    err = dwl_config_get_color(cfg, "appearance.colors.focus", rgba);
+    assert_int_equal(err, DWL_OK);
+    assert_float_equal(rgba[0], 0.0f, 0.002f);
+    assert_float_equal(rgba[1], 0x55 / 255.0f, 0.002f);
+    assert_float_equal(rgba[2], 0x77 / 255.0f, 0.002f);
+    assert_float_equal(rgba[3], 1.0f, 0.002f);
+
+    dwl_config_destroy(cfg);
+    unlink(tmpfile);
+}
+
+static void test_config_array_of_tables(void **state)
+{
+    (void)state;
+
+    char tmpfile[] = "/tmp/dwl_test_config_XXXXXX";
+    int fd = mkstemp(tmpfile);
+    assert_true(fd >= 0);
+
+    const char *content =
+        "[[rules]]\n"
+        "app_id = \"firefox\"\n"
+        "tags = 256\n"
+        "floating = false\n"
+        "\n"
+        "[[rules]]\n"
+        "app_id = \"mpv\"\n"
+        "floating = true\n";
+
+    write(fd, content, strlen(content));
+    close(fd);
+
+    DwlConfig *cfg = dwl_config_create();
+    assert_non_null(cfg);
+
+    DwlError err = dwl_config_load_file(cfg, tmpfile);
+    assert_int_equal(err, DWL_OK);
+
+    /* rules.0.app_id = "firefox" */
+    assert_string_equal(
+        dwl_config_get_string(cfg, "rules.0.app_id", ""), "firefox");
+    assert_int_equal(dwl_config_get_int(cfg, "rules.0.tags", -1), 256);
+    assert_false(dwl_config_get_bool(cfg, "rules.0.floating", true));
+
+    /* rules.1.app_id = "mpv" */
+    assert_string_equal(
+        dwl_config_get_string(cfg, "rules.1.app_id", ""), "mpv");
+    assert_true(dwl_config_get_bool(cfg, "rules.1.floating", false));
+
+    dwl_config_destroy(cfg);
+    unlink(tmpfile);
+}
+
+static void test_config_keybinding_inline_table(void **state)
+{
+    (void)state;
+
+    char tmpfile[] = "/tmp/dwl_test_config_XXXXXX";
+    int fd = mkstemp(tmpfile);
+    assert_true(fd >= 0);
+
+    const char *content =
+        "[keybindings]\n"
+        "\"mod+p\" = { action = \"spawn\", command = [\"wmenu-run\"] }\n"
+        "\"mod+shift+Return\" = { action = \"spawn\", command = [\"foot\"] }\n"
+        "\"mod+j\" = { action = \"focusstack\", arg = 1 }\n"
+        "\"mod+h\" = { action = \"setmfact\", arg = -0.05 }\n"
+        "\"mod+shift+q\" = { action = \"quit\" }\n";
+
+    write(fd, content, strlen(content));
+    close(fd);
+
+    DwlConfig *cfg = dwl_config_create();
+    assert_non_null(cfg);
+
+    DwlError err = dwl_config_load_file(cfg, tmpfile);
+    assert_int_equal(err, DWL_OK);
+
+    /* spawn with command array -> "spawn:wmenu-run" */
+    assert_string_equal(
+        dwl_config_get_string(cfg, "keybindings.mod+p", ""), "spawn:wmenu-run");
+    assert_string_equal(
+        dwl_config_get_string(cfg, "keybindings.mod+shift+Return", ""),
+        "spawn:foot");
+
+    /* int arg -> "focusstack:1" */
+    assert_string_equal(
+        dwl_config_get_string(cfg, "keybindings.mod+j", ""), "focusstack:1");
+
+    /* float arg -> "setmfact:-0.05" */
+    assert_string_equal(
+        dwl_config_get_string(cfg, "keybindings.mod+h", ""), "setmfact:-0.05");
+
+    /* no arg -> just action name */
+    assert_string_equal(
+        dwl_config_get_string(cfg, "keybindings.mod+shift+q", ""), "quit");
+
+    dwl_config_destroy(cfg);
+    unlink(tmpfile);
+}
+
+static void test_config_quoted_keys(void **state)
+{
+    (void)state;
+
+    char tmpfile[] = "/tmp/dwl_test_config_XXXXXX";
+    int fd = mkstemp(tmpfile);
+    assert_true(fd >= 0);
+
+    const char *content =
+        "[keybindings]\n"
+        "\"mod+shift+1\" = \"tag:1\"\n"
+        "\"mod+0\" = \"view-all\"\n";
+
+    write(fd, content, strlen(content));
+    close(fd);
+
+    DwlConfig *cfg = dwl_config_create();
+    assert_non_null(cfg);
+
+    DwlError err = dwl_config_load_file(cfg, tmpfile);
+    assert_int_equal(err, DWL_OK);
+
+    assert_string_equal(
+        dwl_config_get_string(cfg, "keybindings.mod+shift+1", ""), "tag:1");
+    assert_string_equal(
+        dwl_config_get_string(cfg, "keybindings.mod+0", ""), "view-all");
+
+    dwl_config_destroy(cfg);
+    unlink(tmpfile);
+}
+
+static void test_config_parse_error(void **state)
+{
+    (void)state;
+
+    char tmpfile[] = "/tmp/dwl_test_config_XXXXXX";
+    int fd = mkstemp(tmpfile);
+    assert_true(fd >= 0);
+
+    const char *content = "[invalid\nthis is not valid toml ===\n";
+    write(fd, content, strlen(content));
+    close(fd);
+
+    DwlConfig *cfg = dwl_config_create();
+    assert_non_null(cfg);
+
+    DwlError err = dwl_config_load_file(cfg, tmpfile);
+    assert_int_equal(err, DWL_ERR_CONFIG);
+
+    dwl_config_destroy(cfg);
+    unlink(tmpfile);
+}
+
+static void test_config_monitors_array_of_tables(void **state)
+{
+    (void)state;
+
+    char tmpfile[] = "/tmp/dwl_test_config_XXXXXX";
+    int fd = mkstemp(tmpfile);
+    assert_true(fd >= 0);
+
+    const char *content =
+        "[[monitors]]\n"
+        "name = \"eDP-1\"\n"
+        "scale = 2.0\n"
+        "layout = \"monocle\"\n"
+        "\n"
+        "[[monitors]]\n"
+        "name = \"HDMI-A-1\"\n"
+        "scale = 1.0\n"
+        "x = 1920\n";
+
+    write(fd, content, strlen(content));
+    close(fd);
+
+    DwlConfig *cfg = dwl_config_create();
+    assert_non_null(cfg);
+
+    DwlError err = dwl_config_load_file(cfg, tmpfile);
+    assert_int_equal(err, DWL_OK);
+
+    /* monitors.eDP-1.scale = 2.0 */
+    assert_float_equal(
+        dwl_config_get_float(cfg, "monitors.eDP-1.scale", 0.0f), 2.0f, 0.001f);
+    assert_string_equal(
+        dwl_config_get_string(cfg, "monitors.eDP-1.layout", ""), "monocle");
+
+    /* monitors.HDMI-A-1.scale = 1.0 */
+    assert_float_equal(
+        dwl_config_get_float(cfg, "monitors.HDMI-A-1.scale", 0.0f), 1.0f, 0.001f);
+    assert_int_equal(
+        dwl_config_get_int(cfg, "monitors.HDMI-A-1.x", -1), 1920);
+
+    dwl_config_destroy(cfg);
+    unlink(tmpfile);
+}
+
+static void test_config_reload_clears_old(void **state)
+{
+    (void)state;
+
+    char tmpfile[] = "/tmp/dwl_test_config_XXXXXX";
+    int fd = mkstemp(tmpfile);
+    assert_true(fd >= 0);
+
+    const char *content1 =
+        "[general]\n"
+        "gaps = 10\n"
+        "old_key = \"should_disappear\"\n";
+
+    write(fd, content1, strlen(content1));
+    close(fd);
+
+    DwlConfig *cfg = dwl_config_create();
+    assert_non_null(cfg);
+
+    DwlError err = dwl_config_load_file(cfg, tmpfile);
+    assert_int_equal(err, DWL_OK);
+    assert_int_equal(dwl_config_get_int(cfg, "general.gaps", -1), 10);
+    assert_string_equal(
+        dwl_config_get_string(cfg, "general.old_key", ""), "should_disappear");
+
+    /* Overwrite with new content that drops old_key */
+    FILE *f = fopen(tmpfile, "w");
+    assert_non_null(f);
+    const char *content2 =
+        "[general]\n"
+        "gaps = 20\n";
+    fwrite(content2, 1, strlen(content2), f);
+    fclose(f);
+
+    err = dwl_config_load_file(cfg, tmpfile);
+    assert_int_equal(err, DWL_OK);
+    assert_int_equal(dwl_config_get_int(cfg, "general.gaps", -1), 20);
+
+    /* old_key should be gone after reload */
+    assert_false(dwl_config_has_key(cfg, "general.old_key"));
+
+    dwl_config_destroy(cfg);
+    unlink(tmpfile);
+}
+
 int main(void)
 {
     const struct CMUnitTest tests[] = {
@@ -501,6 +778,13 @@ int main(void)
         cmocka_unit_test_setup(test_config_set_null_checks, setup),
         cmocka_unit_test_setup(test_config_overwrite_value, setup),
         cmocka_unit_test_setup(test_config_type_mismatch, setup),
+        cmocka_unit_test_setup(test_config_hex_colors, setup),
+        cmocka_unit_test_setup(test_config_array_of_tables, setup),
+        cmocka_unit_test_setup(test_config_keybinding_inline_table, setup),
+        cmocka_unit_test_setup(test_config_quoted_keys, setup),
+        cmocka_unit_test_setup(test_config_parse_error, setup),
+        cmocka_unit_test_setup(test_config_monitors_array_of_tables, setup),
+        cmocka_unit_test_setup(test_config_reload_clears_old, setup),
     };
 
     return cmocka_run_group_tests(tests, NULL, NULL);

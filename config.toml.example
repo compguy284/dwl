@@ -123,9 +123,11 @@ tags = 256  # Tag 9 (1 << 8)
 floating = false
 
 # Monitor rules - applied when monitors are connected
-# name = null matches any monitor (default rule)
+# Use [[monitors]] with a "name" field to identify the output.
+# The name is used as the lookup key (monitors.<name>.scale, etc.)
+# You can also use [monitors.eDP-1] table syntax instead.
 [[monitors]]
-# name = "eDP-1"
+name = "default"
 mfact = 0.55
 nmaster = 1
 scale = 1.0

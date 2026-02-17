@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include "toml.h"
 
 #define MAX_ENTRIES 512
 #define MAX_WATCHES 64
@@ -106,6 +107,210 @@ static void notify_watches(DwlConfig *cfg, const char *key)
     }
 }
 
+static void clear_entries(DwlConfig *cfg)
+{
+    for (size_t i = 0; i < cfg->count; i++) {
+        free(cfg->entries[i].key);
+        if (cfg->entries[i].type == CONFIG_STRING)
+            free(cfg->entries[i].value.s);
+    }
+    cfg->count = 0;
+}
+
+static int parse_hex_color(const char *s, float rgba[4])
+{
+    if (!s || s[0] != '#')
+        return 0;
+
+    size_t len = strlen(s + 1);
+    unsigned int r, g, b, a = 255;
+
+    if (len == 6) {
+        if (sscanf(s + 1, "%02x%02x%02x", &r, &g, &b) != 3)
+            return 0;
+    } else if (len == 8) {
+        if (sscanf(s + 1, "%02x%02x%02x%02x", &r, &g, &b, &a) != 4)
+            return 0;
+    } else {
+        return 0;
+    }
+
+    rgba[0] = r / 255.0f;
+    rgba[1] = g / 255.0f;
+    rgba[2] = b / 255.0f;
+    rgba[3] = a / 255.0f;
+    return 1;
+}
+
+static void flatten_keybinding_value(DwlConfig *cfg, const char *full_key,
+                                     toml_table_t *tbl)
+{
+    /* Convert inline table { action = "spawn", command = ["wmenu-run"] }
+     * or { action = "view", arg = 1 } to "action:argument" string */
+    toml_datum_t action = toml_string_in(tbl, "action");
+    if (!action.ok)
+        return;
+
+    char value[1024];
+
+    /* Check for "command" array (for spawn) */
+    toml_array_t *cmd = toml_array_in(tbl, "command");
+    if (cmd) {
+        int n = toml_array_nelem(cmd);
+        /* Join command array elements with spaces */
+        char cmd_str[512] = "";
+        size_t offset = 0;
+        for (int i = 0; i < n && offset < sizeof(cmd_str) - 1; i++) {
+            toml_datum_t elem = toml_string_at(cmd, i);
+            if (elem.ok) {
+                if (i > 0 && offset < sizeof(cmd_str) - 1)
+                    cmd_str[offset++] = ' ';
+                size_t elen = strlen(elem.u.s);
+                if (offset + elen < sizeof(cmd_str)) {
+                    memcpy(cmd_str + offset, elem.u.s, elen);
+                    offset += elen;
+                }
+                free(elem.u.s);
+            }
+        }
+        cmd_str[offset] = '\0';
+        snprintf(value, sizeof(value), "%s:%s", action.u.s, cmd_str);
+    } else {
+        /* Check for "arg" (int, float, or string) */
+        toml_datum_t arg_s = toml_string_in(tbl, "arg");
+        if (arg_s.ok) {
+            snprintf(value, sizeof(value), "%s:%s", action.u.s, arg_s.u.s);
+            free(arg_s.u.s);
+        } else {
+            toml_datum_t arg_i = toml_int_in(tbl, "arg");
+            if (arg_i.ok) {
+                snprintf(value, sizeof(value), "%s:%ld", action.u.s,
+                         (long)arg_i.u.i);
+            } else {
+                toml_datum_t arg_d = toml_double_in(tbl, "arg");
+                if (arg_d.ok) {
+                    snprintf(value, sizeof(value), "%s:%g", action.u.s,
+                             arg_d.u.d);
+                } else {
+                    /* No argument — just the action name */
+                    snprintf(value, sizeof(value), "%s", action.u.s);
+                }
+            }
+        }
+    }
+
+    free(action.u.s);
+    dwl_config_set_string(cfg, full_key, value);
+}
+
+static void flatten_table(DwlConfig *cfg, toml_table_t *tbl, const char *prefix);
+
+static void flatten_array(DwlConfig *cfg, toml_array_t *arr, const char *prefix)
+{
+    char kind = toml_array_kind(arr);
+
+    if (kind == 't') {
+        /* Array of tables: [[rules]], [[monitors]] */
+        int n = toml_array_nelem(arr);
+        for (int i = 0; i < n; i++) {
+            toml_table_t *elem = toml_table_at(arr, i);
+            if (!elem)
+                continue;
+
+            /* For monitors, use the "name" field as key if present */
+            if (strcmp(prefix, "monitors") == 0) {
+                toml_datum_t name = toml_string_in(elem, "name");
+                if (name.ok) {
+                    char sub_prefix[512];
+                    snprintf(sub_prefix, sizeof(sub_prefix), "%s.%s",
+                             prefix, name.u.s);
+                    free(name.u.s);
+                    flatten_table(cfg, elem, sub_prefix);
+                    continue;
+                }
+            }
+
+            /* Default: use numeric index */
+            char sub_prefix[512];
+            snprintf(sub_prefix, sizeof(sub_prefix), "%s.%d", prefix, i);
+            flatten_table(cfg, elem, sub_prefix);
+        }
+    }
+    /* Value arrays are not flattened to the key-value store (not needed) */
+}
+
+static void flatten_table(DwlConfig *cfg, toml_table_t *tbl, const char *prefix)
+{
+    bool is_keybinding = prefix &&
+        (strcmp(prefix, "keybindings") == 0 || strcmp(prefix, "buttons") == 0);
+
+    /* Iterate key-values */
+    for (int i = 0; ; i++) {
+        const char *key = toml_key_in(tbl, i);
+        if (!key)
+            break;
+
+        char full_key[1536];
+        if (prefix && prefix[0])
+            snprintf(full_key, sizeof(full_key), "%s.%s", prefix, key);
+        else
+            snprintf(full_key, sizeof(full_key), "%s", key);
+
+        /* Check if this key has a sub-table */
+        toml_table_t *sub = toml_table_in(tbl, key);
+        if (sub) {
+            if (is_keybinding) {
+                /* Under keybindings/buttons, inline tables are binding values */
+                flatten_keybinding_value(cfg, full_key, sub);
+            } else {
+                flatten_table(cfg, sub, full_key);
+            }
+            continue;
+        }
+
+        /* Check if this key has an array */
+        toml_array_t *arr = toml_array_in(tbl, key);
+        if (arr) {
+            flatten_array(cfg, arr, full_key);
+            continue;
+        }
+
+        /* Try string first (for hex color detection) */
+        toml_datum_t s = toml_string_in(tbl, key);
+        if (s.ok) {
+            float rgba[4];
+            if (parse_hex_color(s.u.s, rgba)) {
+                dwl_config_set_color(cfg, full_key, rgba);
+            } else {
+                dwl_config_set_string(cfg, full_key, s.u.s);
+            }
+            free(s.u.s);
+            continue;
+        }
+
+        /* Try bool */
+        toml_datum_t b = toml_bool_in(tbl, key);
+        if (b.ok) {
+            dwl_config_set_bool(cfg, full_key, b.u.b != 0);
+            continue;
+        }
+
+        /* Try int */
+        toml_datum_t iv = toml_int_in(tbl, key);
+        if (iv.ok) {
+            dwl_config_set_int(cfg, full_key, (int)iv.u.i);
+            continue;
+        }
+
+        /* Try double */
+        toml_datum_t d = toml_double_in(tbl, key);
+        if (d.ok) {
+            dwl_config_set_float(cfg, full_key, (float)d.u.d);
+            continue;
+        }
+    }
+}
+
 DwlError dwl_config_load_file(DwlConfig *cfg, const char *path)
 {
     if (!cfg || !path)
@@ -115,67 +320,22 @@ DwlError dwl_config_load_file(DwlConfig *cfg, const char *path)
     if (!f)
         return DWL_ERR_IO;
 
+    char errbuf[256];
+    toml_table_t *root = toml_parse_file(f, errbuf, sizeof(errbuf));
+    fclose(f);
+
+    if (!root) {
+        fprintf(stderr, "config: %s: %s\n", path, errbuf);
+        return DWL_ERR_CONFIG;
+    }
+
     free(cfg->path);
     cfg->path = strdup(path);
 
-    char line[1024];
-    char section[256] = "";
+    clear_entries(cfg);
+    flatten_table(cfg, root, "");
+    toml_free(root);
 
-    while (fgets(line, sizeof(line), f)) {
-        char *p = line;
-        while (*p == ' ' || *p == '\t') p++;
-
-        if (*p == '#' || *p == '\n' || *p == '\0')
-            continue;
-
-        if (*p == '[') {
-            char *end = strchr(p, ']');
-            if (end) {
-                *end = '\0';
-                strncpy(section, p + 1, sizeof(section) - 1);
-            }
-            continue;
-        }
-
-        char *eq = strchr(p, '=');
-        if (!eq)
-            continue;
-
-        *eq = '\0';
-        char *key_part = p;
-        char *val_part = eq + 1;
-
-        while (*key_part == ' ') key_part++;
-        char *key_end = eq - 1;
-        while (key_end > key_part && (*key_end == ' ' || *key_end == '\t')) key_end--;
-        *(key_end + 1) = '\0';
-
-        while (*val_part == ' ' || *val_part == '\t') val_part++;
-        char *val_end = val_part + strlen(val_part) - 1;
-        while (val_end > val_part && (*val_end == '\n' || *val_end == ' ')) val_end--;
-        *(val_end + 1) = '\0';
-
-        char full_key[1536];
-        if (section[0])
-            snprintf(full_key, sizeof(full_key), "%s.%s", section, key_part);
-        else
-            snprintf(full_key, sizeof(full_key), "%s", key_part);
-
-        if (strcmp(val_part, "true") == 0 || strcmp(val_part, "false") == 0) {
-            dwl_config_set_bool(cfg, full_key, strcmp(val_part, "true") == 0);
-        } else if (val_part[0] == '"') {
-            val_part++;
-            char *quote_end = strrchr(val_part, '"');
-            if (quote_end) *quote_end = '\0';
-            dwl_config_set_string(cfg, full_key, val_part);
-        } else if (strchr(val_part, '.')) {
-            dwl_config_set_float(cfg, full_key, strtof(val_part, NULL));
-        } else {
-            dwl_config_set_int(cfg, full_key, atoi(val_part));
-        }
-    }
-
-    fclose(f);
     return DWL_OK;
 }
 

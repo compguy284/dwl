@@ -66,10 +66,12 @@ foreach p : protocols
     command: [wayland_scanner, 'private-code', '@INPUT@', '@OUTPUT@'])
 endforeach
 
-dwl_inc = include_directories('include', '.')
+dwl_inc = include_directories('include', '.', 'lib/tomlc99')
 
 dwl_sources = files(
   'src/main.c',
+  # Vendored libraries
+  'lib/tomlc99/toml.c',
   # Core
   'src/core/compositor.c',
   'src/core/events.c',
@@ -141,6 +143,7 @@ executable('dwlctl',
 
 # Create static library for testable code (no main.c, no wlroots-dependent code)
 dwl_testable_sources = files(
+  'lib/tomlc99/toml.c',
   'src/core/events.c',
   'src/core/error.c',
   'src/config/config.c',

@@ -1,0 +1,206 @@
+# dwl Configuration File (Simple Format)
+# Place this file at:
+#   $XDG_CONFIG_HOME/dwl/config.toml
+#   ~/.config/dwl/config.toml
+#   /etc/dwl/config.toml
+
+[general]
+# Default modifier key: "super", "alt", "ctrl"
+modkey = "alt"
+
+[appearance]
+border_width = 2
+gap_inner_h = 10
+gap_inner_v = 10
+gap_outer_h = 10
+gap_outer_v = 10
+mfact = 0.55
+nmaster = 1
+layout = "scroller"
+
+[appearance.colors]
+# Colors in hex format: "#RRGGBB" or "#RRGGBBAA"
+border = "#444444"
+focus = "#005577"
+urgent = "#ff0000"
+
+[scenefx.corners]
+radius = 10
+
+[scenefx.shadows]
+enabled = true
+blur_sigma = 20
+color = "#00000088"
+
+[scenefx.opacity]
+active = 1.0
+inactive = 0.9
+
+[scenefx.blur]
+radius = 5
+passes = 3
+optimized = true
+ignore_transparent = true
+
+[keyboard]
+repeat_rate = 25
+repeat_delay = 600
+numlock = true
+
+[keyboard.xkb]
+layout = "us"
+
+[pointer]
+tap_to_click = true
+tap_and_drag = true
+natural_scrolling = false
+accel_speed = 0.0
+
+# Keybindings
+# Format: "modifiers+key" = "action" or "action:argument"
+# Modifiers: mod (uses modkey above), super, shift, ctrl, alt
+# Keys: Any XKB key name (Return, space, a-z, 0-9, F1-F12, etc.)
+#
+# If this section is present, ONLY these keybindings will be used
+# If this section is absent, default keybindings are used
+
+[keybindings]
+# Application launchers
+"mod+p" = "spawn:wmenu-run"
+"mod+shift+Return" = "spawn:foot"
+"mod+Return" = "spawn:foot"
+
+# Window management
+"mod+shift+c" = "close"
+"mod+shift+q" = "quit"
+"mod+shift+r" = "reload-config"
+
+# Focus
+"mod+j" = "focus-next"
+"mod+k" = "focus-prev"
+"mod+Left" = "focusdir:left"
+"mod+Right" = "focusdir:right"
+"mod+Up" = "focusdir:up"
+"mod+Down" = "focusdir:down"
+
+# Window state
+"mod+space" = "toggle-floating"
+"mod+f" = "toggle-fullscreen"
+"mod+z" = "zoom"
+
+# Master area
+"mod+h" = "dec-mfact"
+"mod+l" = "inc-mfact"
+"mod+i" = "inc-nmaster"
+"mod+d" = "dec-nmaster"
+
+# Layouts
+"mod+t" = "set-layout:tile"
+"mod+m" = "set-layout:monocle"
+"mod+s" = "set-layout:scroller"
+
+# Tags (workspaces)
+"mod+0" = "view-all"
+"mod+1" = "view:1"
+"mod+2" = "view:2"
+"mod+3" = "view:3"
+"mod+4" = "view:4"
+"mod+5" = "view:5"
+"mod+6" = "view:6"
+"mod+7" = "view:7"
+"mod+8" = "view:8"
+"mod+9" = "view:9"
+
+"mod+shift+1" = "tag:1"
+"mod+shift+2" = "tag:2"
+"mod+shift+3" = "tag:3"
+"mod+shift+4" = "tag:4"
+"mod+shift+5" = "tag:5"
+"mod+shift+6" = "tag:6"
+"mod+shift+7" = "tag:7"
+"mod+shift+8" = "tag:8"
+"mod+shift+9" = "tag:9"
+
+# Multi-monitor
+"mod+comma" = "focus-monitor:-1"
+"mod+period" = "focus-monitor:1"
+"mod+shift+comma" = "tag-monitor:-1"
+"mod+shift+period" = "tag-monitor:1"
+
+# Button bindings (mouse)
+[buttons]
+"mod+left" = "moveresize:move"
+"mod+middle" = "toggle-floating"
+"mod+right" = "moveresize:resize"
+
+# Monitor Rules
+# Configure monitors by their output name (e.g., HDMI-A-1, eDP-1, DP-1)
+# Run `wlr-randr` or check compositor logs to find output names
+#
+# Available properties:
+#   scale = 1.5              # Output scale (HiDPI)
+#   transform = 0            # Rotation (0=normal, 1=90, 2=180, 3=270, 4-7=flipped)
+#   width = 1920             # Resolution width
+#   height = 1080            # Resolution height
+#   refresh = 60000          # Refresh rate in mHz (60000 = 60Hz)
+#   x = 0                    # Position X (requires both x and y)
+#   y = 0                    # Position Y
+#   mfact = 0.55             # Master area factor
+#   nmaster = 1              # Number of master clients
+#   layout = "tile"          # Default layout for this monitor
+#   gap_inner_h = 10         # Inner horizontal gap
+#   gap_inner_v = 10         # Inner vertical gap
+#   gap_outer_h = 10         # Outer horizontal gap
+#   gap_outer_v = 10         # Outer vertical gap
+#   enabled = true           # Enable/disable monitor
+
+# Example: HiDPI laptop display
+# [monitors.eDP-1]
+# scale = 2.0
+# layout = "monocle"
+
+# Example: External monitor at specific position
+# [monitors.HDMI-A-1]
+# scale = 1.0
+# x = 1920
+# y = 0
+# width = 2560
+# height = 1440
+# refresh = 144000
+
+# Example: Vertical monitor
+# [monitors.DP-1]
+# transform = 1
+# x = 4480
+# y = 0
+
+# Window Rules
+# Match windows by app_id (Wayland) or class (X11) and/or title
+# app_id and title support regex patterns
+#
+# Available rule properties:
+#   app_id = "pattern"     # Match Wayland app_id / X11 class
+#   title = "pattern"      # Match window title (regex)
+#   tags = N               # Set window to tag N (1-9)
+#   floating = true/false  # Force window floating
+#   monitor = N            # Send window to monitor N (-1 = any)
+
+# Example: Send Firefox to tag 2
+# [rules.0]
+# app_id = "firefox"
+# tags = 2
+
+# Example: Float all mpv windows
+# [rules.1]
+# app_id = "mpv"
+# floating = true
+
+# Example: Float windows with "float" in title
+# [rules.2]
+# title = ".*[Ff]loat.*"
+# floating = true
+
+# Example: Float Pavucontrol (PulseAudio Volume Control)
+# [rules.3]
+# app_id = "pavucontrol"
+# floating = true
