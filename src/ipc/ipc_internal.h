@@ -13,6 +13,12 @@ typedef struct {
     DwlIPCHandler handler;
 } IPCCommand;
 
+typedef struct {
+    int fd;
+    DwlIPC *ipc;
+    struct wl_event_source *event_source;
+} IPCClient;
+
 struct DwlIPC {
     DwlCompositor *comp;
     int socket_fd;

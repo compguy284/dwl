@@ -100,33 +100,36 @@ static int handle_socket(int fd, uint32_t mask, void *data)
     struct wl_display *display = dwl_compositor_get_wl_display(ipc->comp);
     struct wl_event_loop *loop = wl_display_get_event_loop(display);
 
-    int *client_data = malloc(sizeof(int) * 2);
-    client_data[0] = client_fd;
-    client_data[1] = (int)(intptr_t)ipc;
-
-    wl_event_loop_add_fd(loop, client_fd, WL_EVENT_READABLE, handle_client, client_data);
+    IPCClient *client = malloc(sizeof(*client));
+    client->fd = client_fd;
+    client->ipc = ipc;
+    client->event_source = wl_event_loop_add_fd(loop, client_fd,
+        WL_EVENT_READABLE, handle_client, client);
 
     return 0;
+}
+
+static void ipc_client_cleanup(IPCClient *client)
+{
+    wl_event_source_remove(client->event_source);
+    close(client->fd);
+    free(client);
 }
 
 static int handle_client(int fd, uint32_t mask, void *data)
 {
     (void)fd;
-    int *client_data = data;
-    int client_fd = client_data[0];
-    DwlIPC *ipc = (DwlIPC *)(intptr_t)client_data[1];
+    IPCClient *client = data;
 
     if (mask & WL_EVENT_HANGUP) {
-        close(client_fd);
-        free(client_data);
+        ipc_client_cleanup(client);
         return 0;
     }
 
     char buffer[BUFFER_SIZE];
-    ssize_t n = read(client_fd, buffer, sizeof(buffer) - 1);
+    ssize_t n = read(client->fd, buffer, sizeof(buffer) - 1);
     if (n <= 0) {
-        close(client_fd);
-        free(client_data);
+        ipc_client_cleanup(client);
         return 0;
     }
     buffer[n] = '\0';
@@ -139,7 +142,7 @@ static int handle_client(int fd, uint32_t mask, void *data)
         args = space + 1;
     }
 
-    DwlIPCResponse response = dwl_ipc_execute(ipc, cmd, args);
+    DwlIPCResponse response = dwl_ipc_execute(client->ipc, cmd, args);
 
     char *reply;
     if (response.success && response.json)
@@ -149,13 +152,12 @@ static int handle_client(int fd, uint32_t mask, void *data)
     else
         reply = response.success ? "ok" : "error";
 
-    if (write(client_fd, reply, strlen(reply)) < 0) {
+    if (write(client->fd, reply, strlen(reply)) < 0) {
         // Client disconnected or error - nothing to do
     }
 
     dwl_ipc_response_free(&response);
-    close(client_fd);
-    free(client_data);
+    ipc_client_cleanup(client);
 
     return 0;
 }
