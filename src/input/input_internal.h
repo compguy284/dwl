@@ -35,6 +35,7 @@ struct DwlInput {
     struct wl_listener cursor_frame;
     struct wl_listener request_cursor;
     struct wl_listener request_set_selection;
+    struct wl_listener request_set_primary_selection;
 
     DwlKeyboardConfig kb_config;
     DwlPointerConfig ptr_config;
@@ -66,6 +67,7 @@ void handle_cursor_axis(struct wl_listener *listener, void *data);
 void handle_cursor_frame(struct wl_listener *listener, void *data);
 void handle_request_cursor(struct wl_listener *listener, void *data);
 void handle_request_set_selection(struct wl_listener *listener, void *data);
+void handle_request_set_primary_selection(struct wl_listener *listener, void *data);
 DwlClient *client_at_cursor(DwlInput *input);
 
 #endif /* DWL_INPUT_INTERNAL_H */

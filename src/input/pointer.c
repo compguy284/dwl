@@ -5,6 +5,7 @@
 #include <wlr/backend/libinput.h>
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/types/wlr_data_device.h>
+#include <wlr/types/wlr_primary_selection.h>
 #include <wlr/types/wlr_idle_notify_v1.h>
 #include <wlr/types/wlr_pointer.h>
 #include <scenefx/types/wlr_scene.h>
@@ -181,6 +182,14 @@ void handle_request_set_selection(struct wl_listener *listener, void *data)
     wlr_seat_set_selection(input->seat, event->source, event->serial);
 }
 
+void handle_request_set_primary_selection(struct wl_listener *listener, void *data)
+{
+    DwlInput *input = wl_container_of(listener, input, request_set_primary_selection);
+    struct wlr_seat_request_set_primary_selection_event *event = data;
+
+    wlr_seat_set_primary_selection(input->seat, event->source, event->serial);
+}
+
 void configure_pointer(DwlInput *input, struct wlr_pointer *ptr)
 {
     if (!wlr_input_device_is_libinput(&ptr->base))
@@ -268,6 +277,9 @@ void dwl_pointer_setup(DwlInput *input)
 
     input->request_set_selection.notify = handle_request_set_selection;
     wl_signal_add(&input->seat->events.request_set_selection, &input->request_set_selection);
+
+    input->request_set_primary_selection.notify = handle_request_set_primary_selection;
+    wl_signal_add(&input->seat->events.request_set_primary_selection, &input->request_set_primary_selection);
 }
 
 void dwl_pointer_cleanup(DwlInput *input)
@@ -279,4 +291,5 @@ void dwl_pointer_cleanup(DwlInput *input)
     wl_list_remove(&input->cursor_frame.link);
     wl_list_remove(&input->request_cursor.link);
     wl_list_remove(&input->request_set_selection.link);
+    wl_list_remove(&input->request_set_primary_selection.link);
 }
