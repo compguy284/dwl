@@ -206,12 +206,20 @@ static void client_handle_map(struct wl_listener *listener, void *data)
             c->floating = true;
     }
 
+    // For floating windows, use size hints if current size is zero
+    if (c->floating && c->xdg) {
+        if (!c->width && c->xdg->current.min_width)
+            c->width = c->xdg->current.min_width;
+        if (!c->height && c->xdg->current.min_height)
+            c->height = c->xdg->current.min_height;
+    }
+
     // Apply window rules (may override auto-float)
     if (c->mgr->rules)
         dwl_rule_engine_apply(c->mgr->rules, c);
 
-    // Tell client it's tiled on all edges (like dwl_mac)
-    if (c->xdg && c->xdg->base && c->xdg->base->initialized) {
+    // Tell tiled clients they're tiled on all edges
+    if (!c->floating && c->xdg && c->xdg->base && c->xdg->base->initialized) {
         uint32_t edges = WLR_EDGE_TOP | WLR_EDGE_BOTTOM | WLR_EDGE_LEFT | WLR_EDGE_RIGHT;
         wlr_xdg_toplevel_set_tiled(c->xdg, edges);
     }
