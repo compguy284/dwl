@@ -48,6 +48,7 @@ protocols = [
   wayland_protos_dir / 'staging/cursor-shape/cursor-shape-v1.xml',
   # wlr-protocols (not in wayland-protocols)
   meson.current_source_dir() / 'protocols/wlr-layer-shell-unstable-v1.xml',
+  meson.current_source_dir() / 'protocols/wlr-output-power-management-unstable-v1.xml',
 ]
 
 protocol_headers = []

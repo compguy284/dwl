@@ -285,6 +285,64 @@ static DwlIPCResponse cmd_get_layouts(DwlCompositor *comp, const char *args)
     return r;
 }
 
+static DwlIPCResponse cmd_output_power(DwlCompositor *comp, const char *args)
+{
+    DwlIPCResponse r = {.success = true};
+
+    if (!args) {
+        r.success = false;
+        r.error = strdup("usage: output-power <name> <on|off>");
+        return r;
+    }
+
+    // Parse "<name> <on|off>"
+    char name[128];
+    char mode_str[8];
+    if (sscanf(args, "%127s %7s", name, mode_str) != 2) {
+        r.success = false;
+        r.error = strdup("usage: output-power <name> <on|off>");
+        return r;
+    }
+
+    bool enabled;
+    if (strcmp(mode_str, "on") == 0)
+        enabled = true;
+    else if (strcmp(mode_str, "off") == 0)
+        enabled = false;
+    else {
+        r.success = false;
+        r.error = strdup("mode must be 'on' or 'off'");
+        return r;
+    }
+
+    DwlOutputManager *output = dwl_compositor_get_output(comp);
+    DwlMonitor *mon = dwl_monitor_by_name(output, name);
+    if (!mon) {
+        r.success = false;
+        r.error = strdup("monitor not found");
+        return r;
+    }
+
+    DwlMonitorConfig cfg = {0};
+    DwlMonitorInfo info = dwl_monitor_get_info(mon);
+    cfg.enabled = enabled;
+    cfg.width = info.width;
+    cfg.height = info.height;
+    cfg.refresh = info.refresh;
+    cfg.scale = info.scale;
+    cfg.transform = info.transform;
+
+    DwlError err = dwl_monitor_configure(mon, &cfg);
+    if (err != DWL_OK) {
+        r.success = false;
+        r.error = strdup("failed to set output power");
+        return r;
+    }
+
+    r.json = strdup("ok");
+    return r;
+}
+
 void dwl_ipc_register_builtins(DwlIPC *ipc)
 {
     dwl_ipc_register_command(ipc, "get-windows", cmd_get_windows);
@@ -297,4 +355,5 @@ void dwl_ipc_register_builtins(DwlIPC *ipc)
     dwl_ipc_register_command(ipc, "layout", cmd_layout);
     dwl_ipc_register_command(ipc, "quit", cmd_quit);
     dwl_ipc_register_command(ipc, "reload-config", cmd_reload_config);
+    dwl_ipc_register_command(ipc, "output-power", cmd_output_power);
 }

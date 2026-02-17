@@ -42,6 +42,7 @@
 #include <wlr/types/wlr_server_decoration.h>
 #include <wlr/types/wlr_xdg_decoration_v1.h>
 #include <wlr/types/wlr_xdg_output_v1.h>
+#include <wlr/types/wlr_output_power_management_v1.h>
 #include <scenefx/render/fx_renderer/fx_renderer.h>
 #include <scenefx/types/wlr_scene.h>
 
@@ -82,10 +83,13 @@ struct DwlCompositor {
     DwlXWayland *xwayland;
 #endif
 
+    struct wlr_output_power_manager_v1 *output_power_mgr;
+
     struct wl_listener new_xdg_toplevel;
     struct wl_listener new_xdg_popup;
     struct wl_listener new_xdg_decoration;
     struct wl_listener request_activate;
+    struct wl_listener set_output_power_mode;
 
     char *startup_cmd;
     char *config_path;
@@ -127,6 +131,20 @@ static void handle_request_activate(struct wl_listener *listener, void *data)
 
     // Mark as urgent
     dwl_client_set_urgent(client, true);
+}
+
+static void handle_set_output_power_mode(struct wl_listener *listener, void *data)
+{
+    DwlCompositor *comp = wl_container_of(listener, comp, set_output_power_mode);
+    (void)comp;
+    struct wlr_output_power_v1_set_mode_event *event = data;
+
+    struct wlr_output_state state;
+    wlr_output_state_init(&state);
+    wlr_output_state_set_enabled(&state,
+        event->mode == ZWLR_OUTPUT_POWER_V1_MODE_ON);
+    wlr_output_commit_state(event->output, &state);
+    wlr_output_state_finish(&state);
 }
 
 DwlError dwl_compositor_create(DwlCompositor **out, const DwlCompositorConfig *cfg)
@@ -236,6 +254,11 @@ DwlError dwl_compositor_create(DwlCompositor **out, const DwlCompositorConfig *c
     comp->request_activate.notify = handle_request_activate;
     wl_signal_add(&comp->activation->events.request_activate, &comp->request_activate);
 
+    // Output power management (DPMS via wlopm, etc.)
+    comp->output_power_mgr = wlr_output_power_manager_v1_create(comp->display);
+    comp->set_output_power_mode.notify = handle_set_output_power_mode;
+    wl_signal_add(&comp->output_power_mgr->events.set_mode, &comp->set_output_power_mode);
+
     // Seat
     comp->seat = wlr_seat_create(comp->display, "seat0");
 
@@ -321,6 +344,7 @@ void dwl_compositor_destroy(DwlCompositor *comp)
     wl_list_remove(&comp->new_xdg_popup.link);
     wl_list_remove(&comp->new_xdg_decoration.link);
     wl_list_remove(&comp->request_activate.link);
+    wl_list_remove(&comp->set_output_power_mode.link);
 
     wlr_scene_node_destroy(&comp->scene->tree.node);
     wlr_allocator_destroy(comp->allocator);
