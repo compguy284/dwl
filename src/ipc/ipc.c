@@ -184,7 +184,9 @@ static int handle_client(int fd, uint32_t mask, void *data)
     else
         reply = response.success ? "ok" : "error";
 
-    write(client_fd, reply, strlen(reply));
+    if (write(client_fd, reply, strlen(reply)) < 0) {
+        // Client disconnected or error - nothing to do
+    }
 
     dwl_ipc_response_free(&response);
     close(client_fd);
