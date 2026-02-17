@@ -218,9 +218,16 @@ static void client_handle_map(struct wl_listener *listener, void *data)
 
     dwl_scene_client_create(c->mgr->scene_mgr, c);
 
-    // Place floating clients on the float layer
+    // Place floating clients on the float layer and center on monitor
     if (c->floating && c->mgr->scene_mgr)
         dwl_scene_client_set_layer(c->mgr->scene_mgr, c, DWL_LAYER_FLOAT);
+    if (c->floating && c->mon) {
+        int mx, my, mw, mh;
+        dwl_monitor_get_usable_area(c->mon, &mx, &my, &mw, &mh);
+        int bw = c->border_width;
+        c->x = mx + (mw - c->width - 2 * bw) / 2;
+        c->y = my + (mh - c->height - 2 * bw) / 2;
+    }
 
     DwlRenderer *renderer = dwl_compositor_get_renderer(c->mgr->comp);
     DwlRenderConfig cfg = dwl_renderer_get_config(renderer);
@@ -722,6 +729,15 @@ DwlError dwl_client_move_to_monitor(DwlClient *client, DwlMonitor *mon)
 
     DwlMonitor *old = client->mon;
     client->mon = mon;
+
+    // Center floating windows on the new monitor
+    if (client->floating) {
+        int mx, my, mw, mh;
+        dwl_monitor_get_usable_area(mon, &mx, &my, &mw, &mh);
+        int bw = client->border_width;
+        client->x = mx + (mw - client->width - 2 * bw) / 2;
+        client->y = my + (mh - client->height - 2 * bw) / 2;
+    }
 
     // Update the stored output name for restore-monitor feature
     struct wlr_output *output = dwl_monitor_get_wlr_output(mon);
