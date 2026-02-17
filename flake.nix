@@ -50,6 +50,7 @@
             scenefx = scenefxPkg;
             # wlroots_0_19 = my_wlroots;
           };
+          dwl-debug = dwl.override { debug = true; };
         in
         {
           packages.default = dwl;
@@ -57,7 +58,7 @@
             inherit (config.packages) dwl;
           };
           packages = {
-            inherit dwl;
+            inherit dwl dwl-debug;
           };
           devShells.default = pkgs.mkShell {
             inputsFrom = [ dwl ];

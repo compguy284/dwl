@@ -18,6 +18,7 @@
   scenefx,
   libGL,
   enableXWayland ? false,
+  debug ? false,
 }:
 
 stdenv.mkDerivation {
@@ -45,6 +46,8 @@ stdenv.mkDerivation {
     scenefx
     libGL
   ];
+
+  mesonBuildType = if debug then "debug" else "release";
 
   mesonFlags = [
     "-Dxwayland=${lib.boolToString enableXWayland}"
