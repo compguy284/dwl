@@ -88,6 +88,18 @@ static void layer_surface_handle_unmap(struct wl_listener *listener, void *data)
     surface->mapped = false;
     dwl_layer_arrange(surface->mgr, surface->mon);
 
+    // Restore keyboard focus to the previously focused client
+    if (surface->layer_surface->current.keyboard_interactive) {
+        DwlClientManager *clients = dwl_compositor_get_clients(surface->mgr->comp);
+        DwlClient *focused = dwl_client_focused(clients);
+        if (focused)
+            dwl_client_focus(focused);
+        else {
+            struct wlr_seat *seat = dwl_compositor_get_seat(surface->mgr->comp);
+            wlr_seat_keyboard_notify_clear_focus(seat);
+        }
+    }
+
     DwlEventBus *bus = dwl_compositor_get_event_bus(surface->mgr->comp);
     dwl_event_bus_emit_simple(bus, DWL_EVENT_LAYER_UNMAP, surface);
 }
