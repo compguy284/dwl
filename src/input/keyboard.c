@@ -34,13 +34,16 @@ void configure_keyboard(DwlInput *input, struct wlr_keyboard *kb)
         input->kb_config.repeat_rate > 0 ? input->kb_config.repeat_rate : 25,
         input->kb_config.repeat_delay > 0 ? input->kb_config.repeat_delay : 600);
 
+    input->locked_mods = 0;
     if (input->kb_config.numlock && kb->keymap) {
         xkb_mod_index_t mod = xkb_keymap_mod_get_index(kb->keymap,
             XKB_MOD_NAME_NUM);
-        if (mod != XKB_MOD_INVALID) {
-            wlr_keyboard_notify_modifiers(kb, 0, 0, (uint32_t)1 << mod, 0);
-        }
+        if (mod != XKB_MOD_INVALID)
+            input->locked_mods |= (uint32_t)1 << mod;
     }
+
+    if (input->locked_mods)
+        wlr_keyboard_notify_modifiers(kb, 0, 0, input->locked_mods, 0);
 
     xkb_context_unref(ctx);
 }

@@ -40,6 +40,7 @@ struct DwlInput {
     DwlKeyboardConfig kb_config;
     DwlPointerConfig ptr_config;
 
+    uint32_t locked_mods;
     uint32_t modifiers;
 
     // Move/resize state

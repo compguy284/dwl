@@ -11,6 +11,7 @@
 #include <wlr/backend.h>
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/types/wlr_keyboard.h>
+#include <wlr/interfaces/wlr_keyboard.h>
 #include <wlr/types/wlr_pointer.h>
 #ifdef DWL_XWAYLAND
 #include <wlr/xwayland.h>
@@ -139,6 +140,9 @@ static void handle_new_input(struct wl_listener *listener, void *data)
         wlr_keyboard_set_repeat_info(kb,
             input->kb_config.repeat_rate > 0 ? input->kb_config.repeat_rate : 25,
             input->kb_config.repeat_delay > 0 ? input->kb_config.repeat_delay : 600);
+        // Apply locked modifiers (numlock) before adding to group
+        if (input->locked_mods)
+            wlr_keyboard_notify_modifiers(kb, 0, 0, input->locked_mods, 0);
         wlr_keyboard_group_add_keyboard(input->kb_group, kb);
         wlr_seat_set_keyboard(input->seat, &input->kb_group->keyboard);
         break;
