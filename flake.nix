@@ -45,13 +45,10 @@
               version = package-version inputs.wlroots;
             }
           );
+          scenefxPkg = inputs.scenefx.packages.${pkgs.stdenv.hostPlatform.system}.default;
           dwl = pkgs.callPackage ./nix/default.nix {
-            scenefx = inputs.scenefx.packages.${pkgs.stdenv.hostPlatform.system}.default;
+            scenefx = scenefxPkg;
             # wlroots_0_19 = my_wlroots;
-          };
-          shellOverride = old: {
-            nativeBuildInputs = old.nativeBuildInputs ++ [ ];
-            buildInputs = old.buildInputs ++ [ ];
           };
         in
         {
@@ -62,7 +59,13 @@
           packages = {
             inherit dwl;
           };
-          devShells.default = dwl.overrideAttrs shellOverride;
+          devShells.default = pkgs.mkShell {
+            inputsFrom = [ dwl ];
+            packages = with pkgs; [
+              meson
+              ninja
+            ];
+          };
           formatter = pkgs.nixfmt;
         };
       systems = [

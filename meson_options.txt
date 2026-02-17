@@ -1,0 +1,2 @@
+option('xwayland', type: 'boolean', value: true, description: 'Enable XWayland support')
+option('tests', type: 'boolean', value: false, description: 'Build tests')

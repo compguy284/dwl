@@ -1,0 +1,914 @@
+#define _POSIX_C_SOURCE 200809L
+#include "keybindings.h"
+#include "compositor.h"
+#include "client.h"
+#include "config.h"
+#include "input.h"
+#include "layout.h"
+#include "monitor.h"
+#include "workspace.h"
+#include <ctype.h>
+#include <linux/input-event-codes.h>
+#include <stdlib.h>
+#include <string.h>
+#include <strings.h>
+#include <unistd.h>
+#include <wlr/types/wlr_keyboard.h>
+#include <xkbcommon/xkbcommon.h>
+
+#define MAX_KEYBINDINGS 256
+#define MAX_BUTTON_BINDINGS 32
+#define MAX_ACTIONS 128
+
+typedef struct {
+    char *name;
+    DwlAction action;
+} ActionEntry;
+
+struct DwlKeybindingManager {
+    DwlInput *input;
+    DwlCompositor *comp;
+
+    DwlKeybinding keys[MAX_KEYBINDINGS];
+    size_t key_count;
+
+    DwlButtonBinding buttons[MAX_BUTTON_BINDINGS];
+    size_t button_count;
+
+    ActionEntry actions[MAX_ACTIONS];
+    size_t action_count;
+};
+
+DwlKeybindingManager *dwl_keybinding_create(DwlInput *input)
+{
+    DwlKeybindingManager *mgr = calloc(1, sizeof(*mgr));
+    if (!mgr)
+        return NULL;
+
+    mgr->input = input;
+    mgr->comp = dwl_input_get_compositor(input);
+    return mgr;
+}
+
+void dwl_keybinding_destroy(DwlKeybindingManager *mgr)
+{
+    if (!mgr)
+        return;
+
+    for (size_t i = 0; i < mgr->key_count; i++) {
+        free((void *)mgr->keys[i].action);
+        free((void *)mgr->keys[i].argument);
+    }
+
+    for (size_t i = 0; i < mgr->button_count; i++) {
+        free((void *)mgr->buttons[i].action);
+        free((void *)mgr->buttons[i].argument);
+    }
+
+    for (size_t i = 0; i < mgr->action_count; i++) {
+        free(mgr->actions[i].name);
+    }
+
+    free(mgr);
+}
+
+DwlError dwl_keybinding_add(DwlKeybindingManager *mgr, const DwlKeybinding *binding)
+{
+    if (!mgr || !binding || !binding->action)
+        return DWL_ERR_INVALID_ARG;
+
+    if (mgr->key_count >= MAX_KEYBINDINGS)
+        return DWL_ERR_NOMEM;
+
+    DwlKeybinding *k = &mgr->keys[mgr->key_count];
+    k->modifiers = binding->modifiers;
+    k->keysym = binding->keysym;
+    k->action = strdup(binding->action);
+    k->argument = binding->argument ? strdup(binding->argument) : NULL;
+
+    mgr->key_count++;
+    return DWL_OK;
+}
+
+DwlError dwl_keybinding_remove(DwlKeybindingManager *mgr, uint32_t mod, xkb_keysym_t key)
+{
+    if (!mgr)
+        return DWL_ERR_INVALID_ARG;
+
+    for (size_t i = 0; i < mgr->key_count; i++) {
+        if (mgr->keys[i].modifiers == mod && mgr->keys[i].keysym == key) {
+            free((void *)mgr->keys[i].action);
+            free((void *)mgr->keys[i].argument);
+
+            memmove(&mgr->keys[i], &mgr->keys[i + 1],
+                    (mgr->key_count - i - 1) * sizeof(DwlKeybinding));
+            mgr->key_count--;
+            return DWL_OK;
+        }
+    }
+
+    return DWL_ERR_NOT_FOUND;
+}
+
+void dwl_keybinding_clear(DwlKeybindingManager *mgr)
+{
+    if (!mgr)
+        return;
+
+    for (size_t i = 0; i < mgr->key_count; i++) {
+        free((void *)mgr->keys[i].action);
+        free((void *)mgr->keys[i].argument);
+    }
+
+    mgr->key_count = 0;
+}
+
+size_t dwl_keybinding_count(const DwlKeybindingManager *mgr)
+{
+    return mgr ? mgr->key_count : 0;
+}
+
+DwlError dwl_button_binding_add(DwlKeybindingManager *mgr, const DwlButtonBinding *binding)
+{
+    if (!mgr || !binding || !binding->action)
+        return DWL_ERR_INVALID_ARG;
+
+    if (mgr->button_count >= MAX_BUTTON_BINDINGS)
+        return DWL_ERR_NOMEM;
+
+    DwlButtonBinding *b = &mgr->buttons[mgr->button_count];
+    b->modifiers = binding->modifiers;
+    b->button = binding->button;
+    b->action = strdup(binding->action);
+    b->argument = binding->argument ? strdup(binding->argument) : NULL;
+
+    mgr->button_count++;
+    return DWL_OK;
+}
+
+DwlError dwl_button_binding_remove(DwlKeybindingManager *mgr, uint32_t mod, uint32_t button)
+{
+    if (!mgr)
+        return DWL_ERR_INVALID_ARG;
+
+    for (size_t i = 0; i < mgr->button_count; i++) {
+        if (mgr->buttons[i].modifiers == mod && mgr->buttons[i].button == button) {
+            free((void *)mgr->buttons[i].action);
+            free((void *)mgr->buttons[i].argument);
+
+            memmove(&mgr->buttons[i], &mgr->buttons[i + 1],
+                    (mgr->button_count - i - 1) * sizeof(DwlButtonBinding));
+            mgr->button_count--;
+            return DWL_OK;
+        }
+    }
+
+    return DWL_ERR_NOT_FOUND;
+}
+
+void dwl_button_binding_clear(DwlKeybindingManager *mgr)
+{
+    if (!mgr)
+        return;
+
+    for (size_t i = 0; i < mgr->button_count; i++) {
+        free((void *)mgr->buttons[i].action);
+        free((void *)mgr->buttons[i].argument);
+    }
+
+    mgr->button_count = 0;
+}
+
+DwlError dwl_action_register(DwlKeybindingManager *mgr, const char *name, DwlAction action)
+{
+    if (!mgr || !name || !action)
+        return DWL_ERR_INVALID_ARG;
+
+    if (mgr->action_count >= MAX_ACTIONS)
+        return DWL_ERR_NOMEM;
+
+    for (size_t i = 0; i < mgr->action_count; i++) {
+        if (strcmp(mgr->actions[i].name, name) == 0)
+            return DWL_ERR_ALREADY_EXISTS;
+    }
+
+    mgr->actions[mgr->action_count].name = strdup(name);
+    mgr->actions[mgr->action_count].action = action;
+    mgr->action_count++;
+
+    return DWL_OK;
+}
+
+DwlError dwl_action_unregister(DwlKeybindingManager *mgr, const char *name)
+{
+    if (!mgr || !name)
+        return DWL_ERR_INVALID_ARG;
+
+    for (size_t i = 0; i < mgr->action_count; i++) {
+        if (strcmp(mgr->actions[i].name, name) == 0) {
+            free(mgr->actions[i].name);
+            memmove(&mgr->actions[i], &mgr->actions[i + 1],
+                    (mgr->action_count - i - 1) * sizeof(ActionEntry));
+            mgr->action_count--;
+            return DWL_OK;
+        }
+    }
+
+    return DWL_ERR_NOT_FOUND;
+}
+
+static DwlAction find_action(DwlKeybindingManager *mgr, const char *name)
+{
+    for (size_t i = 0; i < mgr->action_count; i++) {
+        if (strcmp(mgr->actions[i].name, name) == 0)
+            return mgr->actions[i].action;
+    }
+    return NULL;
+}
+
+bool dwl_keybinding_handle(DwlKeybindingManager *mgr, uint32_t mod, xkb_keysym_t key)
+{
+    if (!mgr)
+        return false;
+
+    // Normalize keysym to lowercase for comparison
+    // (Shift+q gives XKB_KEY_Q, but bindings use XKB_KEY_q)
+    xkb_keysym_t key_lower = xkb_keysym_to_lower(key);
+
+    for (size_t i = 0; i < mgr->key_count; i++) {
+        if (mgr->keys[i].modifiers == mod && mgr->keys[i].keysym == key_lower) {
+            DwlAction action = find_action(mgr, mgr->keys[i].action);
+            if (action) {
+                action(mgr->comp, mgr->keys[i].argument);
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+bool dwl_button_binding_handle(DwlKeybindingManager *mgr, uint32_t mod, uint32_t button)
+{
+    if (!mgr)
+        return false;
+
+    for (size_t i = 0; i < mgr->button_count; i++) {
+        if (mgr->buttons[i].modifiers == mod && mgr->buttons[i].button == button) {
+            DwlAction action = find_action(mgr, mgr->buttons[i].action);
+            if (action) {
+                action(mgr->comp, mgr->buttons[i].argument);
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+static void action_quit(DwlCompositor *comp, const char *arg)
+{
+    (void)arg;
+    dwl_compositor_quit(comp);
+}
+
+static void action_spawn(DwlCompositor *comp, const char *arg)
+{
+    (void)comp;
+    if (!arg)
+        return;
+
+    if (fork() == 0) {
+        setsid();
+        execl("/bin/sh", "/bin/sh", "-c", arg, NULL);
+        _exit(1);
+    }
+}
+
+static void action_close(DwlCompositor *comp, const char *arg)
+{
+    (void)arg;
+    DwlClientManager *clients = dwl_compositor_get_clients(comp);
+    DwlClient *focused = dwl_client_focused(clients);
+    if (focused)
+        dwl_client_close(focused);
+}
+
+static bool focus_first_client(DwlClient *client, void *data)
+{
+    DwlClient **first = data;
+    if (!*first) {
+        *first = client;
+        return false;  // Stop iteration
+    }
+    return true;
+}
+
+static void action_focus_next(DwlCompositor *comp, const char *arg)
+{
+    (void)arg;
+    DwlClientManager *clients = dwl_compositor_get_clients(comp);
+    DwlClient *focused = dwl_client_focused(clients);
+
+    if (!focused) {
+        DwlOutputManager *output = dwl_compositor_get_output(comp);
+        DwlMonitor *mon = dwl_monitor_get_focused(output);
+        DwlClient *first = NULL;
+        dwl_client_foreach_visible(clients, mon, focus_first_client, &first);
+        if (first)
+            dwl_client_focus(first);
+        return;
+    }
+
+    // TODO: implement proper focus cycling
+}
+
+static void action_focus_prev(DwlCompositor *comp, const char *arg)
+{
+    (void)arg;
+    (void)comp;
+    // TODO: implement
+}
+
+static void action_toggle_floating(DwlCompositor *comp, const char *arg)
+{
+    (void)arg;
+    DwlClientManager *clients = dwl_compositor_get_clients(comp);
+    DwlClient *focused = dwl_client_focused(clients);
+    if (focused)
+        dwl_client_toggle_floating(focused);
+}
+
+static void action_toggle_fullscreen(DwlCompositor *comp, const char *arg)
+{
+    (void)arg;
+    DwlClientManager *clients = dwl_compositor_get_clients(comp);
+    DwlClient *focused = dwl_client_focused(clients);
+    if (focused)
+        dwl_client_toggle_fullscreen(focused);
+}
+
+static void action_view(DwlCompositor *comp, const char *arg)
+{
+    if (!arg)
+        return;
+
+    int tag = atoi(arg);
+    if (tag < 1 || tag > 32)
+        return;
+
+    DwlOutputManager *output = dwl_compositor_get_output(comp);
+    DwlMonitor *mon = dwl_monitor_get_focused(output);
+    if (mon)
+        dwl_workspace_view(mon, 1 << (tag - 1));
+}
+
+static void action_tag(DwlCompositor *comp, const char *arg)
+{
+    if (!arg)
+        return;
+
+    int tag = atoi(arg);
+    if (tag < 1 || tag > 32)
+        return;
+
+    DwlClientManager *clients = dwl_compositor_get_clients(comp);
+    DwlClient *focused = dwl_client_focused(clients);
+    if (focused)
+        dwl_client_set_tags(focused, 1 << (tag - 1));
+}
+
+static void action_toggle_view(DwlCompositor *comp, const char *arg)
+{
+    if (!arg)
+        return;
+
+    int tag = atoi(arg);
+    if (tag < 1 || tag > 32)
+        return;
+
+    DwlOutputManager *output = dwl_compositor_get_output(comp);
+    DwlMonitor *mon = dwl_monitor_get_focused(output);
+    if (mon)
+        dwl_workspace_view_toggle(mon, 1 << (tag - 1));
+}
+
+static void action_toggle_tag(DwlCompositor *comp, const char *arg)
+{
+    if (!arg)
+        return;
+
+    int tag = atoi(arg);
+    if (tag < 1 || tag > 32)
+        return;
+
+    DwlClientManager *clients = dwl_compositor_get_clients(comp);
+    DwlClient *focused = dwl_client_focused(clients);
+    if (focused)
+        dwl_client_toggle_tag(focused, 1 << (tag - 1));
+}
+
+static void action_view_all(DwlCompositor *comp, const char *arg)
+{
+    (void)arg;
+    DwlOutputManager *output = dwl_compositor_get_output(comp);
+    DwlMonitor *mon = dwl_monitor_get_focused(output);
+    if (mon)
+        dwl_workspace_view_all(mon);
+}
+
+static void action_set_layout(DwlCompositor *comp, const char *arg)
+{
+    if (!arg)
+        return;
+
+    DwlLayoutRegistry *layouts = dwl_compositor_get_layouts(comp);
+    const DwlLayout *layout = dwl_layout_get(layouts, arg);
+    if (!layout)
+        return;
+
+    DwlOutputManager *output = dwl_compositor_get_output(comp);
+    DwlMonitor *mon = dwl_monitor_get_focused(output);
+    if (mon) {
+        dwl_monitor_set_layout(mon, layout);
+        dwl_monitor_arrange(mon);
+    }
+}
+
+static void action_focus_monitor(DwlCompositor *comp, const char *arg)
+{
+    if (!arg)
+        return;
+
+    int dir = atoi(arg);
+    DwlOutputManager *output = dwl_compositor_get_output(comp);
+    DwlMonitor *mon = dwl_monitor_get_focused(output);
+    if (!mon)
+        return;
+
+    DwlMonitor *next = dwl_monitor_in_direction(output, mon, dir > 0 ? 3 : 2);
+    if (next)
+        dwl_monitor_focus(next);
+}
+
+static void action_tag_monitor(DwlCompositor *comp, const char *arg)
+{
+    if (!arg)
+        return;
+
+    int dir = atoi(arg);
+    DwlClientManager *clients = dwl_compositor_get_clients(comp);
+    DwlClient *focused = dwl_client_focused(clients);
+    if (!focused)
+        return;
+
+    DwlOutputManager *output = dwl_compositor_get_output(comp);
+    DwlMonitor *mon = dwl_client_get_monitor(focused);
+    if (!mon)
+        mon = dwl_monitor_get_focused(output);
+    if (!mon)
+        return;
+
+    DwlMonitor *next = dwl_monitor_in_direction(output, mon, dir > 0 ? 3 : 2);
+    if (next)
+        dwl_client_move_to_monitor(focused, next);
+}
+
+static void action_reload_config(DwlCompositor *comp, const char *arg)
+{
+    (void)arg;
+    DwlConfig *config = dwl_compositor_get_config(comp);
+    if (config)
+        dwl_config_reload(config);
+}
+
+static void action_zoom(DwlCompositor *comp, const char *arg)
+{
+    (void)arg;
+    DwlClientManager *clients = dwl_compositor_get_clients(comp);
+    dwl_client_zoom(clients);
+}
+
+static void action_inc_mfact(DwlCompositor *comp, const char *arg)
+{
+    float delta = arg ? strtof(arg, NULL) : 0.05f;
+    DwlOutputManager *output = dwl_compositor_get_output(comp);
+    DwlMonitor *mon = dwl_monitor_get_focused(output);
+    if (mon)
+        dwl_monitor_adjust_mfact(mon, delta);
+}
+
+static void action_dec_mfact(DwlCompositor *comp, const char *arg)
+{
+    float delta = arg ? strtof(arg, NULL) : 0.05f;
+    DwlOutputManager *output = dwl_compositor_get_output(comp);
+    DwlMonitor *mon = dwl_monitor_get_focused(output);
+    if (mon)
+        dwl_monitor_adjust_mfact(mon, -delta);
+}
+
+static void action_inc_nmaster(DwlCompositor *comp, const char *arg)
+{
+    int delta = arg ? atoi(arg) : 1;
+    DwlOutputManager *output = dwl_compositor_get_output(comp);
+    DwlMonitor *mon = dwl_monitor_get_focused(output);
+    if (mon)
+        dwl_monitor_adjust_nmaster(mon, delta);
+}
+
+static void action_dec_nmaster(DwlCompositor *comp, const char *arg)
+{
+    int delta = arg ? atoi(arg) : 1;
+    DwlOutputManager *output = dwl_compositor_get_output(comp);
+    DwlMonitor *mon = dwl_monitor_get_focused(output);
+    if (mon)
+        dwl_monitor_adjust_nmaster(mon, -delta);
+}
+
+static void action_focusdir(DwlCompositor *comp, const char *arg)
+{
+    if (!arg)
+        return;
+
+    int dir;
+    if (strcmp(arg, "up") == 0)
+        dir = 0;
+    else if (strcmp(arg, "down") == 0)
+        dir = 1;
+    else if (strcmp(arg, "left") == 0)
+        dir = 2;
+    else if (strcmp(arg, "right") == 0)
+        dir = 3;
+    else
+        dir = atoi(arg);
+
+    DwlClientManager *clients = dwl_compositor_get_clients(comp);
+    DwlClient *focused = dwl_client_focused(clients);
+    if (!focused)
+        return;
+
+    DwlClient *next = dwl_client_in_direction(clients, focused, dir);
+    if (next)
+        dwl_client_focus(next);
+}
+
+static void action_moveresize(DwlCompositor *comp, const char *arg)
+{
+    if (!arg)
+        return;
+
+    DwlInput *input = dwl_compositor_get_input(comp);
+    if (!input)
+        return;
+
+    if (strcmp(arg, "move") == 0) {
+        dwl_input_start_move(input);
+    } else if (strcmp(arg, "resize") == 0) {
+        dwl_input_start_resize(input);
+    }
+}
+
+// Parse modifier string like "mod+shift+ctrl" and return modifier mask
+static uint32_t parse_modifiers(const char *str, uint32_t modkey)
+{
+    if (!str) return 0;
+
+    uint32_t mods = 0;
+    char *copy = strdup(str);
+    if (!copy) return 0;
+
+    char *token = strtok(copy, "+");
+    while (token) {
+        // Trim whitespace
+        while (*token && isspace(*token)) token++;
+        char *end = token + strlen(token) - 1;
+        while (end > token && isspace(*end)) *end-- = '\0';
+
+        // Convert to lowercase
+        for (char *p = token; *p; p++) *p = tolower(*p);
+
+        if (strcmp(token, "mod") == 0) {
+            mods |= modkey;
+        } else if (strcmp(token, "super") == 0 || strcmp(token, "logo") == 0 ||
+                   strcmp(token, "mod4") == 0 || strcmp(token, "win") == 0) {
+            mods |= WLR_MODIFIER_LOGO;
+        } else if (strcmp(token, "shift") == 0) {
+            mods |= WLR_MODIFIER_SHIFT;
+        } else if (strcmp(token, "ctrl") == 0 || strcmp(token, "control") == 0) {
+            mods |= WLR_MODIFIER_CTRL;
+        } else if (strcmp(token, "alt") == 0 || strcmp(token, "mod1") == 0) {
+            mods |= WLR_MODIFIER_ALT;
+        }
+        // Unrecognized tokens are assumed to be the key name
+
+        token = strtok(NULL, "+");
+    }
+
+    free(copy);
+    return mods;
+}
+
+// Extract the key name from a binding string like "mod+shift+Return"
+static const char *extract_keyname(const char *str)
+{
+    if (!str) return NULL;
+
+    // Find the last '+' - everything after is the key name
+    const char *last_plus = strrchr(str, '+');
+    if (last_plus)
+        return last_plus + 1;
+    return str;
+}
+
+// Parse a keysym from a string
+static xkb_keysym_t parse_keysym(const char *str)
+{
+    if (!str) return XKB_KEY_NoSymbol;
+
+    // Try XKB lookup
+    xkb_keysym_t sym = xkb_keysym_from_name(str, XKB_KEYSYM_CASE_INSENSITIVE);
+    if (sym != XKB_KEY_NoSymbol) return sym;
+
+    // Handle common aliases
+    if (strcasecmp(str, "enter") == 0) return XKB_KEY_Return;
+    if (strcasecmp(str, "esc") == 0) return XKB_KEY_Escape;
+    if (strcasecmp(str, "del") == 0) return XKB_KEY_Delete;
+    if (strcasecmp(str, "backspace") == 0) return XKB_KEY_BackSpace;
+
+    return XKB_KEY_NoSymbol;
+}
+
+// Parse a button name
+static uint32_t parse_button(const char *str)
+{
+    if (!str) return 0;
+
+    if (strcasecmp(str, "left") == 0) return BTN_LEFT;
+    if (strcasecmp(str, "middle") == 0) return BTN_MIDDLE;
+    if (strcasecmp(str, "right") == 0) return BTN_RIGHT;
+    if (strcasecmp(str, "side") == 0) return BTN_SIDE;
+    if (strcasecmp(str, "extra") == 0) return BTN_EXTRA;
+
+    return 0;
+}
+
+// Load keybindings from config
+// Format: keybindings."mod+key" = "action" or "action:argument"
+static void load_keybindings_from_config(DwlKeybindingManager *mgr)
+{
+    DwlConfig *cfg = dwl_compositor_get_config(mgr->comp);
+    if (!cfg)
+        return;
+
+    // Get modkey setting
+    const char *modkey_str = dwl_config_get_string(cfg, "general.modkey", "alt");
+    uint32_t modkey = WLR_MODIFIER_ALT;
+    if (strcasecmp(modkey_str, "super") == 0 || strcasecmp(modkey_str, "logo") == 0)
+        modkey = WLR_MODIFIER_LOGO;
+    else if (strcasecmp(modkey_str, "ctrl") == 0)
+        modkey = WLR_MODIFIER_CTRL;
+
+    // Get all keybinding keys
+    size_t count = 0;
+    const char **keys = dwl_config_keys(cfg, "keybindings.", &count);
+    if (!keys || count == 0)
+        return;
+
+    // Process each keybinding
+    // Format: keybindings."mod+shift+Return" = "action:argument"
+    for (size_t i = 0; i < count; i++) {
+        const char *key = keys[i];
+
+        // Extract binding key from config key (e.g., "mod+p" from "keybindings.mod+p")
+        const char *binding_key = key + strlen("keybindings.");
+
+        // Get value (action:argument format)
+        const char *value = dwl_config_get_string(cfg, key, NULL);
+        if (!value)
+            continue;
+
+        // Parse action and argument from value
+        char *action = strdup(value);
+        if (!action)
+            continue;
+
+        char *arg_str = NULL;
+        char *colon = strchr(action, ':');
+        if (colon) {
+            *colon = '\0';
+            arg_str = colon + 1;
+        }
+
+        // Parse modifiers and keysym
+        uint32_t mods = parse_modifiers(binding_key, modkey);
+        const char *keyname = extract_keyname(binding_key);
+        xkb_keysym_t keysym = parse_keysym(keyname);
+
+        if (keysym != XKB_KEY_NoSymbol) {
+            DwlKeybinding binding = {
+                .modifiers = mods,
+                .keysym = keysym,
+                .action = action,
+                .argument = arg_str,
+            };
+            dwl_keybinding_add(mgr, &binding);
+        } else {
+            free(action);
+        }
+    }
+
+    dwl_config_keys_free(keys, count);
+}
+
+// Load button bindings from config
+// Format: buttons."mod+button" = "action" or "action:argument"
+static void load_buttons_from_config(DwlKeybindingManager *mgr)
+{
+    DwlConfig *cfg = dwl_compositor_get_config(mgr->comp);
+    if (!cfg)
+        return;
+
+    // Get modkey setting
+    const char *modkey_str = dwl_config_get_string(cfg, "general.modkey", "alt");
+    uint32_t modkey = WLR_MODIFIER_ALT;
+    if (strcasecmp(modkey_str, "super") == 0 || strcasecmp(modkey_str, "logo") == 0)
+        modkey = WLR_MODIFIER_LOGO;
+    else if (strcasecmp(modkey_str, "ctrl") == 0)
+        modkey = WLR_MODIFIER_CTRL;
+
+    // Get all button binding keys
+    size_t count = 0;
+    const char **keys = dwl_config_keys(cfg, "buttons.", &count);
+    if (!keys || count == 0)
+        return;
+
+    for (size_t i = 0; i < count; i++) {
+        const char *key = keys[i];
+
+        const char *binding_key = key + strlen("buttons.");
+
+        const char *value = dwl_config_get_string(cfg, key, NULL);
+        if (!value)
+            continue;
+
+        char *action = strdup(value);
+        if (!action)
+            continue;
+
+        char *arg_str = NULL;
+        char *colon = strchr(action, ':');
+        if (colon) {
+            *colon = '\0';
+            arg_str = colon + 1;
+        }
+
+        uint32_t mods = parse_modifiers(binding_key, modkey);
+        const char *buttonname = extract_keyname(binding_key);
+        uint32_t button = parse_button(buttonname);
+
+        if (button != 0) {
+            DwlButtonBinding binding = {
+                .modifiers = mods,
+                .button = button,
+                .action = action,
+                .argument = arg_str,
+            };
+            dwl_button_binding_add(mgr, &binding);
+        } else {
+            free(action);
+        }
+    }
+
+    dwl_config_keys_free(keys, count);
+}
+
+void dwl_action_register_builtins(DwlKeybindingManager *mgr)
+{
+    // Register all action handlers
+    dwl_action_register(mgr, "quit", action_quit);
+    dwl_action_register(mgr, "spawn", action_spawn);
+    dwl_action_register(mgr, "close", action_close);
+    dwl_action_register(mgr, "killclient", action_close);  // Alias
+    dwl_action_register(mgr, "focus-next", action_focus_next);
+    dwl_action_register(mgr, "focus-prev", action_focus_prev);
+    dwl_action_register(mgr, "focusstack", action_focus_next);  // Alias with direction
+    dwl_action_register(mgr, "toggle-floating", action_toggle_floating);
+    dwl_action_register(mgr, "togglefloating", action_toggle_floating);  // Alias
+    dwl_action_register(mgr, "toggle-fullscreen", action_toggle_fullscreen);
+    dwl_action_register(mgr, "togglefullscreen", action_toggle_fullscreen);  // Alias
+    dwl_action_register(mgr, "view", action_view);
+    dwl_action_register(mgr, "tag", action_tag);
+    dwl_action_register(mgr, "toggleview", action_toggle_view);
+    dwl_action_register(mgr, "toggle-view", action_toggle_view);
+    dwl_action_register(mgr, "toggletag", action_toggle_tag);
+    dwl_action_register(mgr, "toggle-tag", action_toggle_tag);
+    dwl_action_register(mgr, "view-all", action_view_all);
+    dwl_action_register(mgr, "setlayout", action_set_layout);
+    dwl_action_register(mgr, "set-layout", action_set_layout);
+    dwl_action_register(mgr, "focus-monitor", action_focus_monitor);
+    dwl_action_register(mgr, "focusmon", action_focus_monitor);  // Alias
+    dwl_action_register(mgr, "tag-monitor", action_tag_monitor);
+    dwl_action_register(mgr, "tagmon", action_tag_monitor);  // Alias
+    dwl_action_register(mgr, "reload-config", action_reload_config);
+    dwl_action_register(mgr, "reload_config", action_reload_config);  // Alias
+    dwl_action_register(mgr, "zoom", action_zoom);
+    dwl_action_register(mgr, "incnmaster", action_inc_nmaster);
+    dwl_action_register(mgr, "inc-nmaster", action_inc_nmaster);
+    dwl_action_register(mgr, "dec-nmaster", action_dec_nmaster);
+    dwl_action_register(mgr, "setmfact", action_inc_mfact);  // Uses delta from arg
+    dwl_action_register(mgr, "inc-mfact", action_inc_mfact);
+    dwl_action_register(mgr, "dec-mfact", action_dec_mfact);
+    dwl_action_register(mgr, "focusdir", action_focusdir);
+    dwl_action_register(mgr, "moveresize", action_moveresize);
+
+    // Try to load keybindings from config
+    DwlConfig *cfg = dwl_compositor_get_config(mgr->comp);
+    bool has_config_keybindings = false;
+
+    if (cfg) {
+        size_t count = 0;
+        const char **keys = dwl_config_keys(cfg, "keybindings.", &count);
+        if (keys && count > 0) {
+            has_config_keybindings = true;
+            dwl_config_keys_free(keys, count);
+        }
+    }
+
+    if (has_config_keybindings) {
+        // Load keybindings from config
+        load_keybindings_from_config(mgr);
+        load_buttons_from_config(mgr);
+        return;
+    }
+
+    // Default keybindings (Mod = Alt)
+    #define MOD WLR_MODIFIER_ALT
+    #define SHIFT WLR_MODIFIER_SHIFT
+
+    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD | SHIFT, XKB_KEY_q, "quit", NULL});
+    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD | SHIFT, XKB_KEY_Return, "spawn", "foot"});
+    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_Return, "spawn", "foot"});
+    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD | SHIFT, XKB_KEY_c, "close", NULL});
+    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_j, "focus-next", NULL});
+    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_k, "focus-prev", NULL});
+    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_space, "toggle-floating", NULL});
+    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_f, "toggle-fullscreen", NULL});
+    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_0, "view-all", NULL});
+
+    // Layout keybindings
+    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_t, "set-layout", "tile"});
+    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_m, "set-layout", "monocle"});
+    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_s, "set-layout", "scroller"});
+
+    // Zoom (swap with master)
+    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_z, "zoom", NULL});
+
+    // Master factor adjustment
+    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_l, "inc-mfact", NULL});
+    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_h, "dec-mfact", NULL});
+
+    // Master count adjustment
+    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_i, "inc-nmaster", NULL});
+    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_d, "dec-nmaster", NULL});
+
+    // Monitor focus/move (left = -1, right = 1)
+    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_comma, "focus-monitor", "-1"});
+    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_period, "focus-monitor", "1"});
+    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD | SHIFT, XKB_KEY_comma, "tag-monitor", "-1"});
+    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD | SHIFT, XKB_KEY_period, "tag-monitor", "1"});
+
+    // Directional focus (arrow keys)
+    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_Up, "focusdir", "up"});
+    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_Down, "focusdir", "down"});
+    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_Left, "focusdir", "left"});
+    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_Right, "focusdir", "right"});
+
+    // Tag keybindings (1-9)
+    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_1, "view", "1"});
+    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_2, "view", "2"});
+    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_3, "view", "3"});
+    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_4, "view", "4"});
+    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_5, "view", "5"});
+    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_6, "view", "6"});
+    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_7, "view", "7"});
+    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_8, "view", "8"});
+    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_9, "view", "9"});
+
+    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD | SHIFT, XKB_KEY_1, "tag", "1"});
+    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD | SHIFT, XKB_KEY_2, "tag", "2"});
+    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD | SHIFT, XKB_KEY_3, "tag", "3"});
+    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD | SHIFT, XKB_KEY_4, "tag", "4"});
+    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD | SHIFT, XKB_KEY_5, "tag", "5"});
+    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD | SHIFT, XKB_KEY_6, "tag", "6"});
+    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD | SHIFT, XKB_KEY_7, "tag", "7"});
+    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD | SHIFT, XKB_KEY_8, "tag", "8"});
+    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD | SHIFT, XKB_KEY_9, "tag", "9"});
+
+    // Default button bindings (Mod+click = move/resize)
+    dwl_button_binding_add(mgr, &(DwlButtonBinding){MOD, BTN_LEFT, "moveresize", "move"});
+    dwl_button_binding_add(mgr, &(DwlButtonBinding){MOD, BTN_MIDDLE, "toggle-floating", NULL});
+    dwl_button_binding_add(mgr, &(DwlButtonBinding){MOD, BTN_RIGHT, "moveresize", "resize"});
+
+    #undef MOD
+    #undef SHIFT
+}

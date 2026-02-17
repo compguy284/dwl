@@ -2,6 +2,8 @@
   lib,
   stdenv,
   pkg-config,
+  meson,
+  ninja,
   wayland-scanner,
   wlroots_0_19,
   wayland,
@@ -10,7 +12,9 @@
   libinput,
   pixman,
   libdrm,
-  xorg,
+  libxcb,
+  libxcb-wm ? null,
+  xcbutilwm ? null,
   scenefx,
   libGL,
   enableXWayland ? false,
@@ -23,6 +27,8 @@ stdenv.mkDerivation {
 
   nativeBuildInputs = [
     pkg-config
+    meson
+    ninja
     wayland-scanner
   ];
 
@@ -34,16 +40,16 @@ stdenv.mkDerivation {
     libinput
     pixman
     libdrm
-    xorg.libxcb
-    xorg.xcbutilwm
+    libxcb
+    (if libxcb-wm != null then libxcb-wm else xcbutilwm)
     scenefx
     libGL
   ];
 
-  makeFlags = [
-    "PREFIX=$(out)"
-    (lib.optional enableXWayland "-DXWAYLAND")
+  mesonFlags = [
+    "-Dxwayland=${lib.boolToString enableXWayland}"
   ];
+
   passthru.providedSessions = [ "dwl" ];
 
   meta = {
