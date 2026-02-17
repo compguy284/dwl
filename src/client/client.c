@@ -197,7 +197,16 @@ static void client_handle_map(struct wl_listener *listener, void *data)
         c->height = c->xdg->current.height;
     }
 
-    // Apply window rules
+    // Auto-float windows that have a parent (dialogs) or fixed size
+    if (c->xdg) {
+        if (c->xdg->parent
+            || (c->xdg->current.min_width &&
+                c->xdg->current.min_width == c->xdg->current.max_width &&
+                c->xdg->current.min_height == c->xdg->current.max_height))
+            c->floating = true;
+    }
+
+    // Apply window rules (may override auto-float)
     if (c->mgr->rules)
         dwl_rule_engine_apply(c->mgr->rules, c);
 
@@ -208,6 +217,10 @@ static void client_handle_map(struct wl_listener *listener, void *data)
     }
 
     dwl_scene_client_create(c->mgr->scene_mgr, c);
+
+    // Place floating clients on the float layer
+    if (c->floating && c->mgr->scene_mgr)
+        dwl_scene_client_set_layer(c->mgr->scene_mgr, c, DWL_LAYER_FLOAT);
 
     DwlRenderer *renderer = dwl_compositor_get_renderer(c->mgr->comp);
     DwlRenderConfig cfg = dwl_renderer_get_config(renderer);
