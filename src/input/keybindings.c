@@ -366,18 +366,34 @@ static void action_set_layout(DwlCompositor *comp, const char *arg)
     }
 }
 
+// Parse a monitor direction argument: "left"/"right" strings or numeric -1/+1
+static int parse_monitor_direction(const char *arg)
+{
+    if (strcmp(arg, "right") == 0)
+        return 3;
+    if (strcmp(arg, "left") == 0)
+        return 2;
+    if (strcmp(arg, "down") == 0)
+        return 1;
+    if (strcmp(arg, "up") == 0)
+        return 0;
+    // Numeric: positive = right, negative/zero = left
+    int dir = atoi(arg);
+    return dir > 0 ? 3 : 2;
+}
+
 static void action_focus_monitor(DwlCompositor *comp, const char *arg)
 {
     if (!arg)
         return;
 
-    int dir = atoi(arg);
+    int dir = parse_monitor_direction(arg);
     DwlOutputManager *output = dwl_compositor_get_output(comp);
     DwlMonitor *mon = dwl_monitor_get_focused(output);
     if (!mon)
         return;
 
-    DwlMonitor *next = dwl_monitor_in_direction(output, mon, dir > 0 ? 3 : 2);
+    DwlMonitor *next = dwl_monitor_in_direction(output, mon, dir);
     if (next)
         dwl_monitor_focus(next);
 }
@@ -387,7 +403,7 @@ static void action_send_monitor(DwlCompositor *comp, const char *arg)
     if (!arg)
         return;
 
-    int dir = atoi(arg);
+    int dir = parse_monitor_direction(arg);
     DwlClientManager *clients = dwl_compositor_get_clients(comp);
     DwlClient *focused = dwl_client_focused(clients);
     if (!focused)
@@ -400,7 +416,7 @@ static void action_send_monitor(DwlCompositor *comp, const char *arg)
     if (!mon)
         return;
 
-    DwlMonitor *next = dwl_monitor_in_direction(output, mon, dir > 0 ? 3 : 2);
+    DwlMonitor *next = dwl_monitor_in_direction(output, mon, dir);
     if (next)
         dwl_client_move_to_monitor(focused, next);
 }
