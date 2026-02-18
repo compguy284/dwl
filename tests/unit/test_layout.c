@@ -44,208 +44,6 @@ static void free_params(DwlLayoutParams *params)
     params->clients = NULL;
 }
 
-/* Tile layout tests */
-static void test_tile_one_client(void **state)
-{
-    (void)state;
-
-    DwlLayoutParams params = create_params(1, 1920, 1080);
-
-    dwl_layout_tile.arrange(&params);
-
-    /* Single client should take full width */
-    assert_int_equal(params.clients[0].x, 0);
-    assert_int_equal(params.clients[0].y, 0);
-    assert_int_equal(params.clients[0].width, 1920);
-    assert_int_equal(params.clients[0].height, 1080);
-
-    free_params(&params);
-}
-
-static void test_tile_two_clients(void **state)
-{
-    (void)state;
-
-    DwlLayoutParams params = create_params(2, 1920, 1080);
-    params.master_factor = 0.5f;
-
-    dwl_layout_tile.arrange(&params);
-
-    /* First client (master) should be left half */
-    assert_int_equal(params.clients[0].x, 0);
-    assert_int_equal(params.clients[0].y, 0);
-    assert_int_equal(params.clients[0].width, 960);
-    assert_int_equal(params.clients[0].height, 1080);
-
-    /* Second client (stack) should be right half */
-    assert_int_equal(params.clients[1].x, 960);
-    assert_int_equal(params.clients[1].y, 0);
-    assert_int_equal(params.clients[1].width, 960);
-    assert_int_equal(params.clients[1].height, 1080);
-
-    free_params(&params);
-}
-
-static void test_tile_five_clients(void **state)
-{
-    (void)state;
-
-    DwlLayoutParams params = create_params(5, 1920, 1080);
-    params.master_factor = 0.5f;
-
-    dwl_layout_tile.arrange(&params);
-
-    /* Master should take left half */
-    assert_int_equal(params.clients[0].x, 0);
-    assert_int_equal(params.clients[0].width, 960);
-
-    /* Stack clients should share right half vertically */
-    for (int i = 1; i < 5; i++) {
-        assert_int_equal(params.clients[i].x, 960);
-        assert_true(params.clients[i].height > 0);
-    }
-
-    /* Stack clients should not overlap */
-    for (int i = 2; i < 5; i++) {
-        assert_true(params.clients[i].y >= params.clients[i-1].y + params.clients[i-1].height);
-    }
-
-    free_params(&params);
-}
-
-static void test_tile_with_gaps(void **state)
-{
-    (void)state;
-
-    DwlLayoutParams params = create_params(2, 1920, 1080);
-    params.master_factor = 0.5f;
-    params.gap_outer_h = 10;
-    params.gap_outer_v = 10;
-    params.gap_inner_h = 5;
-    params.gap_inner_v = 5;
-
-    dwl_layout_tile.arrange(&params);
-
-    /* Master should have outer gap */
-    assert_int_equal(params.clients[0].x, 10);
-    assert_int_equal(params.clients[0].y, 10);
-
-    /* Stack should account for gaps */
-    assert_true(params.clients[1].x > params.clients[0].x + params.clients[0].width);
-
-    free_params(&params);
-}
-
-static void test_tile_focus_next_wrap_forward(void **state)
-{
-    (void)state;
-
-    DwlLayoutParams params = create_params(3, 1920, 1080);
-
-    int next = dwl_layout_tile.focus_next(&params, 2, 1);
-    assert_int_equal(next, 0);
-
-    free_params(&params);
-}
-
-static void test_tile_focus_next_wrap_backward(void **state)
-{
-    (void)state;
-
-    DwlLayoutParams params = create_params(3, 1920, 1080);
-
-    int next = dwl_layout_tile.focus_next(&params, 0, -1);
-    assert_int_equal(next, 2);
-
-    free_params(&params);
-}
-
-static void test_tile_focus_next_normal(void **state)
-{
-    (void)state;
-
-    DwlLayoutParams params = create_params(5, 1920, 1080);
-
-    int next = dwl_layout_tile.focus_next(&params, 2, 1);
-    assert_int_equal(next, 3);
-
-    next = dwl_layout_tile.focus_next(&params, 2, -1);
-    assert_int_equal(next, 1);
-
-    free_params(&params);
-}
-
-static void test_tile_focus_next_no_clients(void **state)
-{
-    (void)state;
-
-    DwlLayoutParams params = create_params(0, 1920, 1080);
-
-    int next = dwl_layout_tile.focus_next(&params, 0, 1);
-    assert_int_equal(next, -1);
-
-    free_params(&params);
-}
-
-/* Monocle layout tests */
-static void test_monocle_all_same_size(void **state)
-{
-    (void)state;
-
-    DwlLayoutParams params = create_params(3, 1920, 1080);
-
-    dwl_layout_monocle.arrange(&params);
-
-    /* All clients should be same size as area */
-    for (size_t i = 0; i < params.client_count; i++) {
-        assert_int_equal(params.clients[i].x, 0);
-        assert_int_equal(params.clients[i].y, 0);
-        assert_int_equal(params.clients[i].width, 1920);
-        assert_int_equal(params.clients[i].height, 1080);
-    }
-
-    free_params(&params);
-}
-
-static void test_monocle_with_gaps(void **state)
-{
-    (void)state;
-
-    DwlLayoutParams params = create_params(2, 1920, 1080);
-    params.gap_outer_h = 20;
-    params.gap_outer_v = 20;
-
-    dwl_layout_monocle.arrange(&params);
-
-    /* All clients should have same position with outer gaps */
-    for (size_t i = 0; i < params.client_count; i++) {
-        assert_int_equal(params.clients[i].x, 20);
-        assert_int_equal(params.clients[i].y, 20);
-        assert_int_equal(params.clients[i].width, 1880);
-        assert_int_equal(params.clients[i].height, 1040);
-    }
-
-    free_params(&params);
-}
-
-static void test_monocle_focus_next(void **state)
-{
-    (void)state;
-
-    DwlLayoutParams params = create_params(3, 1920, 1080);
-
-    int next = dwl_layout_monocle.focus_next(&params, 0, 1);
-    assert_int_equal(next, 1);
-
-    next = dwl_layout_monocle.focus_next(&params, 2, 1);
-    assert_int_equal(next, 0);
-
-    next = dwl_layout_monocle.focus_next(&params, 0, -1);
-    assert_int_equal(next, 2);
-
-    free_params(&params);
-}
-
 /* Scroller layout tests */
 static void test_scroller_horizontal_scroll(void **state)
 {
@@ -356,13 +154,13 @@ static void test_registry_register(void **state)
     DwlLayoutRegistry *reg = dwl_layout_registry_create();
     assert_non_null(reg);
 
-    DwlError err = dwl_layout_register(reg, &dwl_layout_tile);
+    DwlError err = dwl_layout_register(reg, &dwl_layout_scroller);
     assert_int_equal(err, DWL_OK);
     assert_int_equal(dwl_layout_count(reg), 1);
 
-    const DwlLayout *layout = dwl_layout_get(reg, "tile");
+    const DwlLayout *layout = dwl_layout_get(reg, "scroller");
     assert_non_null(layout);
-    assert_string_equal(layout->name, "tile");
+    assert_string_equal(layout->name, "scroller");
 
     dwl_layout_registry_destroy(reg);
 }
@@ -374,8 +172,8 @@ static void test_registry_register_duplicate(void **state)
     DwlLayoutRegistry *reg = dwl_layout_registry_create();
     assert_non_null(reg);
 
-    dwl_layout_register(reg, &dwl_layout_tile);
-    DwlError err = dwl_layout_register(reg, &dwl_layout_tile);
+    dwl_layout_register(reg, &dwl_layout_scroller);
+    DwlError err = dwl_layout_register(reg, &dwl_layout_scroller);
     assert_int_equal(err, DWL_ERR_ALREADY_EXISTS);
     assert_int_equal(dwl_layout_count(reg), 1);
 
@@ -389,14 +187,14 @@ static void test_registry_unregister(void **state)
     DwlLayoutRegistry *reg = dwl_layout_registry_create();
     assert_non_null(reg);
 
-    dwl_layout_register(reg, &dwl_layout_tile);
+    dwl_layout_register(reg, &dwl_layout_scroller);
     assert_int_equal(dwl_layout_count(reg), 1);
 
-    DwlError err = dwl_layout_unregister(reg, "tile");
+    DwlError err = dwl_layout_unregister(reg, "scroller");
     assert_int_equal(err, DWL_OK);
     assert_int_equal(dwl_layout_count(reg), 0);
 
-    assert_null(dwl_layout_get(reg, "tile"));
+    assert_null(dwl_layout_get(reg, "scroller"));
 
     dwl_layout_registry_destroy(reg);
 }
@@ -423,9 +221,7 @@ static void test_registry_builtins(void **state)
 
     dwl_layout_register_builtins(reg);
 
-    assert_int_equal(dwl_layout_count(reg), 4);
-    assert_non_null(dwl_layout_get(reg, "tile"));
-    assert_non_null(dwl_layout_get(reg, "monocle"));
+    assert_int_equal(dwl_layout_count(reg), 2);
     assert_non_null(dwl_layout_get(reg, "scroller"));
     assert_non_null(dwl_layout_get(reg, "floating"));
 
@@ -439,8 +235,8 @@ static void test_registry_list(void **state)
     DwlLayoutRegistry *reg = dwl_layout_registry_create();
     assert_non_null(reg);
 
-    dwl_layout_register(reg, &dwl_layout_tile);
-    dwl_layout_register(reg, &dwl_layout_monocle);
+    dwl_layout_register(reg, &dwl_layout_scroller);
+    dwl_layout_register(reg, &dwl_layout_floating);
 
     size_t count = 0;
     const char **names = dwl_layout_list(reg, &count);
@@ -456,13 +252,9 @@ static void test_layout_null_params(void **state)
     (void)state;
 
     /* Should not crash with NULL params */
-    dwl_layout_tile.arrange(NULL);
-    dwl_layout_monocle.arrange(NULL);
     dwl_layout_scroller.arrange(NULL);
     dwl_layout_floating.arrange(NULL);
 
-    assert_int_equal(dwl_layout_tile.focus_next(NULL, 0, 1), -1);
-    assert_int_equal(dwl_layout_monocle.focus_next(NULL, 0, 1), -1);
     assert_int_equal(dwl_layout_scroller.focus_next(NULL, 0, 1), -1);
     assert_int_equal(dwl_layout_floating.focus_next(NULL, 0, 1), -1);
 }
@@ -471,8 +263,6 @@ static void test_layout_symbols(void **state)
 {
     (void)state;
 
-    assert_string_equal(dwl_layout_tile.symbol, "[]=");
-    assert_string_equal(dwl_layout_monocle.symbol, "[M]");
     assert_string_equal(dwl_layout_scroller.symbol, "[S]");
     assert_string_equal(dwl_layout_floating.symbol, "><>");
 }
@@ -480,21 +270,6 @@ static void test_layout_symbols(void **state)
 int main(void)
 {
     const struct CMUnitTest tests[] = {
-        /* Tile layout */
-        cmocka_unit_test(test_tile_one_client),
-        cmocka_unit_test(test_tile_two_clients),
-        cmocka_unit_test(test_tile_five_clients),
-        cmocka_unit_test(test_tile_with_gaps),
-        cmocka_unit_test(test_tile_focus_next_wrap_forward),
-        cmocka_unit_test(test_tile_focus_next_wrap_backward),
-        cmocka_unit_test(test_tile_focus_next_normal),
-        cmocka_unit_test(test_tile_focus_next_no_clients),
-
-        /* Monocle layout */
-        cmocka_unit_test(test_monocle_all_same_size),
-        cmocka_unit_test(test_monocle_with_gaps),
-        cmocka_unit_test(test_monocle_focus_next),
-
         /* Scroller layout */
         cmocka_unit_test(test_scroller_horizontal_scroll),
         cmocka_unit_test(test_scroller_focus_next),

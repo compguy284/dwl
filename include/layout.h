@@ -35,8 +35,6 @@ typedef struct DwlLayout {
     void *user_data;
 } DwlLayout;
 
-extern const DwlLayout dwl_layout_tile;
-extern const DwlLayout dwl_layout_monocle;
 extern const DwlLayout dwl_layout_scroller;
 extern const DwlLayout dwl_layout_floating;
 

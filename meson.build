@@ -89,8 +89,6 @@ dwl_sources = files(
   'src/output/monitor.c',
   # Layout
   'src/layout/registry.c',
-  'src/layout/tile.c',
-  'src/layout/monocle.c',
   'src/layout/scroller.c',
   'src/layout/floating.c',
   # Config
@@ -146,8 +144,6 @@ dwl_testable_sources = files(
   'src/core/error.c',
   'src/config/config.c',
   'src/layout/registry.c',
-  'src/layout/tile.c',
-  'src/layout/monocle.c',
   'src/layout/scroller.c',
   'src/layout/floating.c',
   'src/client/rules.c',

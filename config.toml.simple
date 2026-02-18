@@ -95,8 +95,6 @@ accel_speed = 0.0
 "mod+d" = "dec-nmaster"
 
 # Layouts
-"mod+t" = "set-layout:tile"
-"mod+m" = "set-layout:monocle"
 "mod+s" = "set-layout:scroller"
 
 # Multi-monitor
@@ -125,7 +123,7 @@ accel_speed = 0.0
 #   y = 0                    # Position Y
 #   mfact = 0.55             # Master area factor
 #   nmaster = 1              # Number of master clients
-#   layout = "tile"          # Default layout for this monitor
+#   layout = "scroller"      # Default layout for this monitor
 #   gap_inner_h = 10         # Inner horizontal gap
 #   gap_inner_v = 10         # Inner vertical gap
 #   gap_outer_h = 10         # Outer horizontal gap
@@ -135,7 +133,7 @@ accel_speed = 0.0
 # Example: HiDPI laptop display
 # [monitors.eDP-1]
 # scale = 2.0
-# layout = "monocle"
+# layout = "scroller"
 
 # Example: External monitor at specific position
 # [monitors.HDMI-A-1]

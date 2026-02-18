@@ -861,8 +861,6 @@ void dwl_action_register_builtins(DwlKeybindingManager *mgr)
     dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_space, "toggle-floating", NULL});
     dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_f, "toggle-fullscreen", NULL});
     // Layout keybindings
-    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_t, "set-layout", "tile"});
-    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_m, "set-layout", "monocle"});
     dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_s, "set-layout", "scroller"});
 
     // Zoom (swap with master)

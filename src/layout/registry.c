@@ -90,8 +90,6 @@ const char **dwl_layout_list(const DwlLayoutRegistry *reg, size_t *count)
 
 void dwl_layout_register_builtins(DwlLayoutRegistry *reg)
 {
-    dwl_layout_register(reg, &dwl_layout_tile);
-    dwl_layout_register(reg, &dwl_layout_monocle);
     dwl_layout_register(reg, &dwl_layout_scroller);
     dwl_layout_register(reg, &dwl_layout_floating);
 }

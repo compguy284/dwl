@@ -673,7 +673,7 @@ static void test_config_monitors_array_of_tables(void **state)
         "[[monitors]]\n"
         "name = \"eDP-1\"\n"
         "scale = 2.0\n"
-        "layout = \"monocle\"\n"
+        "layout = \"scroller\"\n"
         "\n"
         "[[monitors]]\n"
         "name = \"HDMI-A-1\"\n"
@@ -693,7 +693,7 @@ static void test_config_monitors_array_of_tables(void **state)
     assert_float_equal(
         dwl_config_get_float(cfg, "monitors.eDP-1.scale", 0.0f), 2.0f, 0.001f);
     assert_string_equal(
-        dwl_config_get_string(cfg, "monitors.eDP-1.layout", ""), "monocle");
+        dwl_config_get_string(cfg, "monitors.eDP-1.layout", ""), "scroller");
 
     /* monitors.HDMI-A-1.scale = 1.0 */
     assert_float_equal(

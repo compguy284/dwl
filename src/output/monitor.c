@@ -151,10 +151,10 @@ static void handle_new_output(struct wl_listener *listener, void *data)
 
     // Set default layout
     DwlLayoutRegistry *layouts = dwl_compositor_get_layouts(mgr->comp);
-    const char *layout_name = dwl_config_get_string(cfg, "appearance.layout", "tile");
+    const char *layout_name = dwl_config_get_string(cfg, "appearance.layout", "scroller");
     mon->layout = dwl_layout_get(layouts, layout_name);
     if (!mon->layout)
-        mon->layout = dwl_layout_get(layouts, "tile");
+        mon->layout = dwl_layout_get(layouts, "scroller");
 
     struct wlr_output_state state;
     wlr_output_state_init(&state);
