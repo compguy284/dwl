@@ -18,6 +18,7 @@ struct SwlLayerSurface {
     SwlLayerManager *mgr;
     struct wlr_layer_surface_v1 *layer_surface;
     struct wlr_scene_layer_surface_v1 *scene_layer_surface;
+    struct wlr_scene_tree *popup_tree;
     SwlMonitor *mon;
 
     bool mapped;
@@ -115,6 +116,9 @@ static void layer_surface_handle_destroy(struct wl_listener *listener, void *dat
     wl_list_remove(&surface->commit.link);
     wl_list_remove(&surface->link);
 
+    if (surface->popup_tree)
+        wlr_scene_node_destroy(&surface->popup_tree->node);
+
     if (surface->mapped)
         swl_layer_arrange(surface->mgr, surface->mon);
 
@@ -135,6 +139,16 @@ static void layer_surface_handle_commit(struct wl_listener *listener, void *data
         struct wlr_scene_tree *new_tree = layer_to_scene_tree(surface->mgr,
             surface->layer_surface->current.layer);
         wlr_scene_node_reparent(&surface->scene_layer_surface->tree->node, new_tree);
+
+        // Reparent popup tree to match new layer
+        if (surface->popup_tree) {
+            SwlClientManager *clients = swl_compositor_get_clients(surface->mgr->comp);
+            SwlSceneManager *scene_mgr = swl_client_manager_get_scene(clients);
+            struct wlr_scene_tree *popup_parent =
+                    (surface->layer_surface->current.layer < ZWLR_LAYER_SHELL_V1_LAYER_TOP)
+                    ? swl_scene_get_layer(scene_mgr, SWL_LAYER_TOP) : new_tree;
+            wlr_scene_node_reparent(&surface->popup_tree->node, popup_parent);
+        }
     }
 
     // Arrange to send configure (initial or update)
@@ -194,6 +208,18 @@ static void handle_new_surface(struct wl_listener *listener, void *data)
 
     layer_surface->data = surface;
     surface->scene_layer_surface->tree->node.data = surface;
+
+    /* Create a separate popup tree so layer shell popups (e.g. waybar menus)
+     * render above other surfaces. For layers below TOP, place popups in the
+     * TOP layer to ensure visibility; otherwise use the same layer. */
+    SwlClientManager *clients = swl_compositor_get_clients(mgr->comp);
+    SwlSceneManager *scene_mgr = swl_client_manager_get_scene(clients);
+    struct wlr_scene_tree *popup_parent =
+            (layer_surface->pending.layer < ZWLR_LAYER_SHELL_V1_LAYER_TOP)
+            ? swl_scene_get_layer(scene_mgr, SWL_LAYER_TOP) : tree;
+    surface->popup_tree = wlr_scene_tree_create(popup_parent);
+    if (surface->popup_tree)
+        layer_surface->surface->data = surface->popup_tree;
 
     // Set up listeners
     surface->map.notify = layer_surface_handle_map;
@@ -340,9 +366,12 @@ void swl_layer_arrange(SwlLayerManager *mgr, SwlMonitor *mon)
 
             wlr_scene_layer_surface_v1_configure(scene_surface, &bounds, &bounds);
 
-            // Track surface position
+            // Track surface position and sync popup tree
             surface->x = scene_surface->tree->node.x;
             surface->y = scene_surface->tree->node.y;
+            if (surface->popup_tree)
+                wlr_scene_node_set_position(&surface->popup_tree->node,
+                        surface->x, surface->y);
 
             // Apply exclusive zone
             if (surface->layer_surface->surface->mapped)

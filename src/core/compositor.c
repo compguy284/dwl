@@ -102,8 +102,8 @@ static void handle_new_xdg_toplevel(struct wl_listener *listener, void *data)
 
 static void handle_new_xdg_popup(struct wl_listener *listener, void *data)
 {
-    (void)listener;
-    swl_xdg_shell_handle_new_popup(data);
+    SwlCompositor *comp = wl_container_of(listener, comp, new_xdg_popup);
+    swl_xdg_shell_handle_new_popup(comp, data);
 }
 
 static void handle_new_xdg_decoration(struct wl_listener *listener, void *data)
