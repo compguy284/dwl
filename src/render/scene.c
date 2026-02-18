@@ -94,7 +94,7 @@ SwlError swl_scene_client_create(SwlSceneManager *mgr, SwlClient *client)
     struct wlr_xdg_toplevel *toplevel = swl_client_get_xdg_toplevel(client);
     if (toplevel && toplevel->base->initialized) {
         data->surface_tree = wlr_scene_xdg_surface_create(data->tree, toplevel->base);
-        toplevel->base->data = data->tree;
+        toplevel->base->surface->data = data->tree;
     }
 #ifdef SWL_XWAYLAND
     else {
