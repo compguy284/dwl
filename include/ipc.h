@@ -1,37 +1,37 @@
-#ifndef DWL_IPC_H
-#define DWL_IPC_H
+#ifndef SWL_IPC_H
+#define SWL_IPC_H
 
 #include <stdbool.h>
 #include <stddef.h>
 #include "error.h"
 
-typedef struct DwlIPC DwlIPC;
-typedef struct DwlCompositor DwlCompositor;
+typedef struct SwlIPC SwlIPC;
+typedef struct SwlCompositor SwlCompositor;
 
-typedef struct DwlIPCResponse {
+typedef struct SwlIPCResponse {
     bool success;
     char *json;
     char *error;
-} DwlIPCResponse;
+} SwlIPCResponse;
 
-typedef DwlIPCResponse (*DwlIPCHandler)(DwlCompositor *comp, const char *args);
+typedef SwlIPCResponse (*SwlIPCHandler)(SwlCompositor *comp, const char *args);
 
-DwlIPC *dwl_ipc_create(DwlCompositor *comp);
-void dwl_ipc_destroy(DwlIPC *ipc);
+SwlIPC *swl_ipc_create(SwlCompositor *comp);
+void swl_ipc_destroy(SwlIPC *ipc);
 
-DwlError dwl_ipc_register_command(DwlIPC *ipc, const char *name, DwlIPCHandler handler);
-DwlError dwl_ipc_unregister_command(DwlIPC *ipc, const char *name);
-void dwl_ipc_register_builtins(DwlIPC *ipc);
+SwlError swl_ipc_register_command(SwlIPC *ipc, const char *name, SwlIPCHandler handler);
+SwlError swl_ipc_unregister_command(SwlIPC *ipc, const char *name);
+void swl_ipc_register_builtins(SwlIPC *ipc);
 
-DwlIPCResponse dwl_ipc_execute(DwlIPC *ipc, const char *command, const char *args);
-void dwl_ipc_response_free(DwlIPCResponse *response);
+SwlIPCResponse swl_ipc_execute(SwlIPC *ipc, const char *command, const char *args);
+void swl_ipc_response_free(SwlIPCResponse *response);
 
-typedef void (*DwlStatusHandler)(void *ctx, const char *status_json);
-void dwl_ipc_set_status_handler(DwlIPC *ipc, DwlStatusHandler handler, void *ctx);
-void dwl_ipc_emit_status(DwlIPC *ipc);
+typedef void (*SwlStatusHandler)(void *ctx, const char *status_json);
+void swl_ipc_set_status_handler(SwlIPC *ipc, SwlStatusHandler handler, void *ctx);
+void swl_ipc_emit_status(SwlIPC *ipc);
 
-const char *dwl_ipc_get_socket_path(DwlIPC *ipc);
-size_t dwl_ipc_command_count(const DwlIPC *ipc);
-const char **dwl_ipc_command_list(const DwlIPC *ipc, size_t *count);
+const char *swl_ipc_get_socket_path(SwlIPC *ipc);
+size_t swl_ipc_command_count(const SwlIPC *ipc);
+const char **swl_ipc_command_list(const SwlIPC *ipc, size_t *count);
 
-#endif /* DWL_IPC_H */
+#endif /* SWL_IPC_H */

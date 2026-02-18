@@ -14,11 +14,11 @@
 #include <scenefx/types/wlr_scene.h>
 #include <wlr/types/wlr_seat.h>
 
-struct DwlLayerSurface {
-    DwlLayerManager *mgr;
+struct SwlLayerSurface {
+    SwlLayerManager *mgr;
     struct wlr_layer_surface_v1 *layer_surface;
     struct wlr_scene_layer_surface_v1 *scene_layer_surface;
-    DwlMonitor *mon;
+    SwlMonitor *mon;
 
     bool mapped;
     int x, y;
@@ -31,82 +31,82 @@ struct DwlLayerSurface {
     struct wl_list link;
 };
 
-struct DwlLayerManager {
-    DwlCompositor *comp;
+struct SwlLayerManager {
+    SwlCompositor *comp;
     struct wlr_layer_shell_v1 *layer_shell;
     struct wl_list surfaces;
 
     struct wl_listener new_surface;
 };
 
-static struct wlr_scene_tree *layer_to_scene_tree(DwlLayerManager *mgr, enum zwlr_layer_shell_v1_layer layer)
+static struct wlr_scene_tree *layer_to_scene_tree(SwlLayerManager *mgr, enum zwlr_layer_shell_v1_layer layer)
 {
-    DwlClientManager *clients = dwl_compositor_get_clients(mgr->comp);
-    DwlSceneManager *scene_mgr = dwl_client_manager_get_scene(clients);
+    SwlClientManager *clients = swl_compositor_get_clients(mgr->comp);
+    SwlSceneManager *scene_mgr = swl_client_manager_get_scene(clients);
 
     switch (layer) {
     case ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND:
-        return dwl_scene_get_layer(scene_mgr, DWL_LAYER_BACKGROUND);
+        return swl_scene_get_layer(scene_mgr, SWL_LAYER_BACKGROUND);
     case ZWLR_LAYER_SHELL_V1_LAYER_BOTTOM:
-        return dwl_scene_get_layer(scene_mgr, DWL_LAYER_BOTTOM);
+        return swl_scene_get_layer(scene_mgr, SWL_LAYER_BOTTOM);
     case ZWLR_LAYER_SHELL_V1_LAYER_TOP:
-        return dwl_scene_get_layer(scene_mgr, DWL_LAYER_TOP);
+        return swl_scene_get_layer(scene_mgr, SWL_LAYER_TOP);
     case ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY:
-        return dwl_scene_get_layer(scene_mgr, DWL_LAYER_OVERLAY);
+        return swl_scene_get_layer(scene_mgr, SWL_LAYER_OVERLAY);
     default:
-        return dwl_scene_get_layer(scene_mgr, DWL_LAYER_TOP);
+        return swl_scene_get_layer(scene_mgr, SWL_LAYER_TOP);
     }
 }
 
 static void layer_surface_handle_map(struct wl_listener *listener, void *data)
 {
-    DwlLayerSurface *surface = wl_container_of(listener, surface, map);
+    SwlLayerSurface *surface = wl_container_of(listener, surface, map);
     (void)data;
 
     surface->mapped = true;
-    dwl_layer_arrange(surface->mgr, surface->mon);
+    swl_layer_arrange(surface->mgr, surface->mon);
 
     // Update keyboard focus if requested
     if (surface->layer_surface->current.keyboard_interactive &&
         surface->layer_surface->current.layer >= ZWLR_LAYER_SHELL_V1_LAYER_TOP) {
-        struct wlr_seat *seat = dwl_compositor_get_seat(surface->mgr->comp);
+        struct wlr_seat *seat = swl_compositor_get_seat(surface->mgr->comp);
         struct wlr_keyboard *kb = wlr_seat_get_keyboard(seat);
         if (kb)
             wlr_seat_keyboard_notify_enter(seat, surface->layer_surface->surface,
                 kb->keycodes, kb->num_keycodes, &kb->modifiers);
     }
 
-    DwlEventBus *bus = dwl_compositor_get_event_bus(surface->mgr->comp);
-    dwl_event_bus_emit_simple(bus, DWL_EVENT_LAYER_MAP, surface);
+    SwlEventBus *bus = swl_compositor_get_event_bus(surface->mgr->comp);
+    swl_event_bus_emit_simple(bus, SWL_EVENT_LAYER_MAP, surface);
 }
 
 static void layer_surface_handle_unmap(struct wl_listener *listener, void *data)
 {
-    DwlLayerSurface *surface = wl_container_of(listener, surface, unmap);
+    SwlLayerSurface *surface = wl_container_of(listener, surface, unmap);
     (void)data;
 
     surface->mapped = false;
-    dwl_layer_arrange(surface->mgr, surface->mon);
+    swl_layer_arrange(surface->mgr, surface->mon);
 
     // Restore keyboard focus to the previously focused client
     if (surface->layer_surface->current.keyboard_interactive) {
-        DwlClientManager *clients = dwl_compositor_get_clients(surface->mgr->comp);
-        DwlClient *focused = dwl_client_focused(clients);
+        SwlClientManager *clients = swl_compositor_get_clients(surface->mgr->comp);
+        SwlClient *focused = swl_client_focused(clients);
         if (focused)
-            dwl_client_focus(focused);
+            swl_client_focus(focused);
         else {
-            struct wlr_seat *seat = dwl_compositor_get_seat(surface->mgr->comp);
+            struct wlr_seat *seat = swl_compositor_get_seat(surface->mgr->comp);
             wlr_seat_keyboard_notify_clear_focus(seat);
         }
     }
 
-    DwlEventBus *bus = dwl_compositor_get_event_bus(surface->mgr->comp);
-    dwl_event_bus_emit_simple(bus, DWL_EVENT_LAYER_UNMAP, surface);
+    SwlEventBus *bus = swl_compositor_get_event_bus(surface->mgr->comp);
+    swl_event_bus_emit_simple(bus, SWL_EVENT_LAYER_UNMAP, surface);
 }
 
 static void layer_surface_handle_destroy(struct wl_listener *listener, void *data)
 {
-    DwlLayerSurface *surface = wl_container_of(listener, surface, destroy);
+    SwlLayerSurface *surface = wl_container_of(listener, surface, destroy);
     (void)data;
 
     wl_list_remove(&surface->map.link);
@@ -116,14 +116,14 @@ static void layer_surface_handle_destroy(struct wl_listener *listener, void *dat
     wl_list_remove(&surface->link);
 
     if (surface->mapped)
-        dwl_layer_arrange(surface->mgr, surface->mon);
+        swl_layer_arrange(surface->mgr, surface->mon);
 
     free(surface);
 }
 
 static void layer_surface_handle_commit(struct wl_listener *listener, void *data)
 {
-    DwlLayerSurface *surface = wl_container_of(listener, surface, commit);
+    SwlLayerSurface *surface = wl_container_of(listener, surface, commit);
     (void)data;
 
     if (!surface->layer_surface->initialized)
@@ -138,15 +138,15 @@ static void layer_surface_handle_commit(struct wl_listener *listener, void *data
     }
 
     // Arrange to send configure (initial or update)
-    dwl_layer_arrange(surface->mgr, surface->mon);
+    swl_layer_arrange(surface->mgr, surface->mon);
 }
 
 static void handle_new_surface(struct wl_listener *listener, void *data)
 {
-    DwlLayerManager *mgr = wl_container_of(listener, mgr, new_surface);
+    SwlLayerManager *mgr = wl_container_of(listener, mgr, new_surface);
     struct wlr_layer_surface_v1 *layer_surface = data;
 
-    DwlLayerSurface *surface = calloc(1, sizeof(*surface));
+    SwlLayerSurface *surface = calloc(1, sizeof(*surface));
     if (!surface) {
         wlr_layer_surface_v1_destroy(layer_surface);
         return;
@@ -156,24 +156,24 @@ static void handle_new_surface(struct wl_listener *listener, void *data)
     surface->layer_surface = layer_surface;
 
     // Find the output
-    DwlOutputManager *output_mgr = dwl_compositor_get_output(mgr->comp);
+    SwlOutputManager *output_mgr = swl_compositor_get_output(mgr->comp);
     if (layer_surface->output) {
         struct wlr_output *target = layer_surface->output;
         // Find monitor by wlr_output
-        for (size_t i = 0; i < dwl_monitor_count(output_mgr); i++) {
-            DwlMonitor *mon = dwl_monitor_by_index(output_mgr, i);
-            if (dwl_monitor_get_wlr_output(mon) == target) {
+        for (size_t i = 0; i < swl_monitor_count(output_mgr); i++) {
+            SwlMonitor *mon = swl_monitor_by_index(output_mgr, i);
+            if (swl_monitor_get_wlr_output(mon) == target) {
                 surface->mon = mon;
                 break;
             }
         }
         if (!surface->mon)
-            surface->mon = dwl_monitor_get_focused(output_mgr);
+            surface->mon = swl_monitor_get_focused(output_mgr);
     } else {
-        surface->mon = dwl_monitor_get_focused(output_mgr);
+        surface->mon = swl_monitor_get_focused(output_mgr);
         if (surface->mon) {
             // Set the output on the layer surface
-            layer_surface->output = dwl_monitor_get_wlr_output(surface->mon);
+            layer_surface->output = swl_monitor_get_wlr_output(surface->mon);
         }
     }
 
@@ -211,16 +211,16 @@ static void handle_new_surface(struct wl_listener *listener, void *data)
     wl_list_insert(&mgr->surfaces, &surface->link);
 }
 
-DwlLayerManager *dwl_layer_manager_create(DwlCompositor *comp)
+SwlLayerManager *swl_layer_manager_create(SwlCompositor *comp)
 {
-    DwlLayerManager *mgr = calloc(1, sizeof(*mgr));
+    SwlLayerManager *mgr = calloc(1, sizeof(*mgr));
     if (!mgr)
         return NULL;
 
     mgr->comp = comp;
     wl_list_init(&mgr->surfaces);
 
-    struct wl_display *display = dwl_compositor_get_wl_display(comp);
+    struct wl_display *display = swl_compositor_get_wl_display(comp);
     mgr->layer_shell = wlr_layer_shell_v1_create(display, 4);
     if (!mgr->layer_shell) {
         free(mgr);
@@ -233,14 +233,14 @@ DwlLayerManager *dwl_layer_manager_create(DwlCompositor *comp)
     return mgr;
 }
 
-void dwl_layer_manager_destroy(DwlLayerManager *mgr)
+void swl_layer_manager_destroy(SwlLayerManager *mgr)
 {
     if (!mgr)
         return;
 
     wl_list_remove(&mgr->new_surface.link);
 
-    DwlLayerSurface *s, *tmp;
+    SwlLayerSurface *s, *tmp;
     wl_list_for_each_safe(s, tmp, &mgr->surfaces, link) {
         wl_list_remove(&s->link);
         // Don't remove listeners - they'll be cleaned up when surface is destroyed
@@ -285,12 +285,12 @@ static void apply_exclusive_zone(struct wlr_layer_surface_v1_state *state,
     }
 }
 
-void dwl_layer_arrange(DwlLayerManager *mgr, DwlMonitor *mon)
+void swl_layer_arrange(SwlLayerManager *mgr, SwlMonitor *mon)
 {
     if (!mgr || !mon)
         return;
 
-    DwlMonitorInfo info = dwl_monitor_get_info(mon);
+    SwlMonitorInfo info = swl_monitor_get_info(mon);
     int full_x = info.x, full_y = info.y;
     int full_w = info.width, full_h = info.height;
 
@@ -307,7 +307,7 @@ void dwl_layer_arrange(DwlLayerManager *mgr, DwlMonitor *mon)
     };
 
     for (int i = 0; i < 4; i++) {
-        DwlLayerSurface *surface;
+        SwlLayerSurface *surface;
         wl_list_for_each(surface, &mgr->surfaces, link) {
             if (surface->mon != mon)
                 continue;
@@ -351,13 +351,13 @@ void dwl_layer_arrange(DwlLayerManager *mgr, DwlMonitor *mon)
     }
 
     // Update monitor's usable area
-    dwl_monitor_set_usable_area(mon, usable_x, usable_y, usable_w, usable_h);
+    swl_monitor_set_usable_area(mon, usable_x, usable_y, usable_w, usable_h);
 
     // Re-arrange clients after usable area changed
-    dwl_monitor_arrange(mon);
+    swl_monitor_arrange(mon);
 }
 
-void dwl_layer_get_exclusive_zone(DwlLayerManager *mgr, DwlMonitor *mon,
+void swl_layer_get_exclusive_zone(SwlLayerManager *mgr, SwlMonitor *mon,
                                    int *top, int *bottom, int *left, int *right)
 {
     if (!mgr || !mon) {
@@ -370,7 +370,7 @@ void dwl_layer_get_exclusive_zone(DwlLayerManager *mgr, DwlMonitor *mon,
 
     int t = 0, b = 0, l = 0, r = 0;
 
-    DwlLayerSurface *surface;
+    SwlLayerSurface *surface;
     wl_list_for_each(surface, &mgr->surfaces, link) {
         if (surface->mon != mon || !surface->layer_surface->surface->mapped)
             continue;
@@ -418,25 +418,25 @@ void dwl_layer_get_exclusive_zone(DwlLayerManager *mgr, DwlMonitor *mon,
     if (right) *right = r;
 }
 
-void dwl_layer_foreach(DwlLayerManager *mgr, DwlLayerSurfaceIterator iter, void *data)
+void swl_layer_foreach(SwlLayerManager *mgr, SwlLayerSurfaceIterator iter, void *data)
 {
     if (!mgr || !iter)
         return;
 
-    DwlLayerSurface *s, *tmp;
+    SwlLayerSurface *s, *tmp;
     wl_list_for_each_safe(s, tmp, &mgr->surfaces, link) {
         if (!iter(s, data))
             break;
     }
 }
 
-void dwl_layer_foreach_on_monitor(DwlLayerManager *mgr, DwlMonitor *mon,
-                                   DwlLayerSurfaceIterator iter, void *data)
+void swl_layer_foreach_on_monitor(SwlLayerManager *mgr, SwlMonitor *mon,
+                                   SwlLayerSurfaceIterator iter, void *data)
 {
     if (!mgr || !mon || !iter)
         return;
 
-    DwlLayerSurface *s, *tmp;
+    SwlLayerSurface *s, *tmp;
     wl_list_for_each_safe(s, tmp, &mgr->surfaces, link) {
         if (s->mon != mon)
             continue;
@@ -445,9 +445,9 @@ void dwl_layer_foreach_on_monitor(DwlLayerManager *mgr, DwlMonitor *mon,
     }
 }
 
-DwlLayerSurfaceInfo dwl_layer_surface_get_info(const DwlLayerSurface *surface)
+SwlLayerSurfaceInfo swl_layer_surface_get_info(const SwlLayerSurface *surface)
 {
-    DwlLayerSurfaceInfo info = {0};
+    SwlLayerSurfaceInfo info = {0};
     if (!surface || !surface->layer_surface)
         return info;
 
@@ -456,7 +456,7 @@ DwlLayerSurfaceInfo dwl_layer_surface_get_info(const DwlLayerSurface *surface)
     info.y = surface->y;
     info.width = surface->layer_surface->current.actual_width;
     info.height = surface->layer_surface->current.actual_height;
-    info.layer = (DwlLayerShellLayer)surface->layer_surface->current.layer;
+    info.layer = (SwlLayerShellLayer)surface->layer_surface->current.layer;
     info.mapped = surface->mapped;
     info.keyboard_interactive = surface->layer_surface->current.keyboard_interactive;
     info.anchor = surface->layer_surface->current.anchor;
@@ -465,14 +465,14 @@ DwlLayerSurfaceInfo dwl_layer_surface_get_info(const DwlLayerSurface *surface)
     return info;
 }
 
-struct wlr_surface *dwl_layer_surface_get_wlr_surface(const DwlLayerSurface *surface)
+struct wlr_surface *swl_layer_surface_get_wlr_surface(const SwlLayerSurface *surface)
 {
     if (!surface || !surface->layer_surface)
         return NULL;
     return surface->layer_surface->surface;
 }
 
-DwlMonitor *dwl_layer_surface_get_monitor(const DwlLayerSurface *surface)
+SwlMonitor *swl_layer_surface_get_monitor(const SwlLayerSurface *surface)
 {
     return surface ? surface->mon : NULL;
 }

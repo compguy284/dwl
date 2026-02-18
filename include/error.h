@@ -1,19 +1,19 @@
-#ifndef DWL_ERROR_H
-#define DWL_ERROR_H
+#ifndef SWL_ERROR_H
+#define SWL_ERROR_H
 
 typedef enum {
-    DWL_OK = 0,
-    DWL_ERR_NOMEM,
-    DWL_ERR_BACKEND,
-    DWL_ERR_CONFIG,
-    DWL_ERR_WAYLAND,
-    DWL_ERR_INVALID_ARG,
-    DWL_ERR_NOT_FOUND,
-    DWL_ERR_ALREADY_EXISTS,
-    DWL_ERR_IO,
-    DWL_ERR_XWAYLAND,
-} DwlError;
+    SWL_OK = 0,
+    SWL_ERR_NOMEM,
+    SWL_ERR_BACKEND,
+    SWL_ERR_CONFIG,
+    SWL_ERR_WAYLAND,
+    SWL_ERR_INVALID_ARG,
+    SWL_ERR_NOT_FOUND,
+    SWL_ERR_ALREADY_EXISTS,
+    SWL_ERR_IO,
+    SWL_ERR_XWAYLAND,
+} SwlError;
 
-const char *dwl_error_string(DwlError err);
+const char *swl_error_string(SwlError err);
 
-#endif /* DWL_ERROR_H */
+#endif /* SWL_ERROR_H */

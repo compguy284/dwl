@@ -1,5 +1,5 @@
 {
-  description = "dwl - Wayland compositor";
+  description = "swl - Wayland compositor";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -23,7 +23,7 @@
       ];
 
       flake = {
-        nixosModules.dwl = import ./nix/module.nix { inherit self; };
+        nixosModules.swl = import ./nix/module.nix { inherit self; };
       };
 
       perSystem =
@@ -46,22 +46,22 @@
             }
           );
           scenefxPkg = inputs.scenefx.packages.${pkgs.stdenv.hostPlatform.system}.default;
-          dwl = pkgs.callPackage ./nix/default.nix {
+          swl = pkgs.callPackage ./nix/default.nix {
             scenefx = scenefxPkg;
             # wlroots_0_19 = my_wlroots;
           };
-          dwl-debug = dwl.override { debug = true; };
+          swl-debug = swl.override { debug = true; };
         in
         {
-          packages.default = dwl;
+          packages.default = swl;
           overlayAttrs = {
-            inherit (config.packages) dwl;
+            inherit (config.packages) swl;
           };
           packages = {
-            inherit dwl dwl-debug;
+            inherit swl swl-debug;
           };
           devShells.default = pkgs.mkShell {
-            inputsFrom = [ dwl ];
+            inputsFrom = [ swl ];
             packages = with pkgs; [
               meson
               ninja

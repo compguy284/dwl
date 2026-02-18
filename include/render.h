@@ -1,14 +1,14 @@
-#ifndef DWL_RENDER_H
-#define DWL_RENDER_H
+#ifndef SWL_RENDER_H
+#define SWL_RENDER_H
 
 #include <stdbool.h>
 #include "error.h"
 
-typedef struct DwlRenderer DwlRenderer;
-typedef struct DwlCompositor DwlCompositor;
-typedef struct DwlClient DwlClient;
+typedef struct SwlRenderer SwlRenderer;
+typedef struct SwlCompositor SwlCompositor;
+typedef struct SwlClient SwlClient;
 
-typedef struct DwlRenderConfig {
+typedef struct SwlRenderConfig {
     int blur_radius;
     int blur_passes;
     bool blur_optimize;
@@ -32,24 +32,24 @@ typedef struct DwlRenderConfig {
     float border_color_focused[4];
     float border_color_unfocused[4];
     float border_color_urgent[4];
-} DwlRenderConfig;
+} SwlRenderConfig;
 
-DwlRenderer *dwl_renderer_create(DwlCompositor *comp);
-void dwl_renderer_destroy(DwlRenderer *r);
+SwlRenderer *swl_renderer_create(SwlCompositor *comp);
+void swl_renderer_destroy(SwlRenderer *r);
 
-DwlError dwl_renderer_configure(DwlRenderer *r, const DwlRenderConfig *cfg);
-DwlRenderConfig dwl_renderer_get_config(const DwlRenderer *r);
+SwlError swl_renderer_configure(SwlRenderer *r, const SwlRenderConfig *cfg);
+SwlRenderConfig swl_renderer_get_config(const SwlRenderer *r);
 
-DwlError dwl_renderer_set_client_opacity(DwlRenderer *r, DwlClient *c, float opacity);
-DwlError dwl_renderer_set_client_blur(DwlRenderer *r, DwlClient *c, bool blur);
-DwlError dwl_renderer_set_client_shadow(DwlRenderer *r, DwlClient *c, bool shadow);
-DwlError dwl_renderer_set_client_corner_radius(DwlRenderer *r, DwlClient *c, int radius);
+SwlError swl_renderer_set_client_opacity(SwlRenderer *r, SwlClient *c, float opacity);
+SwlError swl_renderer_set_client_blur(SwlRenderer *r, SwlClient *c, bool blur);
+SwlError swl_renderer_set_client_shadow(SwlRenderer *r, SwlClient *c, bool shadow);
+SwlError swl_renderer_set_client_corner_radius(SwlRenderer *r, SwlClient *c, int radius);
 
-float dwl_renderer_get_client_opacity(const DwlRenderer *r, const DwlClient *c);
-bool dwl_renderer_get_client_blur(const DwlRenderer *r, const DwlClient *c);
-bool dwl_renderer_get_client_shadow(const DwlRenderer *r, const DwlClient *c);
-int dwl_renderer_get_client_corner_radius(const DwlRenderer *r, const DwlClient *c);
+float swl_renderer_get_client_opacity(const SwlRenderer *r, const SwlClient *c);
+bool swl_renderer_get_client_blur(const SwlRenderer *r, const SwlClient *c);
+bool swl_renderer_get_client_shadow(const SwlRenderer *r, const SwlClient *c);
+int swl_renderer_get_client_corner_radius(const SwlRenderer *r, const SwlClient *c);
 
-void dwl_renderer_damage_whole(DwlRenderer *r);
+void swl_renderer_damage_whole(SwlRenderer *r);
 
-#endif /* DWL_RENDER_H */
+#endif /* SWL_RENDER_H */

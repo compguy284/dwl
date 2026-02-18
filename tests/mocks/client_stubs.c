@@ -4,10 +4,10 @@
 
 #include "client.h"
 
-DwlClientInfo dwl_client_get_info(const DwlClient *client)
+SwlClientInfo swl_client_get_info(const SwlClient *client)
 {
     (void)client;
-    DwlClientInfo info = {
+    SwlClientInfo info = {
         .id = 0,
         .app_id = NULL,
         .title = NULL,
@@ -21,9 +21,9 @@ DwlClientInfo dwl_client_get_info(const DwlClient *client)
     return info;
 }
 
-DwlError dwl_client_set_floating(DwlClient *client, bool floating)
+SwlError swl_client_set_floating(SwlClient *client, bool floating)
 {
     (void)client;
     (void)floating;
-    return DWL_OK;
+    return SWL_OK;
 }

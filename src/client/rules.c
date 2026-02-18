@@ -8,8 +8,8 @@
 
 #define MAX_RULES 128
 
-struct DwlRuleEngine {
-    DwlRule rules[MAX_RULES];
+struct SwlRuleEngine {
+    SwlRule rules[MAX_RULES];
     regex_t app_id_regex[MAX_RULES];
     regex_t title_regex[MAX_RULES];
     bool has_app_id_regex[MAX_RULES];
@@ -17,13 +17,13 @@ struct DwlRuleEngine {
     size_t count;
 };
 
-DwlRuleEngine *dwl_rule_engine_create(void)
+SwlRuleEngine *swl_rule_engine_create(void)
 {
-    DwlRuleEngine *engine = calloc(1, sizeof(*engine));
+    SwlRuleEngine *engine = calloc(1, sizeof(*engine));
     return engine;
 }
 
-void dwl_rule_engine_destroy(DwlRuleEngine *engine)
+void swl_rule_engine_destroy(SwlRuleEngine *engine)
 {
     if (!engine)
         return;
@@ -40,13 +40,13 @@ void dwl_rule_engine_destroy(DwlRuleEngine *engine)
     free(engine);
 }
 
-DwlError dwl_rule_engine_add(DwlRuleEngine *engine, const DwlRule *rule)
+SwlError swl_rule_engine_add(SwlRuleEngine *engine, const SwlRule *rule)
 {
     if (!engine || !rule)
-        return DWL_ERR_INVALID_ARG;
+        return SWL_ERR_INVALID_ARG;
 
     if (engine->count >= MAX_RULES)
-        return DWL_ERR_NOMEM;
+        return SWL_ERR_NOMEM;
 
     size_t i = engine->count;
 
@@ -65,13 +65,13 @@ DwlError dwl_rule_engine_add(DwlRuleEngine *engine, const DwlRule *rule)
     }
 
     engine->count++;
-    return DWL_OK;
+    return SWL_OK;
 }
 
-DwlError dwl_rule_engine_remove(DwlRuleEngine *engine, size_t index)
+SwlError swl_rule_engine_remove(SwlRuleEngine *engine, size_t index)
 {
     if (!engine || index >= engine->count)
-        return DWL_ERR_INVALID_ARG;
+        return SWL_ERR_INVALID_ARG;
 
     if (engine->has_app_id_regex[index])
         regfree(&engine->app_id_regex[index]);
@@ -90,10 +90,10 @@ DwlError dwl_rule_engine_remove(DwlRuleEngine *engine, size_t index)
     }
 
     engine->count--;
-    return DWL_OK;
+    return SWL_OK;
 }
 
-void dwl_rule_engine_clear(DwlRuleEngine *engine)
+void swl_rule_engine_clear(SwlRuleEngine *engine)
 {
     if (!engine)
         return;
@@ -110,12 +110,12 @@ void dwl_rule_engine_clear(DwlRuleEngine *engine)
     engine->count = 0;
 }
 
-size_t dwl_rule_engine_count(const DwlRuleEngine *engine)
+size_t swl_rule_engine_count(const SwlRuleEngine *engine)
 {
     return engine ? engine->count : 0;
 }
 
-const DwlRule *dwl_rule_engine_get(const DwlRuleEngine *engine, size_t index)
+const SwlRule *swl_rule_engine_get(const SwlRuleEngine *engine, size_t index)
 {
     if (!engine || index >= engine->count)
         return NULL;
@@ -123,12 +123,12 @@ const DwlRule *dwl_rule_engine_get(const DwlRuleEngine *engine, size_t index)
     return &engine->rules[index];
 }
 
-void dwl_rule_engine_apply(DwlRuleEngine *engine, DwlClient *client)
+void swl_rule_engine_apply(SwlRuleEngine *engine, SwlClient *client)
 {
     if (!engine || !client)
         return;
 
-    DwlClientInfo info = dwl_client_get_info(client);
+    SwlClientInfo info = swl_client_get_info(client);
 
     for (size_t i = 0; i < engine->count; i++) {
         bool match = true;
@@ -149,7 +149,7 @@ void dwl_rule_engine_apply(DwlRuleEngine *engine, DwlClient *client)
 
         if (match) {
             if (engine->rules[i].floating)
-                dwl_client_set_floating(client, true);
+                swl_client_set_floating(client, true);
             break;
         }
     }

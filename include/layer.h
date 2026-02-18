@@ -1,46 +1,46 @@
-#ifndef DWL_LAYER_H
-#define DWL_LAYER_H
+#ifndef SWL_LAYER_H
+#define SWL_LAYER_H
 
 #include <stdbool.h>
 #include <stdint.h>
 #include "error.h"
 
-typedef struct DwlLayerManager DwlLayerManager;
-typedef struct DwlLayerSurface DwlLayerSurface;
-typedef struct DwlCompositor DwlCompositor;
-typedef struct DwlMonitor DwlMonitor;
+typedef struct SwlLayerManager SwlLayerManager;
+typedef struct SwlLayerSurface SwlLayerSurface;
+typedef struct SwlCompositor SwlCompositor;
+typedef struct SwlMonitor SwlMonitor;
 
 typedef enum {
-    DWL_LAYER_SHELL_BACKGROUND,
-    DWL_LAYER_SHELL_BOTTOM,
-    DWL_LAYER_SHELL_TOP,
-    DWL_LAYER_SHELL_OVERLAY,
-} DwlLayerShellLayer;
+    SWL_LAYER_SHELL_BACKGROUND,
+    SWL_LAYER_SHELL_BOTTOM,
+    SWL_LAYER_SHELL_TOP,
+    SWL_LAYER_SHELL_OVERLAY,
+} SwlLayerShellLayer;
 
-typedef struct DwlLayerSurfaceInfo {
+typedef struct SwlLayerSurfaceInfo {
     const char *namespace;
     int x, y, width, height;
-    DwlLayerShellLayer layer;
+    SwlLayerShellLayer layer;
     bool mapped;
     bool keyboard_interactive;
     uint32_t anchor;
     int32_t exclusive_zone;
-} DwlLayerSurfaceInfo;
+} SwlLayerSurfaceInfo;
 
-DwlLayerManager *dwl_layer_manager_create(DwlCompositor *comp);
-void dwl_layer_manager_destroy(DwlLayerManager *mgr);
+SwlLayerManager *swl_layer_manager_create(SwlCompositor *comp);
+void swl_layer_manager_destroy(SwlLayerManager *mgr);
 
-void dwl_layer_arrange(DwlLayerManager *mgr, DwlMonitor *mon);
-void dwl_layer_get_exclusive_zone(DwlLayerManager *mgr, DwlMonitor *mon,
+void swl_layer_arrange(SwlLayerManager *mgr, SwlMonitor *mon);
+void swl_layer_get_exclusive_zone(SwlLayerManager *mgr, SwlMonitor *mon,
                                    int *top, int *bottom, int *left, int *right);
 
-typedef bool (*DwlLayerSurfaceIterator)(DwlLayerSurface *surface, void *data);
-void dwl_layer_foreach(DwlLayerManager *mgr, DwlLayerSurfaceIterator iter, void *data);
-void dwl_layer_foreach_on_monitor(DwlLayerManager *mgr, DwlMonitor *mon,
-                                   DwlLayerSurfaceIterator iter, void *data);
+typedef bool (*SwlLayerSurfaceIterator)(SwlLayerSurface *surface, void *data);
+void swl_layer_foreach(SwlLayerManager *mgr, SwlLayerSurfaceIterator iter, void *data);
+void swl_layer_foreach_on_monitor(SwlLayerManager *mgr, SwlMonitor *mon,
+                                   SwlLayerSurfaceIterator iter, void *data);
 
-DwlLayerSurfaceInfo dwl_layer_surface_get_info(const DwlLayerSurface *surface);
-struct wlr_surface *dwl_layer_surface_get_wlr_surface(const DwlLayerSurface *surface);
-DwlMonitor *dwl_layer_surface_get_monitor(const DwlLayerSurface *surface);
+SwlLayerSurfaceInfo swl_layer_surface_get_info(const SwlLayerSurface *surface);
+struct wlr_surface *swl_layer_surface_get_wlr_surface(const SwlLayerSurface *surface);
+SwlMonitor *swl_layer_surface_get_monitor(const SwlLayerSurface *surface);
 
-#endif /* DWL_LAYER_H */
+#endif /* SWL_LAYER_H */

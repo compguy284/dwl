@@ -7,20 +7,20 @@
 #include <wlr/types/wlr_xdg_shell.h>
 #include <scenefx/types/wlr_scene.h>
 
-extern DwlClient *dwl_client_create_xdg(DwlClientManager *mgr, struct wlr_xdg_toplevel *toplevel);
+extern SwlClient *swl_client_create_xdg(SwlClientManager *mgr, struct wlr_xdg_toplevel *toplevel);
 
-void dwl_xdg_shell_handle_new_toplevel(DwlCompositor *comp, struct wlr_xdg_toplevel *toplevel)
+void swl_xdg_shell_handle_new_toplevel(SwlCompositor *comp, struct wlr_xdg_toplevel *toplevel)
 {
-    DwlClient *client = dwl_client_create_xdg(dwl_compositor_get_clients(comp), toplevel);
+    SwlClient *client = swl_client_create_xdg(swl_compositor_get_clients(comp), toplevel);
     if (!client)
         return;
 
-    DwlMonitor *mon = dwl_monitor_get_focused(dwl_compositor_get_output(comp));
+    SwlMonitor *mon = swl_monitor_get_focused(swl_compositor_get_output(comp));
     if (mon)
-        dwl_client_move_to_monitor(client, mon);
+        swl_client_move_to_monitor(client, mon);
 }
 
-void dwl_xdg_shell_handle_new_popup(struct wlr_xdg_popup *popup)
+void swl_xdg_shell_handle_new_popup(struct wlr_xdg_popup *popup)
 {
     struct wlr_xdg_surface *parent = wlr_xdg_surface_try_from_wlr_surface(popup->parent);
     if (!parent)

@@ -1,14 +1,14 @@
-#ifndef DWL_INPUT_H
-#define DWL_INPUT_H
+#ifndef SWL_INPUT_H
+#define SWL_INPUT_H
 
 #include <stdbool.h>
 #include <stdint.h>
 #include "error.h"
 
-typedef struct DwlInput DwlInput;
-typedef struct DwlCompositor DwlCompositor;
+typedef struct SwlInput SwlInput;
+typedef struct SwlCompositor SwlCompositor;
 
-typedef struct DwlKeyboardConfig {
+typedef struct SwlKeyboardConfig {
     const char *xkb_rules;
     const char *xkb_model;
     const char *xkb_layout;
@@ -18,16 +18,16 @@ typedef struct DwlKeyboardConfig {
     int repeat_delay;
     bool numlock;
     bool capslock;
-} DwlKeyboardConfig;
+} SwlKeyboardConfig;
 
 // Send events mode for pointer devices
 typedef enum {
-    DWL_SEND_EVENTS_ENABLED = 0,
-    DWL_SEND_EVENTS_DISABLED = 1,
-    DWL_SEND_EVENTS_DISABLED_ON_EXTERNAL_MOUSE = 2,
-} DwlSendEventsMode;
+    SWL_SEND_EVENTS_ENABLED = 0,
+    SWL_SEND_EVENTS_DISABLED = 1,
+    SWL_SEND_EVENTS_DISABLED_ON_EXTERNAL_MOUSE = 2,
+} SwlSendEventsMode;
 
-typedef struct DwlPointerConfig {
+typedef struct SwlPointerConfig {
     double accel_speed;
     bool natural_scroll;
     bool tap_to_click;
@@ -37,29 +37,29 @@ typedef struct DwlPointerConfig {
     bool middle_emulation;
     int scroll_method;
     bool disable_while_typing;
-    DwlSendEventsMode send_events;
-} DwlPointerConfig;
+    SwlSendEventsMode send_events;
+} SwlPointerConfig;
 
-DwlInput *dwl_input_create(DwlCompositor *comp);
-void dwl_input_destroy(DwlInput *input);
+SwlInput *swl_input_create(SwlCompositor *comp);
+void swl_input_destroy(SwlInput *input);
 
-DwlError dwl_input_configure_keyboard(DwlInput *input, const DwlKeyboardConfig *cfg);
-DwlError dwl_input_configure_pointer(DwlInput *input, const DwlPointerConfig *cfg);
+SwlError swl_input_configure_keyboard(SwlInput *input, const SwlKeyboardConfig *cfg);
+SwlError swl_input_configure_pointer(SwlInput *input, const SwlPointerConfig *cfg);
 
-DwlError dwl_input_set_cursor_image(DwlInput *input, const char *name);
-DwlError dwl_input_warp_cursor(DwlInput *input, double x, double y);
-void dwl_input_get_cursor_position(DwlInput *input, double *x, double *y);
+SwlError swl_input_set_cursor_image(SwlInput *input, const char *name);
+SwlError swl_input_warp_cursor(SwlInput *input, double x, double y);
+void swl_input_get_cursor_position(SwlInput *input, double *x, double *y);
 
-uint32_t dwl_input_get_modifiers(DwlInput *input);
+uint32_t swl_input_get_modifiers(SwlInput *input);
 
-struct wlr_cursor *dwl_input_get_cursor(DwlInput *input);
-struct wlr_seat *dwl_input_get_seat(DwlInput *input);
-DwlCompositor *dwl_input_get_compositor(DwlInput *input);
-struct DwlKeybindingManager *dwl_input_get_keybindings(DwlInput *input);
+struct wlr_cursor *swl_input_get_cursor(SwlInput *input);
+struct wlr_seat *swl_input_get_seat(SwlInput *input);
+SwlCompositor *swl_input_get_compositor(SwlInput *input);
+struct SwlKeybindingManager *swl_input_get_keybindings(SwlInput *input);
 
 // Move/resize operations (for button bindings)
-DwlError dwl_input_start_move(DwlInput *input);
-DwlError dwl_input_start_resize(DwlInput *input);
-void dwl_input_cancel_grab(DwlInput *input);
+SwlError swl_input_start_move(SwlInput *input);
+SwlError swl_input_start_resize(SwlInput *input);
+void swl_input_cancel_grab(SwlInput *input);
 
-#endif /* DWL_INPUT_H */
+#endif /* SWL_INPUT_H */

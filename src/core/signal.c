@@ -22,7 +22,7 @@ static void handle_signal(int sig)
     }
 }
 
-void dwl_signal_init(void)
+void swl_signal_init(void)
 {
     struct sigaction sa = {
         .sa_handler = handle_signal,
@@ -36,12 +36,12 @@ void dwl_signal_init(void)
     sigaction(SIGPIPE, &sa, NULL);
 }
 
-int dwl_signal_should_quit(void)
+int swl_signal_should_quit(void)
 {
     return should_quit;
 }
 
-void dwl_signal_request_quit(void)
+void swl_signal_request_quit(void)
 {
     should_quit = 1;
 }

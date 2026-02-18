@@ -31,12 +31,12 @@ typedef struct {
 typedef struct {
     int id;
     char *prefix;
-    DwlConfigChangeHandler handler;
+    SwlConfigChangeHandler handler;
     void *ctx;
     bool active;
 } ConfigWatch;
 
-struct DwlConfig {
+struct SwlConfig {
     ConfigEntry entries[MAX_ENTRIES];
     size_t count;
     ConfigWatch watches[MAX_WATCHES];
@@ -44,9 +44,9 @@ struct DwlConfig {
     char *path;
 };
 
-DwlConfig *dwl_config_create(void)
+SwlConfig *swl_config_create(void)
 {
-    DwlConfig *cfg = calloc(1, sizeof(*cfg));
+    SwlConfig *cfg = calloc(1, sizeof(*cfg));
     if (!cfg)
         return NULL;
 
@@ -54,7 +54,7 @@ DwlConfig *dwl_config_create(void)
     return cfg;
 }
 
-void dwl_config_destroy(DwlConfig *cfg)
+void swl_config_destroy(SwlConfig *cfg)
 {
     if (!cfg)
         return;
@@ -73,7 +73,7 @@ void dwl_config_destroy(DwlConfig *cfg)
     free(cfg);
 }
 
-static ConfigEntry *find_entry(DwlConfig *cfg, const char *key)
+static ConfigEntry *find_entry(SwlConfig *cfg, const char *key)
 {
     for (size_t i = 0; i < cfg->count; i++) {
         if (strcmp(cfg->entries[i].key, key) == 0)
@@ -82,7 +82,7 @@ static ConfigEntry *find_entry(DwlConfig *cfg, const char *key)
     return NULL;
 }
 
-static ConfigEntry *create_entry(DwlConfig *cfg, const char *key, ConfigType type)
+static ConfigEntry *create_entry(SwlConfig *cfg, const char *key, ConfigType type)
 {
     if (cfg->count >= MAX_ENTRIES)
         return NULL;
@@ -94,7 +94,7 @@ static ConfigEntry *create_entry(DwlConfig *cfg, const char *key, ConfigType typ
     return e;
 }
 
-static void notify_watches(DwlConfig *cfg, const char *key)
+static void notify_watches(SwlConfig *cfg, const char *key)
 {
     for (int i = 0; i < MAX_WATCHES; i++) {
         if (!cfg->watches[i].active)
@@ -107,7 +107,7 @@ static void notify_watches(DwlConfig *cfg, const char *key)
     }
 }
 
-static void clear_entries(DwlConfig *cfg)
+static void clear_entries(SwlConfig *cfg)
 {
     for (size_t i = 0; i < cfg->count; i++) {
         free(cfg->entries[i].key);
@@ -143,7 +143,7 @@ static int parse_hex_color(const char *s, float rgba[4])
     return 1;
 }
 
-static void flatten_keybinding_value(DwlConfig *cfg, const char *full_key,
+static void flatten_keybinding_value(SwlConfig *cfg, const char *full_key,
                                      toml_table_t *tbl)
 {
     /* Convert inline table { action = "spawn", command = ["wmenu-run"] }
@@ -201,12 +201,12 @@ static void flatten_keybinding_value(DwlConfig *cfg, const char *full_key,
     }
 
     free(action.u.s);
-    dwl_config_set_string(cfg, full_key, value);
+    swl_config_set_string(cfg, full_key, value);
 }
 
-static void flatten_table(DwlConfig *cfg, toml_table_t *tbl, const char *prefix);
+static void flatten_table(SwlConfig *cfg, toml_table_t *tbl, const char *prefix);
 
-static void flatten_array(DwlConfig *cfg, toml_array_t *arr, const char *prefix)
+static void flatten_array(SwlConfig *cfg, toml_array_t *arr, const char *prefix)
 {
     char kind = toml_array_kind(arr);
 
@@ -240,7 +240,7 @@ static void flatten_array(DwlConfig *cfg, toml_array_t *arr, const char *prefix)
     /* Value arrays are not flattened to the key-value store (not needed) */
 }
 
-static void flatten_table(DwlConfig *cfg, toml_table_t *tbl, const char *prefix)
+static void flatten_table(SwlConfig *cfg, toml_table_t *tbl, const char *prefix)
 {
     bool is_keybinding = prefix &&
         (strcmp(prefix, "keybindings") == 0 || strcmp(prefix, "buttons") == 0);
@@ -281,9 +281,9 @@ static void flatten_table(DwlConfig *cfg, toml_table_t *tbl, const char *prefix)
         if (s.ok) {
             float rgba[4];
             if (parse_hex_color(s.u.s, rgba)) {
-                dwl_config_set_color(cfg, full_key, rgba);
+                swl_config_set_color(cfg, full_key, rgba);
             } else {
-                dwl_config_set_string(cfg, full_key, s.u.s);
+                swl_config_set_string(cfg, full_key, s.u.s);
             }
             free(s.u.s);
             continue;
@@ -292,34 +292,34 @@ static void flatten_table(DwlConfig *cfg, toml_table_t *tbl, const char *prefix)
         /* Try bool */
         toml_datum_t b = toml_bool_in(tbl, key);
         if (b.ok) {
-            dwl_config_set_bool(cfg, full_key, b.u.b != 0);
+            swl_config_set_bool(cfg, full_key, b.u.b != 0);
             continue;
         }
 
         /* Try int */
         toml_datum_t iv = toml_int_in(tbl, key);
         if (iv.ok) {
-            dwl_config_set_int(cfg, full_key, (int)iv.u.i);
+            swl_config_set_int(cfg, full_key, (int)iv.u.i);
             continue;
         }
 
         /* Try double */
         toml_datum_t d = toml_double_in(tbl, key);
         if (d.ok) {
-            dwl_config_set_float(cfg, full_key, (float)d.u.d);
+            swl_config_set_float(cfg, full_key, (float)d.u.d);
             continue;
         }
     }
 }
 
-DwlError dwl_config_load_file(DwlConfig *cfg, const char *path)
+SwlError swl_config_load_file(SwlConfig *cfg, const char *path)
 {
     if (!cfg || !path)
-        return DWL_ERR_INVALID_ARG;
+        return SWL_ERR_INVALID_ARG;
 
     FILE *f = fopen(path, "r");
     if (!f)
-        return DWL_ERR_IO;
+        return SWL_ERR_IO;
 
     char errbuf[256];
     toml_table_t *root = toml_parse_file(f, errbuf, sizeof(errbuf));
@@ -327,7 +327,7 @@ DwlError dwl_config_load_file(DwlConfig *cfg, const char *path)
 
     if (!root) {
         fprintf(stderr, "config: %s: %s\n", path, errbuf);
-        return DWL_ERR_CONFIG;
+        return SWL_ERR_CONFIG;
     }
 
     free(cfg->path);
@@ -337,13 +337,13 @@ DwlError dwl_config_load_file(DwlConfig *cfg, const char *path)
     flatten_table(cfg, root, "");
     toml_free(root);
 
-    return DWL_OK;
+    return SWL_OK;
 }
 
-DwlError dwl_config_load_default(DwlConfig *cfg)
+SwlError swl_config_load_default(SwlConfig *cfg)
 {
     if (!cfg)
-        return DWL_ERR_INVALID_ARG;
+        return SWL_ERR_INVALID_ARG;
 
     const char *home = getenv("HOME");
     const char *xdg_config = getenv("XDG_CONFIG_HOME");
@@ -351,42 +351,42 @@ DwlError dwl_config_load_default(DwlConfig *cfg)
     char path[512];
 
     if (xdg_config) {
-        snprintf(path, sizeof(path), "%s/dwl/config.toml", xdg_config);
-        if (dwl_config_load_file(cfg, path) == DWL_OK)
-            return DWL_OK;
+        snprintf(path, sizeof(path), "%s/swl/config.toml", xdg_config);
+        if (swl_config_load_file(cfg, path) == SWL_OK)
+            return SWL_OK;
     }
 
     if (home) {
-        snprintf(path, sizeof(path), "%s/.config/dwl/config.toml", home);
-        if (dwl_config_load_file(cfg, path) == DWL_OK)
-            return DWL_OK;
+        snprintf(path, sizeof(path), "%s/.config/swl/config.toml", home);
+        if (swl_config_load_file(cfg, path) == SWL_OK)
+            return SWL_OK;
     }
 
-    if (dwl_config_load_file(cfg, "/etc/dwl/config.toml") == DWL_OK)
-        return DWL_OK;
+    if (swl_config_load_file(cfg, "/etc/swl/config.toml") == SWL_OK)
+        return SWL_OK;
 
-    return DWL_ERR_NOT_FOUND;
+    return SWL_ERR_NOT_FOUND;
 }
 
-DwlError dwl_config_reload(DwlConfig *cfg)
+SwlError swl_config_reload(SwlConfig *cfg)
 {
     if (!cfg || !cfg->path)
-        return DWL_ERR_INVALID_ARG;
+        return SWL_ERR_INVALID_ARG;
 
     char *path = strdup(cfg->path);
-    DwlError err = dwl_config_load_file(cfg, path);
+    SwlError err = swl_config_load_file(cfg, path);
     free(path);
     return err;
 }
 
-DwlError dwl_config_save(DwlConfig *cfg, const char *path)
+SwlError swl_config_save(SwlConfig *cfg, const char *path)
 {
     if (!cfg || !path)
-        return DWL_ERR_INVALID_ARG;
+        return SWL_ERR_INVALID_ARG;
 
     FILE *f = fopen(path, "w");
     if (!f)
-        return DWL_ERR_IO;
+        return SWL_ERR_IO;
 
     for (size_t i = 0; i < cfg->count; i++) {
         ConfigEntry *e = &cfg->entries[i];
@@ -412,10 +412,10 @@ DwlError dwl_config_save(DwlConfig *cfg, const char *path)
     }
 
     fclose(f);
-    return DWL_OK;
+    return SWL_OK;
 }
 
-int dwl_config_get_int(DwlConfig *cfg, const char *key, int default_val)
+int swl_config_get_int(SwlConfig *cfg, const char *key, int default_val)
 {
     if (!cfg || !key)
         return default_val;
@@ -427,7 +427,7 @@ int dwl_config_get_int(DwlConfig *cfg, const char *key, int default_val)
     return e->value.i;
 }
 
-float dwl_config_get_float(DwlConfig *cfg, const char *key, float default_val)
+float swl_config_get_float(SwlConfig *cfg, const char *key, float default_val)
 {
     if (!cfg || !key)
         return default_val;
@@ -439,7 +439,7 @@ float dwl_config_get_float(DwlConfig *cfg, const char *key, float default_val)
     return e->value.f;
 }
 
-bool dwl_config_get_bool(DwlConfig *cfg, const char *key, bool default_val)
+bool swl_config_get_bool(SwlConfig *cfg, const char *key, bool default_val)
 {
     if (!cfg || !key)
         return default_val;
@@ -451,7 +451,7 @@ bool dwl_config_get_bool(DwlConfig *cfg, const char *key, bool default_val)
     return e->value.b;
 }
 
-const char *dwl_config_get_string(DwlConfig *cfg, const char *key, const char *default_val)
+const char *swl_config_get_string(SwlConfig *cfg, const char *key, const char *default_val)
 {
     if (!cfg || !key)
         return default_val;
@@ -463,80 +463,80 @@ const char *dwl_config_get_string(DwlConfig *cfg, const char *key, const char *d
     return e->value.s;
 }
 
-DwlError dwl_config_get_color(DwlConfig *cfg, const char *key, float rgba[4])
+SwlError swl_config_get_color(SwlConfig *cfg, const char *key, float rgba[4])
 {
     if (!cfg || !key || !rgba)
-        return DWL_ERR_INVALID_ARG;
+        return SWL_ERR_INVALID_ARG;
 
     ConfigEntry *e = find_entry(cfg, key);
     if (!e || e->type != CONFIG_COLOR)
-        return DWL_ERR_NOT_FOUND;
+        return SWL_ERR_NOT_FOUND;
 
     memcpy(rgba, e->value.color, sizeof(float) * 4);
-    return DWL_OK;
+    return SWL_OK;
 }
 
-DwlError dwl_config_set_int(DwlConfig *cfg, const char *key, int value)
+SwlError swl_config_set_int(SwlConfig *cfg, const char *key, int value)
 {
     if (!cfg || !key)
-        return DWL_ERR_INVALID_ARG;
+        return SWL_ERR_INVALID_ARG;
 
     ConfigEntry *e = find_entry(cfg, key);
     if (!e)
         e = create_entry(cfg, key, CONFIG_INT);
     if (!e)
-        return DWL_ERR_NOMEM;
+        return SWL_ERR_NOMEM;
 
     e->type = CONFIG_INT;
     e->value.i = value;
     notify_watches(cfg, key);
-    return DWL_OK;
+    return SWL_OK;
 }
 
-DwlError dwl_config_set_float(DwlConfig *cfg, const char *key, float value)
+SwlError swl_config_set_float(SwlConfig *cfg, const char *key, float value)
 {
     if (!cfg || !key)
-        return DWL_ERR_INVALID_ARG;
+        return SWL_ERR_INVALID_ARG;
 
     ConfigEntry *e = find_entry(cfg, key);
     if (!e)
         e = create_entry(cfg, key, CONFIG_FLOAT);
     if (!e)
-        return DWL_ERR_NOMEM;
+        return SWL_ERR_NOMEM;
 
     e->type = CONFIG_FLOAT;
     e->value.f = value;
     notify_watches(cfg, key);
-    return DWL_OK;
+    return SWL_OK;
 }
 
-DwlError dwl_config_set_bool(DwlConfig *cfg, const char *key, bool value)
+SwlError swl_config_set_bool(SwlConfig *cfg, const char *key, bool value)
 {
     if (!cfg || !key)
-        return DWL_ERR_INVALID_ARG;
+        return SWL_ERR_INVALID_ARG;
 
     ConfigEntry *e = find_entry(cfg, key);
     if (!e)
         e = create_entry(cfg, key, CONFIG_BOOL);
     if (!e)
-        return DWL_ERR_NOMEM;
+        return SWL_ERR_NOMEM;
 
     e->type = CONFIG_BOOL;
     e->value.b = value;
     notify_watches(cfg, key);
-    return DWL_OK;
+    return SWL_OK;
 }
 
-DwlError dwl_config_set_string(DwlConfig *cfg, const char *key, const char *value)
+SwlError swl_config_set_string(SwlConfig *cfg, const char *key, const char *value)
 {
     if (!cfg || !key)
-        return DWL_ERR_INVALID_ARG;
+        return SWL_ERR_INVALID_ARG;
 
     ConfigEntry *e = find_entry(cfg, key);
     if (!e)
         e = create_entry(cfg, key, CONFIG_STRING);
     if (!e)
-        return DWL_ERR_NOMEM;
+        return SWL_ERR_NOMEM;
 
     if (e->type == CONFIG_STRING)
         free(e->value.s);
@@ -544,35 +544,35 @@ DwlError dwl_config_set_string(DwlConfig *cfg, const char *key, const char *valu
     e->type = CONFIG_STRING;
     e->value.s = value ? strdup(value) : NULL;
     notify_watches(cfg, key);
-    return DWL_OK;
+    return SWL_OK;
 }
 
-DwlError dwl_config_set_color(DwlConfig *cfg, const char *key, const float rgba[4])
+SwlError swl_config_set_color(SwlConfig *cfg, const char *key, const float rgba[4])
 {
     if (!cfg || !key || !rgba)
-        return DWL_ERR_INVALID_ARG;
+        return SWL_ERR_INVALID_ARG;
 
     ConfigEntry *e = find_entry(cfg, key);
     if (!e)
         e = create_entry(cfg, key, CONFIG_COLOR);
     if (!e)
-        return DWL_ERR_NOMEM;
+        return SWL_ERR_NOMEM;
 
     e->type = CONFIG_COLOR;
     memcpy(e->value.color, rgba, sizeof(float) * 4);
     notify_watches(cfg, key);
-    return DWL_OK;
+    return SWL_OK;
 }
 
-bool dwl_config_has_key(DwlConfig *cfg, const char *key)
+bool swl_config_has_key(SwlConfig *cfg, const char *key)
 {
     return find_entry(cfg, key) != NULL;
 }
 
-DwlError dwl_config_remove(DwlConfig *cfg, const char *key)
+SwlError swl_config_remove(SwlConfig *cfg, const char *key)
 {
     if (!cfg || !key)
-        return DWL_ERR_INVALID_ARG;
+        return SWL_ERR_INVALID_ARG;
 
     for (size_t i = 0; i < cfg->count; i++) {
         if (strcmp(cfg->entries[i].key, key) == 0) {
@@ -583,15 +583,15 @@ DwlError dwl_config_remove(DwlConfig *cfg, const char *key)
             memmove(&cfg->entries[i], &cfg->entries[i + 1],
                     (cfg->count - i - 1) * sizeof(ConfigEntry));
             cfg->count--;
-            return DWL_OK;
+            return SWL_OK;
         }
     }
 
-    return DWL_ERR_NOT_FOUND;
+    return SWL_ERR_NOT_FOUND;
 }
 
-int dwl_config_watch(DwlConfig *cfg, const char *key_prefix,
-                     DwlConfigChangeHandler handler, void *ctx)
+int swl_config_watch(SwlConfig *cfg, const char *key_prefix,
+                     SwlConfigChangeHandler handler, void *ctx)
 {
     if (!cfg || !handler)
         return -1;
@@ -610,7 +610,7 @@ int dwl_config_watch(DwlConfig *cfg, const char *key_prefix,
     return -1;
 }
 
-void dwl_config_unwatch(DwlConfig *cfg, int watch_id)
+void swl_config_unwatch(SwlConfig *cfg, int watch_id)
 {
     if (!cfg || watch_id <= 0)
         return;
@@ -625,7 +625,7 @@ void dwl_config_unwatch(DwlConfig *cfg, int watch_id)
     }
 }
 
-const char **dwl_config_keys(DwlConfig *cfg, const char *prefix, size_t *count)
+const char **swl_config_keys(SwlConfig *cfg, const char *prefix, size_t *count)
 {
     if (!cfg || !count)
         return NULL;
@@ -655,7 +655,7 @@ const char **dwl_config_keys(DwlConfig *cfg, const char *prefix, size_t *count)
     return keys;
 }
 
-void dwl_config_keys_free(const char **keys, size_t count)
+void swl_config_keys_free(const char **keys, size_t count)
 {
     (void)count;
     free((void *)keys);

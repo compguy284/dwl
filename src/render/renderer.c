@@ -8,32 +8,32 @@
 #include <scenefx/types/wlr_scene.h>
 #include <scenefx/types/fx/blur_data.h>
 
-struct DwlRenderer {
-    DwlCompositor *comp;
+struct SwlRenderer {
+    SwlCompositor *comp;
     struct fx_renderer *fx;
-    DwlRenderConfig config;
+    SwlRenderConfig config;
 };
 
-DwlRenderer *dwl_renderer_create(DwlCompositor *comp)
+SwlRenderer *swl_renderer_create(SwlCompositor *comp)
 {
-    DwlRenderer *r = calloc(1, sizeof(*r));
+    SwlRenderer *r = calloc(1, sizeof(*r));
     if (!r)
         return NULL;
 
     r->comp = comp;
 
-    DwlConfig *cfg = dwl_compositor_get_config(comp);
+    SwlConfig *cfg = swl_compositor_get_config(comp);
 
     // Blur settings
-    r->config.blur_radius = dwl_config_get_int(cfg, "scenefx.blur.radius", 5);
-    r->config.blur_passes = dwl_config_get_int(cfg, "scenefx.blur.passes", 3);
-    r->config.blur_optimize = dwl_config_get_bool(cfg, "scenefx.blur.optimized", true);
-    r->config.blur_ignore_transparent = dwl_config_get_bool(cfg, "scenefx.blur.ignore_transparent", true);
+    r->config.blur_radius = swl_config_get_int(cfg, "scenefx.blur.radius", 5);
+    r->config.blur_passes = swl_config_get_int(cfg, "scenefx.blur.passes", 3);
+    r->config.blur_optimize = swl_config_get_bool(cfg, "scenefx.blur.optimized", true);
+    r->config.blur_ignore_transparent = swl_config_get_bool(cfg, "scenefx.blur.ignore_transparent", true);
 
     // Shadow settings
-    r->config.shadow_enabled = dwl_config_get_bool(cfg, "scenefx.shadows.enabled", true);
-    r->config.shadow_radius = dwl_config_get_int(cfg, "scenefx.shadows.blur_sigma", 20);
-    if (dwl_config_get_color(cfg, "scenefx.shadows.color", r->config.shadow_color) != DWL_OK) {
+    r->config.shadow_enabled = swl_config_get_bool(cfg, "scenefx.shadows.enabled", true);
+    r->config.shadow_radius = swl_config_get_int(cfg, "scenefx.shadows.blur_sigma", 20);
+    if (swl_config_get_color(cfg, "scenefx.shadows.color", r->config.shadow_color) != SWL_OK) {
         r->config.shadow_color[0] = 0.0f;
         r->config.shadow_color[1] = 0.0f;
         r->config.shadow_color[2] = 0.0f;
@@ -43,35 +43,35 @@ DwlRenderer *dwl_renderer_create(DwlCompositor *comp)
     r->config.shadow_offset_y = 0;
 
     // Corner radius
-    r->config.corner_radius = dwl_config_get_int(cfg, "scenefx.corners.radius", 10);
+    r->config.corner_radius = swl_config_get_int(cfg, "scenefx.corners.radius", 10);
 
     // Opacity settings
-    r->config.opacity_active = dwl_config_get_float(cfg, "scenefx.opacity.active", 1.0f);
-    r->config.opacity_inactive = dwl_config_get_float(cfg, "scenefx.opacity.inactive", 0.9f);
+    r->config.opacity_active = swl_config_get_float(cfg, "scenefx.opacity.active", 1.0f);
+    r->config.opacity_inactive = swl_config_get_float(cfg, "scenefx.opacity.inactive", 0.9f);
 
     // Animation settings
     r->config.animations_enabled = true;
     r->config.animation_duration_ms = 200;
 
     // Border settings
-    r->config.border_width = dwl_config_get_int(cfg, "appearance.border_width", 2);
+    r->config.border_width = swl_config_get_int(cfg, "appearance.border_width", 2);
 
     // Border colors
-    if (dwl_config_get_color(cfg, "appearance.colors.focus", r->config.border_color_focused) != DWL_OK) {
+    if (swl_config_get_color(cfg, "appearance.colors.focus", r->config.border_color_focused) != SWL_OK) {
         r->config.border_color_focused[0] = 0.0f;
         r->config.border_color_focused[1] = 0.33f;
         r->config.border_color_focused[2] = 0.47f;
         r->config.border_color_focused[3] = 1.0f;
     }
 
-    if (dwl_config_get_color(cfg, "appearance.colors.border", r->config.border_color_unfocused) != DWL_OK) {
+    if (swl_config_get_color(cfg, "appearance.colors.border", r->config.border_color_unfocused) != SWL_OK) {
         r->config.border_color_unfocused[0] = 0.27f;
         r->config.border_color_unfocused[1] = 0.27f;
         r->config.border_color_unfocused[2] = 0.27f;
         r->config.border_color_unfocused[3] = 1.0f;
     }
 
-    if (dwl_config_get_color(cfg, "appearance.colors.urgent", r->config.border_color_urgent) != DWL_OK) {
+    if (swl_config_get_color(cfg, "appearance.colors.urgent", r->config.border_color_urgent) != SWL_OK) {
         r->config.border_color_urgent[0] = 1.0f;
         r->config.border_color_urgent[1] = 0.0f;
         r->config.border_color_urgent[2] = 0.0f;
@@ -81,70 +81,70 @@ DwlRenderer *dwl_renderer_create(DwlCompositor *comp)
     return r;
 }
 
-void dwl_renderer_destroy(DwlRenderer *r)
+void swl_renderer_destroy(SwlRenderer *r)
 {
     free(r);
 }
 
-DwlError dwl_renderer_configure(DwlRenderer *r, const DwlRenderConfig *cfg)
+SwlError swl_renderer_configure(SwlRenderer *r, const SwlRenderConfig *cfg)
 {
     if (!r || !cfg)
-        return DWL_ERR_INVALID_ARG;
+        return SWL_ERR_INVALID_ARG;
 
     r->config = *cfg;
-    return DWL_OK;
+    return SWL_OK;
 }
 
-DwlRenderConfig dwl_renderer_get_config(const DwlRenderer *r)
+SwlRenderConfig swl_renderer_get_config(const SwlRenderer *r)
 {
     if (!r) {
-        DwlRenderConfig empty = {0};
+        SwlRenderConfig empty = {0};
         return empty;
     }
     return r->config;
 }
 
-DwlError dwl_renderer_set_client_opacity(DwlRenderer *r, DwlClient *c, float opacity)
+SwlError swl_renderer_set_client_opacity(SwlRenderer *r, SwlClient *c, float opacity)
 {
     if (!r || !c)
-        return DWL_ERR_INVALID_ARG;
+        return SWL_ERR_INVALID_ARG;
 
     (void)opacity;
     // TODO: Set opacity via scenefx
-    return DWL_OK;
+    return SWL_OK;
 }
 
-DwlError dwl_renderer_set_client_blur(DwlRenderer *r, DwlClient *c, bool blur)
+SwlError swl_renderer_set_client_blur(SwlRenderer *r, SwlClient *c, bool blur)
 {
     if (!r || !c)
-        return DWL_ERR_INVALID_ARG;
+        return SWL_ERR_INVALID_ARG;
 
     (void)blur;
     // TODO: Set blur via scenefx
-    return DWL_OK;
+    return SWL_OK;
 }
 
-DwlError dwl_renderer_set_client_shadow(DwlRenderer *r, DwlClient *c, bool shadow)
+SwlError swl_renderer_set_client_shadow(SwlRenderer *r, SwlClient *c, bool shadow)
 {
     if (!r || !c)
-        return DWL_ERR_INVALID_ARG;
+        return SWL_ERR_INVALID_ARG;
 
     (void)shadow;
     // TODO: Set shadow via scenefx
-    return DWL_OK;
+    return SWL_OK;
 }
 
-DwlError dwl_renderer_set_client_corner_radius(DwlRenderer *r, DwlClient *c, int radius)
+SwlError swl_renderer_set_client_corner_radius(SwlRenderer *r, SwlClient *c, int radius)
 {
     if (!r || !c)
-        return DWL_ERR_INVALID_ARG;
+        return SWL_ERR_INVALID_ARG;
 
     (void)radius;
     // TODO: Set corner radius via scenefx
-    return DWL_OK;
+    return SWL_OK;
 }
 
-float dwl_renderer_get_client_opacity(const DwlRenderer *r, const DwlClient *c)
+float swl_renderer_get_client_opacity(const SwlRenderer *r, const SwlClient *c)
 {
     if (!r || !c)
         return 1.0f;
@@ -153,7 +153,7 @@ float dwl_renderer_get_client_opacity(const DwlRenderer *r, const DwlClient *c)
     return 1.0f;
 }
 
-bool dwl_renderer_get_client_blur(const DwlRenderer *r, const DwlClient *c)
+bool swl_renderer_get_client_blur(const SwlRenderer *r, const SwlClient *c)
 {
     if (!r || !c)
         return false;
@@ -162,7 +162,7 @@ bool dwl_renderer_get_client_blur(const DwlRenderer *r, const DwlClient *c)
     return false;
 }
 
-bool dwl_renderer_get_client_shadow(const DwlRenderer *r, const DwlClient *c)
+bool swl_renderer_get_client_shadow(const SwlRenderer *r, const SwlClient *c)
 {
     if (!r || !c)
         return false;
@@ -171,7 +171,7 @@ bool dwl_renderer_get_client_shadow(const DwlRenderer *r, const DwlClient *c)
     return false;
 }
 
-int dwl_renderer_get_client_corner_radius(const DwlRenderer *r, const DwlClient *c)
+int swl_renderer_get_client_corner_radius(const SwlRenderer *r, const SwlClient *c)
 {
     if (!r || !c)
         return 0;
@@ -180,7 +180,7 @@ int dwl_renderer_get_client_corner_radius(const DwlRenderer *r, const DwlClient 
     return 0;
 }
 
-void dwl_renderer_damage_whole(DwlRenderer *r)
+void swl_renderer_damage_whole(SwlRenderer *r)
 {
     if (!r)
         return;

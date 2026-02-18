@@ -2,7 +2,7 @@
 #include <math.h>
 #include <stdlib.h>
 
-static void scroller_arrange(DwlLayoutParams *params)
+static void scroller_arrange(SwlLayoutParams *params)
 {
     if (!params || params->client_count == 0)
         return;
@@ -45,7 +45,7 @@ static void scroller_arrange(DwlLayoutParams *params)
     int total_h = params->area_height - 2 * params->gap_outer_v;
 
     for (int i = 0; i < n; i++) {
-        DwlLayoutClient *c = &params->clients[i];
+        SwlLayoutClient *c = &params->clients[i];
         c->x = offset + acc_x[i] + params->gap_outer_h;
         c->y = params->area_y + params->gap_outer_v;
         c->width = col_w[i] - params->gap_inner_h;
@@ -56,7 +56,7 @@ static void scroller_arrange(DwlLayoutParams *params)
     free(acc_x);
 }
 
-static int scroller_focus_next(const DwlLayoutParams *params, int current, int direction)
+static int scroller_focus_next(const SwlLayoutParams *params, int current, int direction)
 {
     if (!params || params->client_count == 0)
         return -1;
@@ -75,7 +75,7 @@ static int scroller_focus_next(const DwlLayoutParams *params, int current, int d
     return current;
 }
 
-const DwlLayout dwl_layout_scroller = {
+const SwlLayout swl_layout_scroller = {
     .name = "scroller",
     .symbol = "[S]",
     .arrange = scroller_arrange,

@@ -8,7 +8,7 @@
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_seat.h>
 
-#ifdef DWL_XWAYLAND
+#ifdef SWL_XWAYLAND
 
 static void x11_handle_associate(struct wl_listener *listener, void *data);
 static void x11_handle_dissociate(struct wl_listener *listener, void *data);
@@ -20,13 +20,13 @@ static void x11_handle_request_configure(struct wl_listener *listener, void *dat
 static void x11_handle_set_title(struct wl_listener *listener, void *data);
 static void x11_handle_set_class(struct wl_listener *listener, void *data);
 
-DwlClient *dwl_client_create_x11(DwlClientManager *mgr, struct wlr_xwayland_surface *surface)
+SwlClient *swl_client_create_x11(SwlClientManager *mgr, struct wlr_xwayland_surface *surface)
 {
-    DwlClient *c = calloc(1, sizeof(*c));
+    SwlClient *c = calloc(1, sizeof(*c));
     if (!c)
         return NULL;
 
-    c->magic = DWL_CLIENT_MAGIC;
+    c->magic = SWL_CLIENT_MAGIC;
     c->id = mgr->next_id++;
     c->mgr = mgr;
     c->xwayland = surface;
@@ -76,7 +76,7 @@ DwlClient *dwl_client_create_x11(DwlClientManager *mgr, struct wlr_xwayland_surf
 
 static void x11_handle_associate(struct wl_listener *listener, void *data)
 {
-    DwlClient *c = wl_container_of(listener, c, associate);
+    SwlClient *c = wl_container_of(listener, c, associate);
     (void)data;
 
     // Now that surface is associated, we can add map/unmap listeners
@@ -89,7 +89,7 @@ static void x11_handle_associate(struct wl_listener *listener, void *data)
 
 static void x11_handle_dissociate(struct wl_listener *listener, void *data)
 {
-    DwlClient *c = wl_container_of(listener, c, dissociate);
+    SwlClient *c = wl_container_of(listener, c, dissociate);
     (void)data;
 
     // Remove map/unmap listeners when surface is dissociated
@@ -99,7 +99,7 @@ static void x11_handle_dissociate(struct wl_listener *listener, void *data)
 
 static void x11_handle_map(struct wl_listener *listener, void *data)
 {
-    DwlClient *c = wl_container_of(listener, c, map);
+    SwlClient *c = wl_container_of(listener, c, map);
     (void)data;
 
     c->mapped = true;
@@ -116,74 +116,74 @@ static void x11_handle_map(struct wl_listener *listener, void *data)
 
     // Apply window rules
     if (c->mgr->rules)
-        dwl_rule_engine_apply(c->mgr->rules, c);
+        swl_rule_engine_apply(c->mgr->rules, c);
 
-    dwl_scene_client_create(c->mgr->scene_mgr, c);
+    swl_scene_client_create(c->mgr->scene_mgr, c);
 
-    DwlRenderer *renderer = dwl_compositor_get_renderer(c->mgr->comp);
-    DwlRenderConfig cfg = dwl_renderer_get_config(renderer);
+    SwlRenderer *renderer = swl_compositor_get_renderer(c->mgr->comp);
+    SwlRenderConfig cfg = swl_renderer_get_config(renderer);
     c->border_width = cfg.border_width;  // Sync with config
-    dwl_scene_update_borders(c, cfg.border_width, cfg.border_color_unfocused);
+    swl_scene_update_borders(c, cfg.border_width, cfg.border_color_unfocused);
 
     // Apply corner radius to surface buffers
     if (cfg.corner_radius > 0)
-        dwl_scene_client_set_corner_radius(c, cfg.corner_radius);
+        swl_scene_client_set_corner_radius(c, cfg.corner_radius);
 
-    dwl_client_focus(c);
+    swl_client_focus(c);
 
     // Store the output name for restore-monitor feature
     if (c->mon) {
-        struct wlr_output *output = dwl_monitor_get_wlr_output(c->mon);
+        struct wlr_output *output = swl_monitor_get_wlr_output(c->mon);
         if (output && output->name) {
             free(c->output_name);
             c->output_name = strdup(output->name);
         }
     }
 
-    DwlEventBus *bus = dwl_compositor_get_event_bus(c->mgr->comp);
-    dwl_event_bus_emit_simple(bus, DWL_EVENT_CLIENT_CREATE, c);
+    SwlEventBus *bus = swl_compositor_get_event_bus(c->mgr->comp);
+    swl_event_bus_emit_simple(bus, SWL_EVENT_CLIENT_CREATE, c);
 
-    dwl_monitor_arrange(c->mon);
+    swl_monitor_arrange(c->mon);
 }
 
 static void x11_handle_unmap(struct wl_listener *listener, void *data)
 {
-    DwlClient *c = wl_container_of(listener, c, unmap);
+    SwlClient *c = wl_container_of(listener, c, unmap);
     (void)data;
 
     c->mapped = false;
 
     if (c->mgr->focused == c) {
         c->mgr->focused = NULL;
-        struct wlr_seat *seat = dwl_compositor_get_seat(c->mgr->comp);
+        struct wlr_seat *seat = swl_compositor_get_seat(c->mgr->comp);
         wlr_seat_keyboard_notify_clear_focus(seat);
 
-        DwlClient *next;
+        SwlClient *next;
         wl_list_for_each(next, &c->mgr->focus_stack, flink) {
             if (next != c && next->mapped) {
-                dwl_client_focus(next);
+                swl_client_focus(next);
                 break;
             }
         }
     }
 
-    dwl_scene_client_destroy(c->mgr->scene_mgr, c);
+    swl_scene_client_destroy(c->mgr->scene_mgr, c);
 
     if (c->mon)
-        dwl_monitor_arrange(c->mon);
+        swl_monitor_arrange(c->mon);
 }
 
 static void x11_handle_destroy(struct wl_listener *listener, void *data)
 {
-    DwlClient *c = wl_container_of(listener, c, destroy);
+    SwlClient *c = wl_container_of(listener, c, destroy);
     (void)data;
 
     // Clear focused pointer if this was the focused client
     if (c->mgr->focused == c)
         c->mgr->focused = NULL;
 
-    DwlEventBus *bus = dwl_compositor_get_event_bus(c->mgr->comp);
-    dwl_event_bus_emit_simple(bus, DWL_EVENT_CLIENT_DESTROY, c);
+    SwlEventBus *bus = swl_compositor_get_event_bus(c->mgr->comp);
+    swl_event_bus_emit_simple(bus, SWL_EVENT_CLIENT_DESTROY, c);
 
     // Remove associate/dissociate listeners
     wl_list_remove(&c->associate.link);
@@ -212,15 +212,15 @@ static void x11_handle_destroy(struct wl_listener *listener, void *data)
 
 static void x11_handle_request_fullscreen(struct wl_listener *listener, void *data)
 {
-    DwlClient *c = wl_container_of(listener, c, request_fullscreen);
+    SwlClient *c = wl_container_of(listener, c, request_fullscreen);
     (void)data;
 
-    dwl_client_set_fullscreen(c, !c->fullscreen);
+    swl_client_set_fullscreen(c, !c->fullscreen);
 }
 
 static void x11_handle_request_configure(struct wl_listener *listener, void *data)
 {
-    DwlClient *c = wl_container_of(listener, c, commit);
+    SwlClient *c = wl_container_of(listener, c, commit);
     struct wlr_xwayland_surface_configure_event *event = data;
 
     if (c->floating) {
@@ -236,7 +236,7 @@ static void x11_handle_request_configure(struct wl_listener *listener, void *dat
 
 static void x11_handle_set_title(struct wl_listener *listener, void *data)
 {
-    DwlClient *c = wl_container_of(listener, c, set_title);
+    SwlClient *c = wl_container_of(listener, c, set_title);
     (void)data;
 
     if (c->xwayland && c->xwayland->title) {
@@ -247,7 +247,7 @@ static void x11_handle_set_title(struct wl_listener *listener, void *data)
 
 static void x11_handle_set_class(struct wl_listener *listener, void *data)
 {
-    DwlClient *c = wl_container_of(listener, c, set_app_id);
+    SwlClient *c = wl_container_of(listener, c, set_app_id);
     (void)data;
 
     if (c->xwayland && c->xwayland->class) {
@@ -256,42 +256,42 @@ static void x11_handle_set_class(struct wl_listener *listener, void *data)
     }
 }
 
-bool dwl_client_is_x11(const DwlClient *client)
+bool swl_client_is_x11(const SwlClient *client)
 {
     return client && client->is_x11;
 }
 
-bool dwl_client_is_x11_unmanaged(const DwlClient *client)
+bool swl_client_is_x11_unmanaged(const SwlClient *client)
 {
     if (!client || !client->is_x11 || !client->xwayland)
         return false;
     return client->xwayland->override_redirect;
 }
 
-const char *dwl_client_get_x11_class(const DwlClient *client)
+const char *swl_client_get_x11_class(const SwlClient *client)
 {
     if (!client || !client->is_x11 || !client->xwayland)
         return NULL;
     return client->xwayland->class;
 }
 
-const char *dwl_client_get_x11_instance(const DwlClient *client)
+const char *swl_client_get_x11_instance(const SwlClient *client)
 {
     if (!client || !client->is_x11 || !client->xwayland)
         return NULL;
     return client->xwayland->instance;
 }
 
-int dwl_client_get_x11_pid(const DwlClient *client)
+int swl_client_get_x11_pid(const SwlClient *client)
 {
     if (!client || !client->is_x11 || !client->xwayland)
         return -1;
     return client->xwayland->pid;
 }
 
-struct wlr_xwayland_surface *dwl_client_get_xwayland_surface(DwlClient *client)
+struct wlr_xwayland_surface *swl_client_get_xwayland_surface(SwlClient *client)
 {
     return client ? client->xwayland : NULL;
 }
 
-#endif /* DWL_XWAYLAND */
+#endif /* SWL_XWAYLAND */

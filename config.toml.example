@@ -1,8 +1,8 @@
-# dwl Configuration File
+# swl Configuration File
 # Place this file at:
-#   $XDG_CONFIG_HOME/dwl/config.toml
-#   ~/.config/dwl/config.toml
-#   /etc/dwl/config.toml
+#   $XDG_CONFIG_HOME/swl/config.toml
+#   ~/.config/swl/config.toml
+#   /etc/swl/config.toml
 
 [general]
 # Default modifier key: "super", "alt", "ctrl", or "shift"

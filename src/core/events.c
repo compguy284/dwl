@@ -9,13 +9,13 @@
 
 typedef struct {
     int id;
-    DwlEventType type;
-    DwlEventHandler handler;
+    SwlEventType type;
+    SwlEventHandler handler;
     void *ctx;
     bool active;
 } Subscription;
 
-struct DwlEventBus {
+struct SwlEventBus {
     Subscription subscriptions[MAX_SUBSCRIPTIONS];
     int next_id;
     int count;
@@ -28,9 +28,9 @@ static uint64_t get_timestamp(void)
     return (uint64_t)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
 }
 
-DwlEventBus *dwl_event_bus_create(void)
+SwlEventBus *swl_event_bus_create(void)
 {
-    DwlEventBus *bus = calloc(1, sizeof(*bus));
+    SwlEventBus *bus = calloc(1, sizeof(*bus));
     if (!bus)
         return NULL;
 
@@ -38,14 +38,14 @@ DwlEventBus *dwl_event_bus_create(void)
     return bus;
 }
 
-void dwl_event_bus_destroy(DwlEventBus *bus)
+void swl_event_bus_destroy(SwlEventBus *bus)
 {
     if (bus)
         free(bus);
 }
 
-int dwl_event_bus_subscribe(DwlEventBus *bus, DwlEventType type,
-                            DwlEventHandler handler, void *ctx)
+int swl_event_bus_subscribe(SwlEventBus *bus, SwlEventType type,
+                            SwlEventHandler handler, void *ctx)
 {
     if (!bus || !handler)
         return -1;
@@ -68,7 +68,7 @@ int dwl_event_bus_subscribe(DwlEventBus *bus, DwlEventType type,
     return -1;
 }
 
-void dwl_event_bus_unsubscribe(DwlEventBus *bus, int subscription_id)
+void swl_event_bus_unsubscribe(SwlEventBus *bus, int subscription_id)
 {
     if (!bus || subscription_id <= 0)
         return;
@@ -83,7 +83,7 @@ void dwl_event_bus_unsubscribe(DwlEventBus *bus, int subscription_id)
     }
 }
 
-void dwl_event_bus_emit(DwlEventBus *bus, const DwlEvent *event)
+void swl_event_bus_emit(SwlEventBus *bus, const SwlEvent *event)
 {
     if (!bus || !event)
         return;
@@ -96,13 +96,13 @@ void dwl_event_bus_emit(DwlEventBus *bus, const DwlEvent *event)
     }
 }
 
-void dwl_event_bus_emit_simple(DwlEventBus *bus, DwlEventType type, void *data)
+void swl_event_bus_emit_simple(SwlEventBus *bus, SwlEventType type, void *data)
 {
-    DwlEvent event = {
+    SwlEvent event = {
         .type = type,
         .data = data,
         .data_size = 0,
         .timestamp = get_timestamp(),
     };
-    dwl_event_bus_emit(bus, &event);
+    swl_event_bus_emit(bus, &event);
 }

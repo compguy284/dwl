@@ -22,35 +22,35 @@
 
 typedef struct {
     char *name;
-    DwlAction action;
+    SwlAction action;
 } ActionEntry;
 
-struct DwlKeybindingManager {
-    DwlInput *input;
-    DwlCompositor *comp;
+struct SwlKeybindingManager {
+    SwlInput *input;
+    SwlCompositor *comp;
 
-    DwlKeybinding keys[MAX_KEYBINDINGS];
+    SwlKeybinding keys[MAX_KEYBINDINGS];
     size_t key_count;
 
-    DwlButtonBinding buttons[MAX_BUTTON_BINDINGS];
+    SwlButtonBinding buttons[MAX_BUTTON_BINDINGS];
     size_t button_count;
 
     ActionEntry actions[MAX_ACTIONS];
     size_t action_count;
 };
 
-DwlKeybindingManager *dwl_keybinding_create(DwlInput *input)
+SwlKeybindingManager *swl_keybinding_create(SwlInput *input)
 {
-    DwlKeybindingManager *mgr = calloc(1, sizeof(*mgr));
+    SwlKeybindingManager *mgr = calloc(1, sizeof(*mgr));
     if (!mgr)
         return NULL;
 
     mgr->input = input;
-    mgr->comp = dwl_input_get_compositor(input);
+    mgr->comp = swl_input_get_compositor(input);
     return mgr;
 }
 
-void dwl_keybinding_destroy(DwlKeybindingManager *mgr)
+void swl_keybinding_destroy(SwlKeybindingManager *mgr)
 {
     if (!mgr)
         return;
@@ -72,28 +72,28 @@ void dwl_keybinding_destroy(DwlKeybindingManager *mgr)
     free(mgr);
 }
 
-DwlError dwl_keybinding_add(DwlKeybindingManager *mgr, const DwlKeybinding *binding)
+SwlError swl_keybinding_add(SwlKeybindingManager *mgr, const SwlKeybinding *binding)
 {
     if (!mgr || !binding || !binding->action)
-        return DWL_ERR_INVALID_ARG;
+        return SWL_ERR_INVALID_ARG;
 
     if (mgr->key_count >= MAX_KEYBINDINGS)
-        return DWL_ERR_NOMEM;
+        return SWL_ERR_NOMEM;
 
-    DwlKeybinding *k = &mgr->keys[mgr->key_count];
+    SwlKeybinding *k = &mgr->keys[mgr->key_count];
     k->modifiers = binding->modifiers;
     k->keysym = binding->keysym;
     k->action = strdup(binding->action);
     k->argument = binding->argument ? strdup(binding->argument) : NULL;
 
     mgr->key_count++;
-    return DWL_OK;
+    return SWL_OK;
 }
 
-DwlError dwl_keybinding_remove(DwlKeybindingManager *mgr, uint32_t mod, xkb_keysym_t key)
+SwlError swl_keybinding_remove(SwlKeybindingManager *mgr, uint32_t mod, xkb_keysym_t key)
 {
     if (!mgr)
-        return DWL_ERR_INVALID_ARG;
+        return SWL_ERR_INVALID_ARG;
 
     for (size_t i = 0; i < mgr->key_count; i++) {
         if (mgr->keys[i].modifiers == mod && mgr->keys[i].keysym == key) {
@@ -101,16 +101,16 @@ DwlError dwl_keybinding_remove(DwlKeybindingManager *mgr, uint32_t mod, xkb_keys
             free((void *)mgr->keys[i].argument);
 
             memmove(&mgr->keys[i], &mgr->keys[i + 1],
-                    (mgr->key_count - i - 1) * sizeof(DwlKeybinding));
+                    (mgr->key_count - i - 1) * sizeof(SwlKeybinding));
             mgr->key_count--;
-            return DWL_OK;
+            return SWL_OK;
         }
     }
 
-    return DWL_ERR_NOT_FOUND;
+    return SWL_ERR_NOT_FOUND;
 }
 
-void dwl_keybinding_clear(DwlKeybindingManager *mgr)
+void swl_keybinding_clear(SwlKeybindingManager *mgr)
 {
     if (!mgr)
         return;
@@ -123,33 +123,33 @@ void dwl_keybinding_clear(DwlKeybindingManager *mgr)
     mgr->key_count = 0;
 }
 
-size_t dwl_keybinding_count(const DwlKeybindingManager *mgr)
+size_t swl_keybinding_count(const SwlKeybindingManager *mgr)
 {
     return mgr ? mgr->key_count : 0;
 }
 
-DwlError dwl_button_binding_add(DwlKeybindingManager *mgr, const DwlButtonBinding *binding)
+SwlError swl_button_binding_add(SwlKeybindingManager *mgr, const SwlButtonBinding *binding)
 {
     if (!mgr || !binding || !binding->action)
-        return DWL_ERR_INVALID_ARG;
+        return SWL_ERR_INVALID_ARG;
 
     if (mgr->button_count >= MAX_BUTTON_BINDINGS)
-        return DWL_ERR_NOMEM;
+        return SWL_ERR_NOMEM;
 
-    DwlButtonBinding *b = &mgr->buttons[mgr->button_count];
+    SwlButtonBinding *b = &mgr->buttons[mgr->button_count];
     b->modifiers = binding->modifiers;
     b->button = binding->button;
     b->action = strdup(binding->action);
     b->argument = binding->argument ? strdup(binding->argument) : NULL;
 
     mgr->button_count++;
-    return DWL_OK;
+    return SWL_OK;
 }
 
-DwlError dwl_button_binding_remove(DwlKeybindingManager *mgr, uint32_t mod, uint32_t button)
+SwlError swl_button_binding_remove(SwlKeybindingManager *mgr, uint32_t mod, uint32_t button)
 {
     if (!mgr)
-        return DWL_ERR_INVALID_ARG;
+        return SWL_ERR_INVALID_ARG;
 
     for (size_t i = 0; i < mgr->button_count; i++) {
         if (mgr->buttons[i].modifiers == mod && mgr->buttons[i].button == button) {
@@ -157,16 +157,16 @@ DwlError dwl_button_binding_remove(DwlKeybindingManager *mgr, uint32_t mod, uint
             free((void *)mgr->buttons[i].argument);
 
             memmove(&mgr->buttons[i], &mgr->buttons[i + 1],
-                    (mgr->button_count - i - 1) * sizeof(DwlButtonBinding));
+                    (mgr->button_count - i - 1) * sizeof(SwlButtonBinding));
             mgr->button_count--;
-            return DWL_OK;
+            return SWL_OK;
         }
     }
 
-    return DWL_ERR_NOT_FOUND;
+    return SWL_ERR_NOT_FOUND;
 }
 
-void dwl_button_binding_clear(DwlKeybindingManager *mgr)
+void swl_button_binding_clear(SwlKeybindingManager *mgr)
 {
     if (!mgr)
         return;
@@ -179,30 +179,30 @@ void dwl_button_binding_clear(DwlKeybindingManager *mgr)
     mgr->button_count = 0;
 }
 
-DwlError dwl_action_register(DwlKeybindingManager *mgr, const char *name, DwlAction action)
+SwlError swl_action_register(SwlKeybindingManager *mgr, const char *name, SwlAction action)
 {
     if (!mgr || !name || !action)
-        return DWL_ERR_INVALID_ARG;
+        return SWL_ERR_INVALID_ARG;
 
     if (mgr->action_count >= MAX_ACTIONS)
-        return DWL_ERR_NOMEM;
+        return SWL_ERR_NOMEM;
 
     for (size_t i = 0; i < mgr->action_count; i++) {
         if (strcmp(mgr->actions[i].name, name) == 0)
-            return DWL_ERR_ALREADY_EXISTS;
+            return SWL_ERR_ALREADY_EXISTS;
     }
 
     mgr->actions[mgr->action_count].name = strdup(name);
     mgr->actions[mgr->action_count].action = action;
     mgr->action_count++;
 
-    return DWL_OK;
+    return SWL_OK;
 }
 
-DwlError dwl_action_unregister(DwlKeybindingManager *mgr, const char *name)
+SwlError swl_action_unregister(SwlKeybindingManager *mgr, const char *name)
 {
     if (!mgr || !name)
-        return DWL_ERR_INVALID_ARG;
+        return SWL_ERR_INVALID_ARG;
 
     for (size_t i = 0; i < mgr->action_count; i++) {
         if (strcmp(mgr->actions[i].name, name) == 0) {
@@ -210,14 +210,14 @@ DwlError dwl_action_unregister(DwlKeybindingManager *mgr, const char *name)
             memmove(&mgr->actions[i], &mgr->actions[i + 1],
                     (mgr->action_count - i - 1) * sizeof(ActionEntry));
             mgr->action_count--;
-            return DWL_OK;
+            return SWL_OK;
         }
     }
 
-    return DWL_ERR_NOT_FOUND;
+    return SWL_ERR_NOT_FOUND;
 }
 
-static DwlAction find_action(DwlKeybindingManager *mgr, const char *name)
+static SwlAction find_action(SwlKeybindingManager *mgr, const char *name)
 {
     for (size_t i = 0; i < mgr->action_count; i++) {
         if (strcmp(mgr->actions[i].name, name) == 0)
@@ -226,7 +226,7 @@ static DwlAction find_action(DwlKeybindingManager *mgr, const char *name)
     return NULL;
 }
 
-bool dwl_keybinding_handle(DwlKeybindingManager *mgr, uint32_t mod, xkb_keysym_t key)
+bool swl_keybinding_handle(SwlKeybindingManager *mgr, uint32_t mod, xkb_keysym_t key)
 {
     if (!mgr)
         return false;
@@ -237,7 +237,7 @@ bool dwl_keybinding_handle(DwlKeybindingManager *mgr, uint32_t mod, xkb_keysym_t
 
     for (size_t i = 0; i < mgr->key_count; i++) {
         if (mgr->keys[i].modifiers == mod && mgr->keys[i].keysym == key_lower) {
-            DwlAction action = find_action(mgr, mgr->keys[i].action);
+            SwlAction action = find_action(mgr, mgr->keys[i].action);
             if (action) {
                 action(mgr->comp, mgr->keys[i].argument);
                 return true;
@@ -248,14 +248,14 @@ bool dwl_keybinding_handle(DwlKeybindingManager *mgr, uint32_t mod, xkb_keysym_t
     return false;
 }
 
-bool dwl_button_binding_handle(DwlKeybindingManager *mgr, uint32_t mod, uint32_t button)
+bool swl_button_binding_handle(SwlKeybindingManager *mgr, uint32_t mod, uint32_t button)
 {
     if (!mgr)
         return false;
 
     for (size_t i = 0; i < mgr->button_count; i++) {
         if (mgr->buttons[i].modifiers == mod && mgr->buttons[i].button == button) {
-            DwlAction action = find_action(mgr, mgr->buttons[i].action);
+            SwlAction action = find_action(mgr, mgr->buttons[i].action);
             if (action) {
                 action(mgr->comp, mgr->buttons[i].argument);
                 return true;
@@ -266,13 +266,13 @@ bool dwl_button_binding_handle(DwlKeybindingManager *mgr, uint32_t mod, uint32_t
     return false;
 }
 
-static void action_quit(DwlCompositor *comp, const char *arg)
+static void action_quit(SwlCompositor *comp, const char *arg)
 {
     (void)arg;
-    dwl_compositor_quit(comp);
+    swl_compositor_quit(comp);
 }
 
-static void action_spawn(DwlCompositor *comp, const char *arg)
+static void action_spawn(SwlCompositor *comp, const char *arg)
 {
     (void)comp;
     if (!arg)
@@ -285,18 +285,18 @@ static void action_spawn(DwlCompositor *comp, const char *arg)
     }
 }
 
-static void action_close(DwlCompositor *comp, const char *arg)
+static void action_close(SwlCompositor *comp, const char *arg)
 {
     (void)arg;
-    DwlClientManager *clients = dwl_compositor_get_clients(comp);
-    DwlClient *focused = dwl_client_focused(clients);
+    SwlClientManager *clients = swl_compositor_get_clients(comp);
+    SwlClient *focused = swl_client_focused(clients);
     if (focused)
-        dwl_client_close(focused);
+        swl_client_close(focused);
 }
 
-static bool focus_first_client(DwlClient *client, void *data)
+static bool focus_first_client(SwlClient *client, void *data)
 {
-    DwlClient **first = data;
+    SwlClient **first = data;
     if (!*first) {
         *first = client;
         return false;  // Stop iteration
@@ -304,65 +304,65 @@ static bool focus_first_client(DwlClient *client, void *data)
     return true;
 }
 
-static void action_focus_next(DwlCompositor *comp, const char *arg)
+static void action_focus_next(SwlCompositor *comp, const char *arg)
 {
     (void)arg;
-    DwlClientManager *clients = dwl_compositor_get_clients(comp);
-    DwlClient *focused = dwl_client_focused(clients);
+    SwlClientManager *clients = swl_compositor_get_clients(comp);
+    SwlClient *focused = swl_client_focused(clients);
 
     if (!focused) {
-        DwlOutputManager *output = dwl_compositor_get_output(comp);
-        DwlMonitor *mon = dwl_monitor_get_focused(output);
-        DwlClient *first = NULL;
-        dwl_client_foreach_visible(clients, mon, focus_first_client, &first);
+        SwlOutputManager *output = swl_compositor_get_output(comp);
+        SwlMonitor *mon = swl_monitor_get_focused(output);
+        SwlClient *first = NULL;
+        swl_client_foreach_visible(clients, mon, focus_first_client, &first);
         if (first)
-            dwl_client_focus(first);
+            swl_client_focus(first);
         return;
     }
 
     // TODO: implement proper focus cycling
 }
 
-static void action_focus_prev(DwlCompositor *comp, const char *arg)
+static void action_focus_prev(SwlCompositor *comp, const char *arg)
 {
     (void)arg;
     (void)comp;
     // TODO: implement
 }
 
-static void action_toggle_floating(DwlCompositor *comp, const char *arg)
+static void action_toggle_floating(SwlCompositor *comp, const char *arg)
 {
     (void)arg;
-    DwlClientManager *clients = dwl_compositor_get_clients(comp);
-    DwlClient *focused = dwl_client_focused(clients);
+    SwlClientManager *clients = swl_compositor_get_clients(comp);
+    SwlClient *focused = swl_client_focused(clients);
     if (focused)
-        dwl_client_toggle_floating(focused);
+        swl_client_toggle_floating(focused);
 }
 
-static void action_toggle_fullscreen(DwlCompositor *comp, const char *arg)
+static void action_toggle_fullscreen(SwlCompositor *comp, const char *arg)
 {
     (void)arg;
-    DwlClientManager *clients = dwl_compositor_get_clients(comp);
-    DwlClient *focused = dwl_client_focused(clients);
+    SwlClientManager *clients = swl_compositor_get_clients(comp);
+    SwlClient *focused = swl_client_focused(clients);
     if (focused)
-        dwl_client_toggle_fullscreen(focused);
+        swl_client_toggle_fullscreen(focused);
 }
 
-static void action_set_layout(DwlCompositor *comp, const char *arg)
+static void action_set_layout(SwlCompositor *comp, const char *arg)
 {
     if (!arg)
         return;
 
-    DwlLayoutRegistry *layouts = dwl_compositor_get_layouts(comp);
-    const DwlLayout *layout = dwl_layout_get(layouts, arg);
+    SwlLayoutRegistry *layouts = swl_compositor_get_layouts(comp);
+    const SwlLayout *layout = swl_layout_get(layouts, arg);
     if (!layout)
         return;
 
-    DwlOutputManager *output = dwl_compositor_get_output(comp);
-    DwlMonitor *mon = dwl_monitor_get_focused(output);
+    SwlOutputManager *output = swl_compositor_get_output(comp);
+    SwlMonitor *mon = swl_monitor_get_focused(output);
     if (mon) {
-        dwl_monitor_set_layout(mon, layout);
-        dwl_monitor_arrange(mon);
+        swl_monitor_set_layout(mon, layout);
+        swl_monitor_arrange(mon);
     }
 }
 
@@ -382,97 +382,97 @@ static int parse_monitor_direction(const char *arg)
     return dir > 0 ? 3 : 2;
 }
 
-static void action_focus_monitor(DwlCompositor *comp, const char *arg)
+static void action_focus_monitor(SwlCompositor *comp, const char *arg)
 {
     if (!arg)
         return;
 
     int dir = parse_monitor_direction(arg);
-    DwlOutputManager *output = dwl_compositor_get_output(comp);
-    DwlMonitor *mon = dwl_monitor_get_focused(output);
+    SwlOutputManager *output = swl_compositor_get_output(comp);
+    SwlMonitor *mon = swl_monitor_get_focused(output);
     if (!mon)
         return;
 
-    DwlMonitor *next = dwl_monitor_in_direction(output, mon, dir);
+    SwlMonitor *next = swl_monitor_in_direction(output, mon, dir);
     if (next)
-        dwl_monitor_focus(next);
+        swl_monitor_focus(next);
 }
 
-static void action_send_monitor(DwlCompositor *comp, const char *arg)
+static void action_send_monitor(SwlCompositor *comp, const char *arg)
 {
     if (!arg)
         return;
 
     int dir = parse_monitor_direction(arg);
-    DwlClientManager *clients = dwl_compositor_get_clients(comp);
-    DwlClient *focused = dwl_client_focused(clients);
+    SwlClientManager *clients = swl_compositor_get_clients(comp);
+    SwlClient *focused = swl_client_focused(clients);
     if (!focused)
         return;
 
-    DwlOutputManager *output = dwl_compositor_get_output(comp);
-    DwlMonitor *mon = dwl_client_get_monitor(focused);
+    SwlOutputManager *output = swl_compositor_get_output(comp);
+    SwlMonitor *mon = swl_client_get_monitor(focused);
     if (!mon)
-        mon = dwl_monitor_get_focused(output);
+        mon = swl_monitor_get_focused(output);
     if (!mon)
         return;
 
-    DwlMonitor *next = dwl_monitor_in_direction(output, mon, dir);
+    SwlMonitor *next = swl_monitor_in_direction(output, mon, dir);
     if (next)
-        dwl_client_move_to_monitor(focused, next);
+        swl_client_move_to_monitor(focused, next);
 }
 
-static void action_reload_config(DwlCompositor *comp, const char *arg)
+static void action_reload_config(SwlCompositor *comp, const char *arg)
 {
     (void)arg;
-    DwlConfig *config = dwl_compositor_get_config(comp);
+    SwlConfig *config = swl_compositor_get_config(comp);
     if (config)
-        dwl_config_reload(config);
+        swl_config_reload(config);
 }
 
-static void action_zoom(DwlCompositor *comp, const char *arg)
+static void action_zoom(SwlCompositor *comp, const char *arg)
 {
     (void)arg;
-    DwlClientManager *clients = dwl_compositor_get_clients(comp);
-    dwl_client_zoom(clients);
+    SwlClientManager *clients = swl_compositor_get_clients(comp);
+    swl_client_zoom(clients);
 }
 
-static void action_inc_mfact(DwlCompositor *comp, const char *arg)
+static void action_inc_mfact(SwlCompositor *comp, const char *arg)
 {
     float delta = arg ? strtof(arg, NULL) : 0.05f;
-    DwlOutputManager *output = dwl_compositor_get_output(comp);
-    DwlMonitor *mon = dwl_monitor_get_focused(output);
+    SwlOutputManager *output = swl_compositor_get_output(comp);
+    SwlMonitor *mon = swl_monitor_get_focused(output);
     if (mon)
-        dwl_monitor_adjust_mfact(mon, delta);
+        swl_monitor_adjust_mfact(mon, delta);
 }
 
-static void action_dec_mfact(DwlCompositor *comp, const char *arg)
+static void action_dec_mfact(SwlCompositor *comp, const char *arg)
 {
     float delta = arg ? strtof(arg, NULL) : 0.05f;
-    DwlOutputManager *output = dwl_compositor_get_output(comp);
-    DwlMonitor *mon = dwl_monitor_get_focused(output);
+    SwlOutputManager *output = swl_compositor_get_output(comp);
+    SwlMonitor *mon = swl_monitor_get_focused(output);
     if (mon)
-        dwl_monitor_adjust_mfact(mon, -delta);
+        swl_monitor_adjust_mfact(mon, -delta);
 }
 
-static void action_inc_nmaster(DwlCompositor *comp, const char *arg)
+static void action_inc_nmaster(SwlCompositor *comp, const char *arg)
 {
     int delta = arg ? atoi(arg) : 1;
-    DwlOutputManager *output = dwl_compositor_get_output(comp);
-    DwlMonitor *mon = dwl_monitor_get_focused(output);
+    SwlOutputManager *output = swl_compositor_get_output(comp);
+    SwlMonitor *mon = swl_monitor_get_focused(output);
     if (mon)
-        dwl_monitor_adjust_nmaster(mon, delta);
+        swl_monitor_adjust_nmaster(mon, delta);
 }
 
-static void action_dec_nmaster(DwlCompositor *comp, const char *arg)
+static void action_dec_nmaster(SwlCompositor *comp, const char *arg)
 {
     int delta = arg ? atoi(arg) : 1;
-    DwlOutputManager *output = dwl_compositor_get_output(comp);
-    DwlMonitor *mon = dwl_monitor_get_focused(output);
+    SwlOutputManager *output = swl_compositor_get_output(comp);
+    SwlMonitor *mon = swl_monitor_get_focused(output);
     if (mon)
-        dwl_monitor_adjust_nmaster(mon, -delta);
+        swl_monitor_adjust_nmaster(mon, -delta);
 }
 
-static void action_focusdir(DwlCompositor *comp, const char *arg)
+static void action_focusdir(SwlCompositor *comp, const char *arg)
 {
     if (!arg)
         return;
@@ -489,42 +489,42 @@ static void action_focusdir(DwlCompositor *comp, const char *arg)
     else
         dir = atoi(arg);
 
-    DwlClientManager *clients = dwl_compositor_get_clients(comp);
-    DwlClient *focused = dwl_client_focused(clients);
+    SwlClientManager *clients = swl_compositor_get_clients(comp);
+    SwlClient *focused = swl_client_focused(clients);
     if (!focused)
         return;
 
-    DwlClient *next = dwl_client_in_direction(clients, focused, dir);
+    SwlClient *next = swl_client_in_direction(clients, focused, dir);
     if (next)
-        dwl_client_focus(next);
+        swl_client_focus(next);
 }
 
-static void action_moveresize(DwlCompositor *comp, const char *arg)
+static void action_moveresize(SwlCompositor *comp, const char *arg)
 {
     if (!arg)
         return;
 
-    DwlInput *input = dwl_compositor_get_input(comp);
+    SwlInput *input = swl_compositor_get_input(comp);
     if (!input)
         return;
 
     if (strcmp(arg, "move") == 0) {
-        dwl_input_start_move(input);
+        swl_input_start_move(input);
     } else if (strcmp(arg, "resize") == 0) {
-        dwl_input_start_resize(input);
+        swl_input_start_resize(input);
     }
 }
 
-static void action_cycle_ratio(DwlCompositor *comp, const char *arg)
+static void action_cycle_ratio(SwlCompositor *comp, const char *arg)
 {
     (void)arg;
-    DwlClientManager *clients = dwl_compositor_get_clients(comp);
-    DwlClient *focused = dwl_client_focused(clients);
+    SwlClientManager *clients = swl_compositor_get_clients(comp);
+    SwlClient *focused = swl_client_focused(clients);
     if (!focused)
         return;
 
-    DwlConfig *cfg = dwl_compositor_get_config(comp);
-    const char *ratios_str = dwl_config_get_string(cfg, "appearance.scroller_ratios",
+    SwlConfig *cfg = swl_compositor_get_config(comp);
+    const char *ratios_str = swl_config_get_string(cfg, "appearance.scroller_ratios",
                                                     "0.4,0.6,0.8,1.0");
 
     // Parse comma-separated float list
@@ -549,15 +549,15 @@ static void action_cycle_ratio(DwlCompositor *comp, const char *arg)
         return;
 
     // Get the client's current ratio; 0.0 means "default"
-    float current = dwl_client_get_scroller_ratio(focused);
+    float current = swl_client_get_scroller_ratio(focused);
 
     // Get the monitor's default scroller_ratio for matching 0.0
-    DwlMonitor *mon = dwl_client_get_monitor(focused);
+    SwlMonitor *mon = swl_client_get_monitor(focused);
     if (!mon) {
-        DwlOutputManager *output = dwl_compositor_get_output(comp);
-        mon = dwl_monitor_get_focused(output);
+        SwlOutputManager *output = swl_compositor_get_output(comp);
+        mon = swl_monitor_get_focused(output);
     }
-    float default_ratio = mon ? dwl_monitor_get_scroller_ratio(mon) : 0.8f;
+    float default_ratio = mon ? swl_monitor_get_scroller_ratio(mon) : 0.8f;
     float effective = (current > 0.0f) ? current : default_ratio;
 
     // Find the closest match in the list
@@ -573,14 +573,14 @@ static void action_cycle_ratio(DwlCompositor *comp, const char *arg)
 
     // Advance to next (wrap)
     int next = (best + 1) % count;
-    dwl_client_set_scroller_ratio(focused, ratios[next]);
+    swl_client_set_scroller_ratio(focused, ratios[next]);
 
     // Re-arrange the monitor
     if (mon)
-        dwl_monitor_arrange(mon);
+        swl_monitor_arrange(mon);
 }
 
-static void action_chvt(DwlCompositor *comp, const char *arg)
+static void action_chvt(SwlCompositor *comp, const char *arg)
 {
     if (!arg)
         return;
@@ -589,7 +589,7 @@ static void action_chvt(DwlCompositor *comp, const char *arg)
     if (vt < 1 || vt > 12)
         return;
 
-    struct wlr_session *session = dwl_compositor_get_session(comp);
+    struct wlr_session *session = swl_compositor_get_session(comp);
     if (session)
         wlr_session_change_vt(session, vt);
 }
@@ -680,14 +680,14 @@ static uint32_t parse_button(const char *str)
 
 // Load keybindings from config
 // Format: keybindings."mod+key" = "action" or "action:argument"
-static void load_keybindings_from_config(DwlKeybindingManager *mgr)
+static void load_keybindings_from_config(SwlKeybindingManager *mgr)
 {
-    DwlConfig *cfg = dwl_compositor_get_config(mgr->comp);
+    SwlConfig *cfg = swl_compositor_get_config(mgr->comp);
     if (!cfg)
         return;
 
     // Get modkey setting
-    const char *modkey_str = dwl_config_get_string(cfg, "general.modkey", "alt");
+    const char *modkey_str = swl_config_get_string(cfg, "general.modkey", "alt");
     uint32_t modkey = WLR_MODIFIER_ALT;
     if (strcasecmp(modkey_str, "super") == 0 || strcasecmp(modkey_str, "logo") == 0)
         modkey = WLR_MODIFIER_LOGO;
@@ -696,7 +696,7 @@ static void load_keybindings_from_config(DwlKeybindingManager *mgr)
 
     // Get all keybinding keys
     size_t count = 0;
-    const char **keys = dwl_config_keys(cfg, "keybindings.", &count);
+    const char **keys = swl_config_keys(cfg, "keybindings.", &count);
     if (!keys || count == 0)
         return;
 
@@ -709,7 +709,7 @@ static void load_keybindings_from_config(DwlKeybindingManager *mgr)
         const char *binding_key = key + strlen("keybindings.");
 
         // Get value (action:argument format)
-        const char *value = dwl_config_get_string(cfg, key, NULL);
+        const char *value = swl_config_get_string(cfg, key, NULL);
         if (!value)
             continue;
 
@@ -731,31 +731,31 @@ static void load_keybindings_from_config(DwlKeybindingManager *mgr)
         xkb_keysym_t keysym = parse_keysym(keyname);
 
         if (keysym != XKB_KEY_NoSymbol) {
-            DwlKeybinding binding = {
+            SwlKeybinding binding = {
                 .modifiers = mods,
                 .keysym = keysym,
                 .action = action,
                 .argument = arg_str,
             };
-            dwl_keybinding_add(mgr, &binding);
+            swl_keybinding_add(mgr, &binding);
         } else {
             free(action);
         }
     }
 
-    dwl_config_keys_free(keys, count);
+    swl_config_keys_free(keys, count);
 }
 
 // Load button bindings from config
 // Format: buttons."mod+button" = "action" or "action:argument"
-static void load_buttons_from_config(DwlKeybindingManager *mgr)
+static void load_buttons_from_config(SwlKeybindingManager *mgr)
 {
-    DwlConfig *cfg = dwl_compositor_get_config(mgr->comp);
+    SwlConfig *cfg = swl_compositor_get_config(mgr->comp);
     if (!cfg)
         return;
 
     // Get modkey setting
-    const char *modkey_str = dwl_config_get_string(cfg, "general.modkey", "alt");
+    const char *modkey_str = swl_config_get_string(cfg, "general.modkey", "alt");
     uint32_t modkey = WLR_MODIFIER_ALT;
     if (strcasecmp(modkey_str, "super") == 0 || strcasecmp(modkey_str, "logo") == 0)
         modkey = WLR_MODIFIER_LOGO;
@@ -764,7 +764,7 @@ static void load_buttons_from_config(DwlKeybindingManager *mgr)
 
     // Get all button binding keys
     size_t count = 0;
-    const char **keys = dwl_config_keys(cfg, "buttons.", &count);
+    const char **keys = swl_config_keys(cfg, "buttons.", &count);
     if (!keys || count == 0)
         return;
 
@@ -773,7 +773,7 @@ static void load_buttons_from_config(DwlKeybindingManager *mgr)
 
         const char *binding_key = key + strlen("buttons.");
 
-        const char *value = dwl_config_get_string(cfg, key, NULL);
+        const char *value = swl_config_get_string(cfg, key, NULL);
         if (!value)
             continue;
 
@@ -793,67 +793,67 @@ static void load_buttons_from_config(DwlKeybindingManager *mgr)
         uint32_t button = parse_button(buttonname);
 
         if (button != 0) {
-            DwlButtonBinding binding = {
+            SwlButtonBinding binding = {
                 .modifiers = mods,
                 .button = button,
                 .action = action,
                 .argument = arg_str,
             };
-            dwl_button_binding_add(mgr, &binding);
+            swl_button_binding_add(mgr, &binding);
         } else {
             free(action);
         }
     }
 
-    dwl_config_keys_free(keys, count);
+    swl_config_keys_free(keys, count);
 }
 
-void dwl_action_register_builtins(DwlKeybindingManager *mgr)
+void swl_action_register_builtins(SwlKeybindingManager *mgr)
 {
     // Register all action handlers
-    dwl_action_register(mgr, "quit", action_quit);
-    dwl_action_register(mgr, "spawn", action_spawn);
-    dwl_action_register(mgr, "close", action_close);
-    dwl_action_register(mgr, "killclient", action_close);  // Alias
-    dwl_action_register(mgr, "focus-next", action_focus_next);
-    dwl_action_register(mgr, "focus-prev", action_focus_prev);
-    dwl_action_register(mgr, "focusstack", action_focus_next);  // Alias with direction
-    dwl_action_register(mgr, "toggle-floating", action_toggle_floating);
-    dwl_action_register(mgr, "togglefloating", action_toggle_floating);  // Alias
-    dwl_action_register(mgr, "toggle-fullscreen", action_toggle_fullscreen);
-    dwl_action_register(mgr, "togglefullscreen", action_toggle_fullscreen);  // Alias
-    dwl_action_register(mgr, "setlayout", action_set_layout);
-    dwl_action_register(mgr, "set-layout", action_set_layout);
-    dwl_action_register(mgr, "focus-monitor", action_focus_monitor);
-    dwl_action_register(mgr, "focusmon", action_focus_monitor);  // Alias
-    dwl_action_register(mgr, "send-monitor", action_send_monitor);
-    dwl_action_register(mgr, "sendmon", action_send_monitor);  // Alias
-    dwl_action_register(mgr, "tag-monitor", action_send_monitor);  // Compat alias
-    dwl_action_register(mgr, "tagmon", action_send_monitor);  // Compat alias
-    dwl_action_register(mgr, "reload-config", action_reload_config);
-    dwl_action_register(mgr, "reload_config", action_reload_config);  // Alias
-    dwl_action_register(mgr, "zoom", action_zoom);
-    dwl_action_register(mgr, "incnmaster", action_inc_nmaster);
-    dwl_action_register(mgr, "inc-nmaster", action_inc_nmaster);
-    dwl_action_register(mgr, "dec-nmaster", action_dec_nmaster);
-    dwl_action_register(mgr, "setmfact", action_inc_mfact);  // Uses delta from arg
-    dwl_action_register(mgr, "inc-mfact", action_inc_mfact);
-    dwl_action_register(mgr, "dec-mfact", action_dec_mfact);
-    dwl_action_register(mgr, "focusdir", action_focusdir);
-    dwl_action_register(mgr, "moveresize", action_moveresize);
-    dwl_action_register(mgr, "cycle-ratio", action_cycle_ratio);
-    dwl_action_register(mgr, "chvt", action_chvt);
+    swl_action_register(mgr, "quit", action_quit);
+    swl_action_register(mgr, "spawn", action_spawn);
+    swl_action_register(mgr, "close", action_close);
+    swl_action_register(mgr, "killclient", action_close);  // Alias
+    swl_action_register(mgr, "focus-next", action_focus_next);
+    swl_action_register(mgr, "focus-prev", action_focus_prev);
+    swl_action_register(mgr, "focusstack", action_focus_next);  // Alias with direction
+    swl_action_register(mgr, "toggle-floating", action_toggle_floating);
+    swl_action_register(mgr, "togglefloating", action_toggle_floating);  // Alias
+    swl_action_register(mgr, "toggle-fullscreen", action_toggle_fullscreen);
+    swl_action_register(mgr, "togglefullscreen", action_toggle_fullscreen);  // Alias
+    swl_action_register(mgr, "setlayout", action_set_layout);
+    swl_action_register(mgr, "set-layout", action_set_layout);
+    swl_action_register(mgr, "focus-monitor", action_focus_monitor);
+    swl_action_register(mgr, "focusmon", action_focus_monitor);  // Alias
+    swl_action_register(mgr, "send-monitor", action_send_monitor);
+    swl_action_register(mgr, "sendmon", action_send_monitor);  // Alias
+    swl_action_register(mgr, "tag-monitor", action_send_monitor);  // Compat alias
+    swl_action_register(mgr, "tagmon", action_send_monitor);  // Compat alias
+    swl_action_register(mgr, "reload-config", action_reload_config);
+    swl_action_register(mgr, "reload_config", action_reload_config);  // Alias
+    swl_action_register(mgr, "zoom", action_zoom);
+    swl_action_register(mgr, "incnmaster", action_inc_nmaster);
+    swl_action_register(mgr, "inc-nmaster", action_inc_nmaster);
+    swl_action_register(mgr, "dec-nmaster", action_dec_nmaster);
+    swl_action_register(mgr, "setmfact", action_inc_mfact);  // Uses delta from arg
+    swl_action_register(mgr, "inc-mfact", action_inc_mfact);
+    swl_action_register(mgr, "dec-mfact", action_dec_mfact);
+    swl_action_register(mgr, "focusdir", action_focusdir);
+    swl_action_register(mgr, "moveresize", action_moveresize);
+    swl_action_register(mgr, "cycle-ratio", action_cycle_ratio);
+    swl_action_register(mgr, "chvt", action_chvt);
 
     // Try to load keybindings from config
-    DwlConfig *cfg = dwl_compositor_get_config(mgr->comp);
+    SwlConfig *cfg = swl_compositor_get_config(mgr->comp);
     bool has_config_keybindings = false;
 
     if (cfg) {
         size_t count = 0;
-        const char **keys = dwl_config_keys(cfg, "keybindings.", &count);
+        const char **keys = swl_config_keys(cfg, "keybindings.", &count);
         if (keys && count > 0) {
             has_config_keybindings = true;
-            dwl_config_keys_free(keys, count);
+            swl_config_keys_free(keys, count);
         }
     }
 
@@ -868,44 +868,44 @@ void dwl_action_register_builtins(DwlKeybindingManager *mgr)
     #define MOD WLR_MODIFIER_ALT
     #define SHIFT WLR_MODIFIER_SHIFT
 
-    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD | SHIFT, XKB_KEY_q, "quit", NULL});
-    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD | SHIFT, XKB_KEY_Return, "spawn", "foot"});
-    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_Return, "spawn", "foot"});
-    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD | SHIFT, XKB_KEY_c, "close", NULL});
-    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_j, "focus-next", NULL});
-    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_k, "focus-prev", NULL});
-    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_space, "toggle-floating", NULL});
-    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_f, "toggle-fullscreen", NULL});
+    swl_keybinding_add(mgr, &(SwlKeybinding){MOD | SHIFT, XKB_KEY_q, "quit", NULL});
+    swl_keybinding_add(mgr, &(SwlKeybinding){MOD | SHIFT, XKB_KEY_Return, "spawn", "foot"});
+    swl_keybinding_add(mgr, &(SwlKeybinding){MOD, XKB_KEY_Return, "spawn", "foot"});
+    swl_keybinding_add(mgr, &(SwlKeybinding){MOD | SHIFT, XKB_KEY_c, "close", NULL});
+    swl_keybinding_add(mgr, &(SwlKeybinding){MOD, XKB_KEY_j, "focus-next", NULL});
+    swl_keybinding_add(mgr, &(SwlKeybinding){MOD, XKB_KEY_k, "focus-prev", NULL});
+    swl_keybinding_add(mgr, &(SwlKeybinding){MOD, XKB_KEY_space, "toggle-floating", NULL});
+    swl_keybinding_add(mgr, &(SwlKeybinding){MOD, XKB_KEY_f, "toggle-fullscreen", NULL});
     // Layout keybindings
-    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_s, "set-layout", "scroller"});
+    swl_keybinding_add(mgr, &(SwlKeybinding){MOD, XKB_KEY_s, "set-layout", "scroller"});
 
     // Zoom (swap with master)
-    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_z, "zoom", NULL});
+    swl_keybinding_add(mgr, &(SwlKeybinding){MOD, XKB_KEY_z, "zoom", NULL});
 
     // Master factor adjustment
-    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_l, "inc-mfact", NULL});
-    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_h, "dec-mfact", NULL});
+    swl_keybinding_add(mgr, &(SwlKeybinding){MOD, XKB_KEY_l, "inc-mfact", NULL});
+    swl_keybinding_add(mgr, &(SwlKeybinding){MOD, XKB_KEY_h, "dec-mfact", NULL});
 
     // Master count adjustment
-    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_i, "inc-nmaster", NULL});
-    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_d, "dec-nmaster", NULL});
+    swl_keybinding_add(mgr, &(SwlKeybinding){MOD, XKB_KEY_i, "inc-nmaster", NULL});
+    swl_keybinding_add(mgr, &(SwlKeybinding){MOD, XKB_KEY_d, "dec-nmaster", NULL});
 
     // Monitor focus/move (left = -1, right = 1)
-    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_comma, "focus-monitor", "-1"});
-    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_period, "focus-monitor", "1"});
-    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD | SHIFT, XKB_KEY_comma, "send-monitor", "-1"});
-    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD | SHIFT, XKB_KEY_period, "send-monitor", "1"});
+    swl_keybinding_add(mgr, &(SwlKeybinding){MOD, XKB_KEY_comma, "focus-monitor", "-1"});
+    swl_keybinding_add(mgr, &(SwlKeybinding){MOD, XKB_KEY_period, "focus-monitor", "1"});
+    swl_keybinding_add(mgr, &(SwlKeybinding){MOD | SHIFT, XKB_KEY_comma, "send-monitor", "-1"});
+    swl_keybinding_add(mgr, &(SwlKeybinding){MOD | SHIFT, XKB_KEY_period, "send-monitor", "1"});
 
     // Directional focus (arrow keys)
-    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_Up, "focusdir", "up"});
-    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_Down, "focusdir", "down"});
-    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_Left, "focusdir", "left"});
-    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_Right, "focusdir", "right"});
+    swl_keybinding_add(mgr, &(SwlKeybinding){MOD, XKB_KEY_Up, "focusdir", "up"});
+    swl_keybinding_add(mgr, &(SwlKeybinding){MOD, XKB_KEY_Down, "focusdir", "down"});
+    swl_keybinding_add(mgr, &(SwlKeybinding){MOD, XKB_KEY_Left, "focusdir", "left"});
+    swl_keybinding_add(mgr, &(SwlKeybinding){MOD, XKB_KEY_Right, "focusdir", "right"});
 
     // Default button bindings (Mod+click = move/resize)
-    dwl_button_binding_add(mgr, &(DwlButtonBinding){MOD, BTN_LEFT, "moveresize", "move"});
-    dwl_button_binding_add(mgr, &(DwlButtonBinding){MOD, BTN_MIDDLE, "toggle-floating", NULL});
-    dwl_button_binding_add(mgr, &(DwlButtonBinding){MOD, BTN_RIGHT, "moveresize", "resize"});
+    swl_button_binding_add(mgr, &(SwlButtonBinding){MOD, BTN_LEFT, "moveresize", "move"});
+    swl_button_binding_add(mgr, &(SwlButtonBinding){MOD, BTN_MIDDLE, "toggle-floating", NULL});
+    swl_button_binding_add(mgr, &(SwlButtonBinding){MOD, BTN_RIGHT, "moveresize", "resize"});
 
     #undef MOD
     #undef SHIFT
@@ -914,17 +914,17 @@ hardcoded_chvt:
     // Hardcoded VT switching keybindings (Ctrl+Alt+F1-F12)
     // These are always registered regardless of config
     #define CHVT_MODS (WLR_MODIFIER_CTRL | WLR_MODIFIER_ALT)
-    dwl_keybinding_add(mgr, &(DwlKeybinding){CHVT_MODS, XKB_KEY_XF86Switch_VT_1, "chvt", "1"});
-    dwl_keybinding_add(mgr, &(DwlKeybinding){CHVT_MODS, XKB_KEY_XF86Switch_VT_2, "chvt", "2"});
-    dwl_keybinding_add(mgr, &(DwlKeybinding){CHVT_MODS, XKB_KEY_XF86Switch_VT_3, "chvt", "3"});
-    dwl_keybinding_add(mgr, &(DwlKeybinding){CHVT_MODS, XKB_KEY_XF86Switch_VT_4, "chvt", "4"});
-    dwl_keybinding_add(mgr, &(DwlKeybinding){CHVT_MODS, XKB_KEY_XF86Switch_VT_5, "chvt", "5"});
-    dwl_keybinding_add(mgr, &(DwlKeybinding){CHVT_MODS, XKB_KEY_XF86Switch_VT_6, "chvt", "6"});
-    dwl_keybinding_add(mgr, &(DwlKeybinding){CHVT_MODS, XKB_KEY_XF86Switch_VT_7, "chvt", "7"});
-    dwl_keybinding_add(mgr, &(DwlKeybinding){CHVT_MODS, XKB_KEY_XF86Switch_VT_8, "chvt", "8"});
-    dwl_keybinding_add(mgr, &(DwlKeybinding){CHVT_MODS, XKB_KEY_XF86Switch_VT_9, "chvt", "9"});
-    dwl_keybinding_add(mgr, &(DwlKeybinding){CHVT_MODS, XKB_KEY_XF86Switch_VT_10, "chvt", "10"});
-    dwl_keybinding_add(mgr, &(DwlKeybinding){CHVT_MODS, XKB_KEY_XF86Switch_VT_11, "chvt", "11"});
-    dwl_keybinding_add(mgr, &(DwlKeybinding){CHVT_MODS, XKB_KEY_XF86Switch_VT_12, "chvt", "12"});
+    swl_keybinding_add(mgr, &(SwlKeybinding){CHVT_MODS, XKB_KEY_XF86Switch_VT_1, "chvt", "1"});
+    swl_keybinding_add(mgr, &(SwlKeybinding){CHVT_MODS, XKB_KEY_XF86Switch_VT_2, "chvt", "2"});
+    swl_keybinding_add(mgr, &(SwlKeybinding){CHVT_MODS, XKB_KEY_XF86Switch_VT_3, "chvt", "3"});
+    swl_keybinding_add(mgr, &(SwlKeybinding){CHVT_MODS, XKB_KEY_XF86Switch_VT_4, "chvt", "4"});
+    swl_keybinding_add(mgr, &(SwlKeybinding){CHVT_MODS, XKB_KEY_XF86Switch_VT_5, "chvt", "5"});
+    swl_keybinding_add(mgr, &(SwlKeybinding){CHVT_MODS, XKB_KEY_XF86Switch_VT_6, "chvt", "6"});
+    swl_keybinding_add(mgr, &(SwlKeybinding){CHVT_MODS, XKB_KEY_XF86Switch_VT_7, "chvt", "7"});
+    swl_keybinding_add(mgr, &(SwlKeybinding){CHVT_MODS, XKB_KEY_XF86Switch_VT_8, "chvt", "8"});
+    swl_keybinding_add(mgr, &(SwlKeybinding){CHVT_MODS, XKB_KEY_XF86Switch_VT_9, "chvt", "9"});
+    swl_keybinding_add(mgr, &(SwlKeybinding){CHVT_MODS, XKB_KEY_XF86Switch_VT_10, "chvt", "10"});
+    swl_keybinding_add(mgr, &(SwlKeybinding){CHVT_MODS, XKB_KEY_XF86Switch_VT_11, "chvt", "11"});
+    swl_keybinding_add(mgr, &(SwlKeybinding){CHVT_MODS, XKB_KEY_XF86Switch_VT_12, "chvt", "12"});
     #undef CHVT_MODS
 }

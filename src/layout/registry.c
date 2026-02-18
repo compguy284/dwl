@@ -4,57 +4,57 @@
 
 #define MAX_LAYOUTS 32
 
-struct DwlLayoutRegistry {
-    DwlLayout layouts[MAX_LAYOUTS];
+struct SwlLayoutRegistry {
+    SwlLayout layouts[MAX_LAYOUTS];
     size_t count;
 };
 
-DwlLayoutRegistry *dwl_layout_registry_create(void)
+SwlLayoutRegistry *swl_layout_registry_create(void)
 {
-    DwlLayoutRegistry *reg = calloc(1, sizeof(*reg));
+    SwlLayoutRegistry *reg = calloc(1, sizeof(*reg));
     return reg;
 }
 
-void dwl_layout_registry_destroy(DwlLayoutRegistry *reg)
+void swl_layout_registry_destroy(SwlLayoutRegistry *reg)
 {
     free(reg);
 }
 
-DwlError dwl_layout_register(DwlLayoutRegistry *reg, const DwlLayout *layout)
+SwlError swl_layout_register(SwlLayoutRegistry *reg, const SwlLayout *layout)
 {
     if (!reg || !layout || !layout->name)
-        return DWL_ERR_INVALID_ARG;
+        return SWL_ERR_INVALID_ARG;
 
     if (reg->count >= MAX_LAYOUTS)
-        return DWL_ERR_NOMEM;
+        return SWL_ERR_NOMEM;
 
     for (size_t i = 0; i < reg->count; i++) {
         if (strcmp(reg->layouts[i].name, layout->name) == 0)
-            return DWL_ERR_ALREADY_EXISTS;
+            return SWL_ERR_ALREADY_EXISTS;
     }
 
     reg->layouts[reg->count++] = *layout;
-    return DWL_OK;
+    return SWL_OK;
 }
 
-DwlError dwl_layout_unregister(DwlLayoutRegistry *reg, const char *name)
+SwlError swl_layout_unregister(SwlLayoutRegistry *reg, const char *name)
 {
     if (!reg || !name)
-        return DWL_ERR_INVALID_ARG;
+        return SWL_ERR_INVALID_ARG;
 
     for (size_t i = 0; i < reg->count; i++) {
         if (strcmp(reg->layouts[i].name, name) == 0) {
             memmove(&reg->layouts[i], &reg->layouts[i + 1],
-                    (reg->count - i - 1) * sizeof(DwlLayout));
+                    (reg->count - i - 1) * sizeof(SwlLayout));
             reg->count--;
-            return DWL_OK;
+            return SWL_OK;
         }
     }
 
-    return DWL_ERR_NOT_FOUND;
+    return SWL_ERR_NOT_FOUND;
 }
 
-const DwlLayout *dwl_layout_get(DwlLayoutRegistry *reg, const char *name)
+const SwlLayout *swl_layout_get(SwlLayoutRegistry *reg, const char *name)
 {
     if (!reg || !name)
         return NULL;
@@ -67,12 +67,12 @@ const DwlLayout *dwl_layout_get(DwlLayoutRegistry *reg, const char *name)
     return NULL;
 }
 
-size_t dwl_layout_count(const DwlLayoutRegistry *reg)
+size_t swl_layout_count(const SwlLayoutRegistry *reg)
 {
     return reg ? reg->count : 0;
 }
 
-const char **dwl_layout_list(const DwlLayoutRegistry *reg, size_t *count)
+const char **swl_layout_list(const SwlLayoutRegistry *reg, size_t *count)
 {
     if (!reg || !count)
         return NULL;
@@ -88,8 +88,8 @@ const char **dwl_layout_list(const DwlLayoutRegistry *reg, size_t *count)
     return names;
 }
 
-void dwl_layout_register_builtins(DwlLayoutRegistry *reg)
+void swl_layout_register_builtins(SwlLayoutRegistry *reg)
 {
-    dwl_layout_register(reg, &dwl_layout_scroller);
-    dwl_layout_register(reg, &dwl_layout_floating);
+    swl_layout_register(reg, &swl_layout_scroller);
+    swl_layout_register(reg, &swl_layout_floating);
 }

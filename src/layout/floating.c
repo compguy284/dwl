@@ -1,11 +1,11 @@
 #include "layout.h"
 
-static void floating_arrange(DwlLayoutParams *params)
+static void floating_arrange(SwlLayoutParams *params)
 {
     (void)params;
 }
 
-static int floating_focus_next(const DwlLayoutParams *params, int current, int direction)
+static int floating_focus_next(const SwlLayoutParams *params, int current, int direction)
 {
     if (!params || params->client_count == 0)
         return -1;
@@ -21,7 +21,7 @@ static int floating_focus_next(const DwlLayoutParams *params, int current, int d
     return next;
 }
 
-const DwlLayout dwl_layout_floating = {
+const SwlLayout swl_layout_floating = {
     .name = "floating",
     .symbol = "><>",
     .arrange = floating_arrange,

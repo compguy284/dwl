@@ -1,46 +1,46 @@
-#ifndef DWL_COMPOSITOR_H
-#define DWL_COMPOSITOR_H
+#ifndef SWL_COMPOSITOR_H
+#define SWL_COMPOSITOR_H
 
 #include <stdbool.h>
 #include "error.h"
 #include "events.h"
 
-typedef struct DwlCompositor DwlCompositor;
+typedef struct SwlCompositor SwlCompositor;
 
-typedef struct DwlCompositorConfig {
+typedef struct SwlCompositorConfig {
     const char *config_path;
     bool enable_xwayland;
     const char *startup_cmd;
     int log_level;
-} DwlCompositorConfig;
+} SwlCompositorConfig;
 
-DwlError dwl_compositor_create(DwlCompositor **out, const DwlCompositorConfig *cfg);
-void dwl_compositor_destroy(DwlCompositor *comp);
-DwlError dwl_compositor_run(DwlCompositor *comp);
-void dwl_compositor_quit(DwlCompositor *comp);
+SwlError swl_compositor_create(SwlCompositor **out, const SwlCompositorConfig *cfg);
+void swl_compositor_destroy(SwlCompositor *comp);
+SwlError swl_compositor_run(SwlCompositor *comp);
+void swl_compositor_quit(SwlCompositor *comp);
 
-DwlEventBus *dwl_compositor_get_event_bus(DwlCompositor *comp);
+SwlEventBus *swl_compositor_get_event_bus(SwlCompositor *comp);
 
-struct DwlInput *dwl_compositor_get_input(DwlCompositor *comp);
-struct DwlOutputManager *dwl_compositor_get_output(DwlCompositor *comp);
-struct DwlClientManager *dwl_compositor_get_clients(DwlCompositor *comp);
-struct DwlConfig *dwl_compositor_get_config(DwlCompositor *comp);
-struct DwlRenderer *dwl_compositor_get_renderer(DwlCompositor *comp);
-struct DwlIPC *dwl_compositor_get_ipc(DwlCompositor *comp);
-struct DwlLayoutRegistry *dwl_compositor_get_layouts(DwlCompositor *comp);
+struct SwlInput *swl_compositor_get_input(SwlCompositor *comp);
+struct SwlOutputManager *swl_compositor_get_output(SwlCompositor *comp);
+struct SwlClientManager *swl_compositor_get_clients(SwlCompositor *comp);
+struct SwlConfig *swl_compositor_get_config(SwlCompositor *comp);
+struct SwlRenderer *swl_compositor_get_renderer(SwlCompositor *comp);
+struct SwlIPC *swl_compositor_get_ipc(SwlCompositor *comp);
+struct SwlLayoutRegistry *swl_compositor_get_layouts(SwlCompositor *comp);
 
-struct wl_display *dwl_compositor_get_wl_display(DwlCompositor *comp);
-struct wlr_backend *dwl_compositor_get_backend(DwlCompositor *comp);
-struct wlr_session *dwl_compositor_get_session(DwlCompositor *comp);
-struct wlr_allocator *dwl_compositor_get_allocator(DwlCompositor *comp);
-struct wlr_renderer *dwl_compositor_get_wlr_renderer(DwlCompositor *comp);
-struct wlr_scene *dwl_compositor_get_scene(DwlCompositor *comp);
-struct wlr_seat *dwl_compositor_get_seat(DwlCompositor *comp);
-struct wlr_output_layout *dwl_compositor_get_output_layout(DwlCompositor *comp);
-struct wlr_idle_notifier_v1 *dwl_compositor_get_idle_notifier(DwlCompositor *comp);
-struct wlr_compositor *dwl_compositor_get_wlr_compositor(DwlCompositor *comp);
+struct wl_display *swl_compositor_get_wl_display(SwlCompositor *comp);
+struct wlr_backend *swl_compositor_get_backend(SwlCompositor *comp);
+struct wlr_session *swl_compositor_get_session(SwlCompositor *comp);
+struct wlr_allocator *swl_compositor_get_allocator(SwlCompositor *comp);
+struct wlr_renderer *swl_compositor_get_wlr_renderer(SwlCompositor *comp);
+struct wlr_scene *swl_compositor_get_scene(SwlCompositor *comp);
+struct wlr_seat *swl_compositor_get_seat(SwlCompositor *comp);
+struct wlr_output_layout *swl_compositor_get_output_layout(SwlCompositor *comp);
+struct wlr_idle_notifier_v1 *swl_compositor_get_idle_notifier(SwlCompositor *comp);
+struct wlr_compositor *swl_compositor_get_wlr_compositor(SwlCompositor *comp);
 
-struct DwlLayerManager *dwl_compositor_get_layer_manager(DwlCompositor *comp);
-struct DwlToplevelManager *dwl_compositor_get_toplevel_manager(DwlCompositor *comp);
+struct SwlLayerManager *swl_compositor_get_layer_manager(SwlCompositor *comp);
+struct SwlToplevelManager *swl_compositor_get_toplevel_manager(SwlCompositor *comp);
 
-#endif /* DWL_COMPOSITOR_H */
+#endif /* SWL_COMPOSITOR_H */

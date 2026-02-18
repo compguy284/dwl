@@ -11,33 +11,33 @@
 #include <scenefx/types/wlr_scene.h>
 #include <libinput.h>
 
-static void process_cursor_motion(DwlInput *input, uint32_t time)
+static void process_cursor_motion(SwlInput *input, uint32_t time)
 {
     // Handle move/resize if active
-    if (input->cursor_mode == DWL_CURSOR_MOVE) {
-        DwlClient *c = input->grabbed_client;
+    if (input->cursor_mode == SWL_CURSOR_MOVE) {
+        SwlClient *c = input->grabbed_client;
         if (c) {
             int new_x = (int)input->cursor->x - input->grab_x;
             int new_y = (int)input->cursor->y - input->grab_y;
-            DwlClientInfo info = dwl_client_get_info(c);
-            dwl_client_resize(c, new_x, new_y, info.geometry.width, info.geometry.height);
+            SwlClientInfo info = swl_client_get_info(c);
+            swl_client_resize(c, new_x, new_y, info.geometry.width, info.geometry.height);
         }
         return;
-    } else if (input->cursor_mode == DWL_CURSOR_RESIZE) {
-        DwlClient *c = input->grabbed_client;
+    } else if (input->cursor_mode == SWL_CURSOR_RESIZE) {
+        SwlClient *c = input->grabbed_client;
         if (c) {
-            DwlClientInfo info = dwl_client_get_info(c);
+            SwlClientInfo info = swl_client_get_info(c);
             int new_width = (int)input->cursor->x - info.geometry.x;
             int new_height = (int)input->cursor->y - info.geometry.y;
             if (new_width < 50) new_width = 50;
             if (new_height < 50) new_height = 50;
-            dwl_client_resize(c, info.geometry.x, info.geometry.y, new_width, new_height);
+            swl_client_resize(c, info.geometry.x, info.geometry.y, new_width, new_height);
         }
         return;
     }
 
     // Normal cursor motion handling
-    struct wlr_scene *scene = dwl_compositor_get_scene(input->comp);
+    struct wlr_scene *scene = swl_compositor_get_scene(input->comp);
     double sx, sy;
     struct wlr_scene_node *node = wlr_scene_node_at(&scene->tree.node,
         input->cursor->x, input->cursor->y, &sx, &sy);
@@ -64,29 +64,29 @@ static void process_cursor_motion(DwlInput *input, uint32_t time)
 
 void handle_cursor_motion(struct wl_listener *listener, void *data)
 {
-    DwlInput *input = wl_container_of(listener, input, cursor_motion);
+    SwlInput *input = wl_container_of(listener, input, cursor_motion);
     struct wlr_pointer_motion_event *event = data;
 
     wlr_idle_notifier_v1_notify_activity(
-        dwl_compositor_get_idle_notifier(input->comp), input->seat);
+        swl_compositor_get_idle_notifier(input->comp), input->seat);
     wlr_cursor_move(input->cursor, &event->pointer->base, event->delta_x, event->delta_y);
     process_cursor_motion(input, event->time_msec);
 }
 
 void handle_cursor_motion_abs(struct wl_listener *listener, void *data)
 {
-    DwlInput *input = wl_container_of(listener, input, cursor_motion_abs);
+    SwlInput *input = wl_container_of(listener, input, cursor_motion_abs);
     struct wlr_pointer_motion_absolute_event *event = data;
 
     wlr_idle_notifier_v1_notify_activity(
-        dwl_compositor_get_idle_notifier(input->comp), input->seat);
+        swl_compositor_get_idle_notifier(input->comp), input->seat);
     wlr_cursor_warp_absolute(input->cursor, &event->pointer->base, event->x, event->y);
     process_cursor_motion(input, event->time_msec);
 }
 
-DwlClient *client_at_cursor(DwlInput *input)
+SwlClient *client_at_cursor(SwlInput *input)
 {
-    struct wlr_scene *scene = dwl_compositor_get_scene(input->comp);
+    struct wlr_scene *scene = swl_compositor_get_scene(input->comp);
     double sx, sy;
     struct wlr_scene_node *node = wlr_scene_node_at(&scene->tree.node,
         input->cursor->x, input->cursor->y, &sx, &sy);
@@ -99,9 +99,9 @@ DwlClient *client_at_cursor(DwlInput *input)
     if (!node)
         return NULL;
 
-    // Validate that node->data is actually a valid DwlClient
-    DwlClient *client = node->data;
-    if (!dwl_client_is_valid(client))
+    // Validate that node->data is actually a valid SwlClient
+    SwlClient *client = node->data;
+    if (!swl_client_is_valid(client))
         return NULL;
 
     return client;
@@ -109,16 +109,16 @@ DwlClient *client_at_cursor(DwlInput *input)
 
 void handle_cursor_button(struct wl_listener *listener, void *data)
 {
-    DwlInput *input = wl_container_of(listener, input, cursor_button);
+    SwlInput *input = wl_container_of(listener, input, cursor_button);
     struct wlr_pointer_button_event *event = data;
 
     wlr_idle_notifier_v1_notify_activity(
-        dwl_compositor_get_idle_notifier(input->comp), input->seat);
+        swl_compositor_get_idle_notifier(input->comp), input->seat);
 
     // End move/resize on button release
     if (event->state == WL_POINTER_BUTTON_STATE_RELEASED) {
-        if (input->cursor_mode != DWL_CURSOR_NORMAL) {
-            input->cursor_mode = DWL_CURSOR_NORMAL;
+        if (input->cursor_mode != SWL_CURSOR_NORMAL) {
+            input->cursor_mode = SWL_CURSOR_NORMAL;
             input->grabbed_client = NULL;
             wlr_cursor_set_xcursor(input->cursor, input->xcursor_mgr, "default");
         }
@@ -131,7 +131,7 @@ void handle_cursor_button(struct wl_listener *listener, void *data)
     uint32_t mods = kb ? wlr_keyboard_get_modifiers(kb) : 0;
 
     // Check button bindings (e.g., mod+left = moveresize:move)
-    if (input->keybindings && dwl_button_binding_handle(input->keybindings, mods, event->button)) {
+    if (input->keybindings && swl_button_binding_handle(input->keybindings, mods, event->button)) {
         // Button binding handled - don't pass to client
         return;
     }
@@ -139,26 +139,26 @@ void handle_cursor_button(struct wl_listener *listener, void *data)
     // Normal click - focus window and pass to client
     wlr_seat_pointer_notify_button(input->seat, event->time_msec, event->button, event->state);
 
-    DwlClient *client = client_at_cursor(input);
+    SwlClient *client = client_at_cursor(input);
     if (client) {
-        dwl_client_focus(client);
+        swl_client_focus(client);
     }
 }
 
 void handle_cursor_axis(struct wl_listener *listener, void *data)
 {
-    DwlInput *input = wl_container_of(listener, input, cursor_axis);
+    SwlInput *input = wl_container_of(listener, input, cursor_axis);
     struct wlr_pointer_axis_event *event = data;
 
     wlr_idle_notifier_v1_notify_activity(
-        dwl_compositor_get_idle_notifier(input->comp), input->seat);
+        swl_compositor_get_idle_notifier(input->comp), input->seat);
     wlr_seat_pointer_notify_axis(input->seat, event->time_msec, event->orientation,
         event->delta, event->delta_discrete, event->source, event->relative_direction);
 }
 
 void handle_cursor_frame(struct wl_listener *listener, void *data)
 {
-    DwlInput *input = wl_container_of(listener, input, cursor_frame);
+    SwlInput *input = wl_container_of(listener, input, cursor_frame);
     (void)data;
 
     wlr_seat_pointer_notify_frame(input->seat);
@@ -166,7 +166,7 @@ void handle_cursor_frame(struct wl_listener *listener, void *data)
 
 void handle_request_cursor(struct wl_listener *listener, void *data)
 {
-    DwlInput *input = wl_container_of(listener, input, request_cursor);
+    SwlInput *input = wl_container_of(listener, input, request_cursor);
     struct wlr_seat_pointer_request_set_cursor_event *event = data;
 
     struct wlr_seat_client *focused = input->seat->pointer_state.focused_client;
@@ -176,7 +176,7 @@ void handle_request_cursor(struct wl_listener *listener, void *data)
 
 void handle_request_set_selection(struct wl_listener *listener, void *data)
 {
-    DwlInput *input = wl_container_of(listener, input, request_set_selection);
+    SwlInput *input = wl_container_of(listener, input, request_set_selection);
     struct wlr_seat_request_set_selection_event *event = data;
 
     wlr_seat_set_selection(input->seat, event->source, event->serial);
@@ -184,13 +184,13 @@ void handle_request_set_selection(struct wl_listener *listener, void *data)
 
 void handle_request_set_primary_selection(struct wl_listener *listener, void *data)
 {
-    DwlInput *input = wl_container_of(listener, input, request_set_primary_selection);
+    SwlInput *input = wl_container_of(listener, input, request_set_primary_selection);
     struct wlr_seat_request_set_primary_selection_event *event = data;
 
     wlr_seat_set_primary_selection(input->seat, event->source, event->serial);
 }
 
-void configure_pointer(DwlInput *input, struct wlr_pointer *ptr)
+void configure_pointer(SwlInput *input, struct wlr_pointer *ptr)
 {
     if (!wlr_input_device_is_libinput(&ptr->base))
         return;
@@ -238,10 +238,10 @@ void configure_pointer(DwlInput *input, struct wlr_pointer *ptr)
     if (supported != LIBINPUT_CONFIG_SEND_EVENTS_ENABLED) {
         enum libinput_config_send_events_mode mode;
         switch (input->ptr_config.send_events) {
-        case DWL_SEND_EVENTS_DISABLED:
+        case SWL_SEND_EVENTS_DISABLED:
             mode = LIBINPUT_CONFIG_SEND_EVENTS_DISABLED;
             break;
-        case DWL_SEND_EVENTS_DISABLED_ON_EXTERNAL_MOUSE:
+        case SWL_SEND_EVENTS_DISABLED_ON_EXTERNAL_MOUSE:
             if (supported & LIBINPUT_CONFIG_SEND_EVENTS_DISABLED_ON_EXTERNAL_MOUSE)
                 mode = LIBINPUT_CONFIG_SEND_EVENTS_DISABLED_ON_EXTERNAL_MOUSE;
             else
@@ -255,7 +255,7 @@ void configure_pointer(DwlInput *input, struct wlr_pointer *ptr)
     }
 }
 
-void dwl_pointer_setup(DwlInput *input)
+void swl_pointer_setup(SwlInput *input)
 {
     input->cursor_motion.notify = handle_cursor_motion;
     wl_signal_add(&input->cursor->events.motion, &input->cursor_motion);
@@ -282,7 +282,7 @@ void dwl_pointer_setup(DwlInput *input)
     wl_signal_add(&input->seat->events.request_set_primary_selection, &input->request_set_primary_selection);
 }
 
-void dwl_pointer_cleanup(DwlInput *input)
+void swl_pointer_cleanup(SwlInput *input)
 {
     wl_list_remove(&input->cursor_motion.link);
     wl_list_remove(&input->cursor_motion_abs.link);

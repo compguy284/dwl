@@ -8,7 +8,7 @@
 #include <xkbcommon/xkbcommon.h>
 #include <linux/input-event-codes.h>
 
-void configure_keyboard(DwlInput *input, struct wlr_keyboard *kb)
+void configure_keyboard(SwlInput *input, struct wlr_keyboard *kb)
 {
     struct xkb_context *ctx = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
     if (!ctx)
@@ -50,12 +50,12 @@ void configure_keyboard(DwlInput *input, struct wlr_keyboard *kb)
 
 void handle_keyboard_key(struct wl_listener *listener, void *data)
 {
-    DwlInput *input = wl_container_of(listener, input, keyboard_key);
+    SwlInput *input = wl_container_of(listener, input, keyboard_key);
     struct wlr_keyboard_key_event *event = data;
     struct wlr_keyboard *kb = &input->kb_group->keyboard;
 
     wlr_idle_notifier_v1_notify_activity(
-        dwl_compositor_get_idle_notifier(input->comp), input->seat);
+        swl_compositor_get_idle_notifier(input->comp), input->seat);
 
     uint32_t keycode = event->keycode + 8;
     const xkb_keysym_t *syms;
@@ -66,7 +66,7 @@ void handle_keyboard_key(struct wl_listener *listener, void *data)
 
     if (event->state == WL_KEYBOARD_KEY_STATE_PRESSED) {
         for (int i = 0; i < nsyms; i++) {
-            if (dwl_keybinding_handle(input->keybindings, mods, syms[i])) {
+            if (swl_keybinding_handle(input->keybindings, mods, syms[i])) {
                 handled = true;
                 break;
             }
@@ -82,7 +82,7 @@ void handle_keyboard_key(struct wl_listener *listener, void *data)
 
 void handle_keyboard_modifiers(struct wl_listener *listener, void *data)
 {
-    DwlInput *input = wl_container_of(listener, input, keyboard_modifiers);
+    SwlInput *input = wl_container_of(listener, input, keyboard_modifiers);
     struct wlr_keyboard *kb = &input->kb_group->keyboard;
     (void)data;
 
@@ -90,7 +90,7 @@ void handle_keyboard_modifiers(struct wl_listener *listener, void *data)
     wlr_seat_keyboard_notify_modifiers(input->seat, &kb->modifiers);
 }
 
-void dwl_keyboard_setup(DwlInput *input, struct wlr_keyboard_group *kb_group)
+void swl_keyboard_setup(SwlInput *input, struct wlr_keyboard_group *kb_group)
 {
     input->keyboard_key.notify = handle_keyboard_key;
     wl_signal_add(&kb_group->keyboard.events.key, &input->keyboard_key);
@@ -99,7 +99,7 @@ void dwl_keyboard_setup(DwlInput *input, struct wlr_keyboard_group *kb_group)
     wl_signal_add(&kb_group->keyboard.events.modifiers, &input->keyboard_modifiers);
 }
 
-void dwl_keyboard_cleanup(DwlInput *input)
+void swl_keyboard_cleanup(SwlInput *input)
 {
     wl_list_remove(&input->keyboard_key.link);
     wl_list_remove(&input->keyboard_modifiers.link);

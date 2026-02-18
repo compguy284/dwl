@@ -56,7 +56,7 @@ static void decoration_handle_request_mode(struct wl_listener *listener, void *d
     }
 }
 
-void dwl_decoration_handle_new(struct wlr_xdg_toplevel_decoration_v1 *decoration)
+void swl_decoration_handle_new(struct wlr_xdg_toplevel_decoration_v1 *decoration)
 {
     DecorationState *state = calloc(1, sizeof(*state));
     if (!state)

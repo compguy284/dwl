@@ -22,7 +22,7 @@
 }:
 
 stdenv.mkDerivation {
-  pname = "dwl";
+  pname = "swl";
   version = "0.8-dev";
   src = ./..;
 
@@ -53,13 +53,13 @@ stdenv.mkDerivation {
     "-Dxwayland=${lib.boolToString enableXWayland}"
   ];
 
-  passthru.providedSessions = [ "dwl" ];
+  passthru.providedSessions = [ "swl" ];
 
   meta = {
-    description = "dwl - Wayland compositor with scenefx effects";
+    description = "swl - Wayland compositor with scenefx effects";
     homepage = "https://codeberg.org/dwl/dwl"; # upstream attribution
     license = lib.licenses.gpl3Only;
     platforms = lib.platforms.linux;
-    mainProgram = "dwl";
+    mainProgram = "swl";
   };
 }

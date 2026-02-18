@@ -1,12 +1,12 @@
-#ifndef DWL_XDG_SHELL_PROTO_H
-#define DWL_XDG_SHELL_PROTO_H
+#ifndef SWL_XDG_SHELL_PROTO_H
+#define SWL_XDG_SHELL_PROTO_H
 
-typedef struct DwlCompositor DwlCompositor;
+typedef struct SwlCompositor SwlCompositor;
 struct wlr_xdg_toplevel;
 struct wlr_xdg_popup;
 
 /* Called from compositor.c when new xdg surfaces are created */
-void dwl_xdg_shell_handle_new_toplevel(DwlCompositor *comp, struct wlr_xdg_toplevel *toplevel);
-void dwl_xdg_shell_handle_new_popup(struct wlr_xdg_popup *popup);
+void swl_xdg_shell_handle_new_toplevel(SwlCompositor *comp, struct wlr_xdg_toplevel *toplevel);
+void swl_xdg_shell_handle_new_popup(struct wlr_xdg_popup *popup);
 
-#endif /* DWL_XDG_SHELL_PROTO_H */
+#endif /* SWL_XDG_SHELL_PROTO_H */

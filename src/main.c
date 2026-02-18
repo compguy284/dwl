@@ -20,12 +20,12 @@ static void usage(const char *name)
 
 static void version(void)
 {
-    printf("dwl 1.0.0\n");
+    printf("swl 1.0.0\\n");
 }
 
 int main(int argc, char *argv[])
 {
-    DwlCompositorConfig cfg = {
+    SwlCompositorConfig cfg = {
         .config_path = NULL,
         .enable_xwayland = true,
         .startup_cmd = NULL,
@@ -54,20 +54,20 @@ int main(int argc, char *argv[])
         }
     }
 
-    DwlCompositor *comp;
-    DwlError err = dwl_compositor_create(&comp, &cfg);
-    if (err != DWL_OK) {
-        fprintf(stderr, "Failed to create compositor: %s\n", dwl_error_string(err));
+    SwlCompositor *comp;
+    SwlError err = swl_compositor_create(&comp, &cfg);
+    if (err != SWL_OK) {
+        fprintf(stderr, "Failed to create compositor: %s\n", swl_error_string(err));
         return 1;
     }
 
-    err = dwl_compositor_run(comp);
-    if (err != DWL_OK) {
-        fprintf(stderr, "Compositor error: %s\n", dwl_error_string(err));
-        dwl_compositor_destroy(comp);
+    err = swl_compositor_run(comp);
+    if (err != SWL_OK) {
+        fprintf(stderr, "Compositor error: %s\n", swl_error_string(err));
+        swl_compositor_destroy(comp);
         return 1;
     }
 
-    dwl_compositor_destroy(comp);
+    swl_compositor_destroy(comp);
     return 0;
 }

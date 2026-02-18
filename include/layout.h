@@ -1,22 +1,22 @@
-#ifndef DWL_LAYOUT_H
-#define DWL_LAYOUT_H
+#ifndef SWL_LAYOUT_H
+#define SWL_LAYOUT_H
 
 #include <stdbool.h>
 #include <stddef.h>
 #include "error.h"
 
-typedef struct DwlMonitor DwlMonitor;
+typedef struct SwlMonitor SwlMonitor;
 
-typedef struct DwlLayoutClient {
+typedef struct SwlLayoutClient {
     unsigned int id;
     int x, y, width, height;
     bool preserve_aspect;
     int min_width, min_height;
     int max_width, max_height;
     float column_ratio;  // Per-client width ratio for scroller (0.0 = use layout default)
-} DwlLayoutClient;
+} SwlLayoutClient;
 
-typedef struct DwlLayoutParams {
+typedef struct SwlLayoutParams {
     int area_x, area_y, area_width, area_height;
     int gap_inner_h, gap_inner_v;
     int gap_outer_h, gap_outer_v;
@@ -24,30 +24,30 @@ typedef struct DwlLayoutParams {
     int master_count;
     size_t client_count;
     int focused_index;  // Index of focused client (-1 if none)
-    DwlLayoutClient *clients;
-} DwlLayoutParams;
+    SwlLayoutClient *clients;
+} SwlLayoutParams;
 
-typedef struct DwlLayout {
+typedef struct SwlLayout {
     const char *name;
     const char *symbol;
-    void (*arrange)(DwlLayoutParams *params);
-    int (*focus_next)(const DwlLayoutParams *params, int current, int direction);
+    void (*arrange)(SwlLayoutParams *params);
+    int (*focus_next)(const SwlLayoutParams *params, int current, int direction);
     void *user_data;
-} DwlLayout;
+} SwlLayout;
 
-extern const DwlLayout dwl_layout_scroller;
-extern const DwlLayout dwl_layout_floating;
+extern const SwlLayout swl_layout_scroller;
+extern const SwlLayout swl_layout_floating;
 
-typedef struct DwlLayoutRegistry DwlLayoutRegistry;
+typedef struct SwlLayoutRegistry SwlLayoutRegistry;
 
-DwlLayoutRegistry *dwl_layout_registry_create(void);
-void dwl_layout_registry_destroy(DwlLayoutRegistry *reg);
-DwlError dwl_layout_register(DwlLayoutRegistry *reg, const DwlLayout *layout);
-DwlError dwl_layout_unregister(DwlLayoutRegistry *reg, const char *name);
-const DwlLayout *dwl_layout_get(DwlLayoutRegistry *reg, const char *name);
-size_t dwl_layout_count(const DwlLayoutRegistry *reg);
-const char **dwl_layout_list(const DwlLayoutRegistry *reg, size_t *count);
+SwlLayoutRegistry *swl_layout_registry_create(void);
+void swl_layout_registry_destroy(SwlLayoutRegistry *reg);
+SwlError swl_layout_register(SwlLayoutRegistry *reg, const SwlLayout *layout);
+SwlError swl_layout_unregister(SwlLayoutRegistry *reg, const char *name);
+const SwlLayout *swl_layout_get(SwlLayoutRegistry *reg, const char *name);
+size_t swl_layout_count(const SwlLayoutRegistry *reg);
+const char **swl_layout_list(const SwlLayoutRegistry *reg, size_t *count);
 
-void dwl_layout_register_builtins(DwlLayoutRegistry *reg);
+void swl_layout_register_builtins(SwlLayoutRegistry *reg);
 
-#endif /* DWL_LAYOUT_H */
+#endif /* SWL_LAYOUT_H */

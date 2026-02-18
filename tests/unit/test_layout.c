@@ -10,9 +10,9 @@
 #include "layout.h"
 
 /* Helper to create layout params */
-static DwlLayoutParams create_params(size_t client_count, int area_w, int area_h)
+static SwlLayoutParams create_params(size_t client_count, int area_w, int area_h)
 {
-    DwlLayoutParams params = {
+    SwlLayoutParams params = {
         .area_x = 0,
         .area_y = 0,
         .area_width = area_w,
@@ -29,7 +29,7 @@ static DwlLayoutParams create_params(size_t client_count, int area_w, int area_h
     };
 
     if (client_count > 0) {
-        params.clients = calloc(client_count, sizeof(DwlLayoutClient));
+        params.clients = calloc(client_count, sizeof(SwlLayoutClient));
         for (size_t i = 0; i < client_count; i++) {
             params.clients[i].id = (unsigned int)i;
         }
@@ -38,7 +38,7 @@ static DwlLayoutParams create_params(size_t client_count, int area_w, int area_h
     return params;
 }
 
-static void free_params(DwlLayoutParams *params)
+static void free_params(SwlLayoutParams *params)
 {
     free(params->clients);
     params->clients = NULL;
@@ -49,11 +49,11 @@ static void test_scroller_horizontal_scroll(void **state)
 {
     (void)state;
 
-    DwlLayoutParams params = create_params(3, 1920, 1080);
+    SwlLayoutParams params = create_params(3, 1920, 1080);
     params.master_factor = 0.5f;
     params.focused_index = 1;
 
-    dwl_layout_scroller.arrange(&params);
+    swl_layout_scroller.arrange(&params);
 
     /* Focused window should be somewhat centered */
     /* All windows should have same size */
@@ -73,15 +73,15 @@ static void test_scroller_focus_next(void **state)
 {
     (void)state;
 
-    DwlLayoutParams params = create_params(5, 1920, 1080);
+    SwlLayoutParams params = create_params(5, 1920, 1080);
 
-    int next = dwl_layout_scroller.focus_next(&params, 2, 1);
+    int next = swl_layout_scroller.focus_next(&params, 2, 1);
     assert_int_equal(next, 3);
 
-    next = dwl_layout_scroller.focus_next(&params, 4, 1);
+    next = swl_layout_scroller.focus_next(&params, 4, 1);
     assert_int_equal(next, 0);
 
-    next = dwl_layout_scroller.focus_next(&params, 0, -1);
+    next = swl_layout_scroller.focus_next(&params, 0, -1);
     assert_int_equal(next, 4);
 
     free_params(&params);
@@ -92,7 +92,7 @@ static void test_floating_does_not_modify_positions(void **state)
 {
     (void)state;
 
-    DwlLayoutParams params = create_params(2, 1920, 1080);
+    SwlLayoutParams params = create_params(2, 1920, 1080);
 
     /* Set some initial positions */
     params.clients[0].x = 100;
@@ -105,7 +105,7 @@ static void test_floating_does_not_modify_positions(void **state)
     params.clients[1].width = 600;
     params.clients[1].height = 400;
 
-    dwl_layout_floating.arrange(&params);
+    swl_layout_floating.arrange(&params);
 
     /* Floating layout should not modify client positions */
     assert_int_equal(params.clients[0].x, 100);
@@ -125,12 +125,12 @@ static void test_floating_focus_next(void **state)
 {
     (void)state;
 
-    DwlLayoutParams params = create_params(3, 1920, 1080);
+    SwlLayoutParams params = create_params(3, 1920, 1080);
 
-    int next = dwl_layout_floating.focus_next(&params, 1, 1);
+    int next = swl_layout_floating.focus_next(&params, 1, 1);
     assert_int_equal(next, 2);
 
-    next = dwl_layout_floating.focus_next(&params, 2, 1);
+    next = swl_layout_floating.focus_next(&params, 2, 1);
     assert_int_equal(next, 0);
 
     free_params(&params);
@@ -141,110 +141,110 @@ static void test_registry_create_destroy(void **state)
 {
     (void)state;
 
-    DwlLayoutRegistry *reg = dwl_layout_registry_create();
+    SwlLayoutRegistry *reg = swl_layout_registry_create();
     assert_non_null(reg);
 
-    dwl_layout_registry_destroy(reg);
+    swl_layout_registry_destroy(reg);
 }
 
 static void test_registry_register(void **state)
 {
     (void)state;
 
-    DwlLayoutRegistry *reg = dwl_layout_registry_create();
+    SwlLayoutRegistry *reg = swl_layout_registry_create();
     assert_non_null(reg);
 
-    DwlError err = dwl_layout_register(reg, &dwl_layout_scroller);
-    assert_int_equal(err, DWL_OK);
-    assert_int_equal(dwl_layout_count(reg), 1);
+    SwlError err = swl_layout_register(reg, &swl_layout_scroller);
+    assert_int_equal(err, SWL_OK);
+    assert_int_equal(swl_layout_count(reg), 1);
 
-    const DwlLayout *layout = dwl_layout_get(reg, "scroller");
+    const SwlLayout *layout = swl_layout_get(reg, "scroller");
     assert_non_null(layout);
     assert_string_equal(layout->name, "scroller");
 
-    dwl_layout_registry_destroy(reg);
+    swl_layout_registry_destroy(reg);
 }
 
 static void test_registry_register_duplicate(void **state)
 {
     (void)state;
 
-    DwlLayoutRegistry *reg = dwl_layout_registry_create();
+    SwlLayoutRegistry *reg = swl_layout_registry_create();
     assert_non_null(reg);
 
-    dwl_layout_register(reg, &dwl_layout_scroller);
-    DwlError err = dwl_layout_register(reg, &dwl_layout_scroller);
-    assert_int_equal(err, DWL_ERR_ALREADY_EXISTS);
-    assert_int_equal(dwl_layout_count(reg), 1);
+    swl_layout_register(reg, &swl_layout_scroller);
+    SwlError err = swl_layout_register(reg, &swl_layout_scroller);
+    assert_int_equal(err, SWL_ERR_ALREADY_EXISTS);
+    assert_int_equal(swl_layout_count(reg), 1);
 
-    dwl_layout_registry_destroy(reg);
+    swl_layout_registry_destroy(reg);
 }
 
 static void test_registry_unregister(void **state)
 {
     (void)state;
 
-    DwlLayoutRegistry *reg = dwl_layout_registry_create();
+    SwlLayoutRegistry *reg = swl_layout_registry_create();
     assert_non_null(reg);
 
-    dwl_layout_register(reg, &dwl_layout_scroller);
-    assert_int_equal(dwl_layout_count(reg), 1);
+    swl_layout_register(reg, &swl_layout_scroller);
+    assert_int_equal(swl_layout_count(reg), 1);
 
-    DwlError err = dwl_layout_unregister(reg, "scroller");
-    assert_int_equal(err, DWL_OK);
-    assert_int_equal(dwl_layout_count(reg), 0);
+    SwlError err = swl_layout_unregister(reg, "scroller");
+    assert_int_equal(err, SWL_OK);
+    assert_int_equal(swl_layout_count(reg), 0);
 
-    assert_null(dwl_layout_get(reg, "scroller"));
+    assert_null(swl_layout_get(reg, "scroller"));
 
-    dwl_layout_registry_destroy(reg);
+    swl_layout_registry_destroy(reg);
 }
 
 static void test_registry_unregister_not_found(void **state)
 {
     (void)state;
 
-    DwlLayoutRegistry *reg = dwl_layout_registry_create();
+    SwlLayoutRegistry *reg = swl_layout_registry_create();
     assert_non_null(reg);
 
-    DwlError err = dwl_layout_unregister(reg, "nonexistent");
-    assert_int_equal(err, DWL_ERR_NOT_FOUND);
+    SwlError err = swl_layout_unregister(reg, "nonexistent");
+    assert_int_equal(err, SWL_ERR_NOT_FOUND);
 
-    dwl_layout_registry_destroy(reg);
+    swl_layout_registry_destroy(reg);
 }
 
 static void test_registry_builtins(void **state)
 {
     (void)state;
 
-    DwlLayoutRegistry *reg = dwl_layout_registry_create();
+    SwlLayoutRegistry *reg = swl_layout_registry_create();
     assert_non_null(reg);
 
-    dwl_layout_register_builtins(reg);
+    swl_layout_register_builtins(reg);
 
-    assert_int_equal(dwl_layout_count(reg), 2);
-    assert_non_null(dwl_layout_get(reg, "scroller"));
-    assert_non_null(dwl_layout_get(reg, "floating"));
+    assert_int_equal(swl_layout_count(reg), 2);
+    assert_non_null(swl_layout_get(reg, "scroller"));
+    assert_non_null(swl_layout_get(reg, "floating"));
 
-    dwl_layout_registry_destroy(reg);
+    swl_layout_registry_destroy(reg);
 }
 
 static void test_registry_list(void **state)
 {
     (void)state;
 
-    DwlLayoutRegistry *reg = dwl_layout_registry_create();
+    SwlLayoutRegistry *reg = swl_layout_registry_create();
     assert_non_null(reg);
 
-    dwl_layout_register(reg, &dwl_layout_scroller);
-    dwl_layout_register(reg, &dwl_layout_floating);
+    swl_layout_register(reg, &swl_layout_scroller);
+    swl_layout_register(reg, &swl_layout_floating);
 
     size_t count = 0;
-    const char **names = dwl_layout_list(reg, &count);
+    const char **names = swl_layout_list(reg, &count);
     assert_non_null(names);
     assert_int_equal(count, 2);
 
     free((void *)names);
-    dwl_layout_registry_destroy(reg);
+    swl_layout_registry_destroy(reg);
 }
 
 static void test_layout_null_params(void **state)
@@ -252,19 +252,19 @@ static void test_layout_null_params(void **state)
     (void)state;
 
     /* Should not crash with NULL params */
-    dwl_layout_scroller.arrange(NULL);
-    dwl_layout_floating.arrange(NULL);
+    swl_layout_scroller.arrange(NULL);
+    swl_layout_floating.arrange(NULL);
 
-    assert_int_equal(dwl_layout_scroller.focus_next(NULL, 0, 1), -1);
-    assert_int_equal(dwl_layout_floating.focus_next(NULL, 0, 1), -1);
+    assert_int_equal(swl_layout_scroller.focus_next(NULL, 0, 1), -1);
+    assert_int_equal(swl_layout_floating.focus_next(NULL, 0, 1), -1);
 }
 
 static void test_layout_symbols(void **state)
 {
     (void)state;
 
-    assert_string_equal(dwl_layout_scroller.symbol, "[S]");
-    assert_string_equal(dwl_layout_floating.symbol, "><>");
+    assert_string_equal(swl_layout_scroller.symbol, "[S]");
+    assert_string_equal(swl_layout_floating.symbol, "><>");
 }
 
 int main(void)

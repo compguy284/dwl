@@ -11,33 +11,33 @@
 #include <scenefx/types/fx/clipped_region.h>
 #include <wlr/types/wlr_xdg_shell.h>
 #include <wlr/util/box.h>
-#ifdef DWL_XWAYLAND
+#ifdef SWL_XWAYLAND
 #include <wlr/xwayland.h>
 #endif
 
-struct DwlSceneManager {
-    DwlCompositor *comp;
+struct SwlSceneManager {
+    SwlCompositor *comp;
     struct wlr_scene *scene;
-    struct wlr_scene_tree *layers[DWL_LAYER_COUNT];
+    struct wlr_scene_tree *layers[SWL_LAYER_COUNT];
 };
 
-DwlSceneManager *dwl_scene_manager_create(DwlCompositor *comp)
+SwlSceneManager *swl_scene_manager_create(SwlCompositor *comp)
 {
-    DwlSceneManager *mgr = calloc(1, sizeof(*mgr));
+    SwlSceneManager *mgr = calloc(1, sizeof(*mgr));
     if (!mgr)
         return NULL;
 
     mgr->comp = comp;
-    mgr->scene = dwl_compositor_get_scene(comp);
+    mgr->scene = swl_compositor_get_scene(comp);
 
-    for (int i = 0; i < DWL_LAYER_COUNT; i++) {
+    for (int i = 0; i < SWL_LAYER_COUNT; i++) {
         mgr->layers[i] = wlr_scene_tree_create(&mgr->scene->tree);
     }
 
     return mgr;
 }
 
-void dwl_scene_manager_destroy(DwlSceneManager *mgr)
+void swl_scene_manager_destroy(SwlSceneManager *mgr)
 {
     if (!mgr)
         return;
@@ -45,9 +45,9 @@ void dwl_scene_manager_destroy(DwlSceneManager *mgr)
     free(mgr);
 }
 
-struct wlr_scene_tree *dwl_scene_get_layer(DwlSceneManager *mgr, DwlSceneLayer layer)
+struct wlr_scene_tree *swl_scene_get_layer(SwlSceneManager *mgr, SwlSceneLayer layer)
 {
-    if (!mgr || layer < 0 || layer >= DWL_LAYER_COUNT)
+    if (!mgr || layer < 0 || layer >= SWL_LAYER_COUNT)
         return NULL;
 
     return mgr->layers[layer];
@@ -63,42 +63,42 @@ typedef struct {
     float opacity;
 } ClientSceneData;
 
-extern ClientSceneData *dwl_client_get_scene_data(DwlClient *client);
-extern void dwl_client_set_scene_data(DwlClient *client, ClientSceneData *data);
-extern struct wlr_xdg_toplevel *dwl_client_get_xdg_toplevel(DwlClient *client);
-#ifdef DWL_XWAYLAND
-extern struct wlr_xwayland_surface *dwl_client_get_xwayland_surface(DwlClient *client);
+extern ClientSceneData *swl_client_get_scene_data(SwlClient *client);
+extern void swl_client_set_scene_data(SwlClient *client, ClientSceneData *data);
+extern struct wlr_xdg_toplevel *swl_client_get_xdg_toplevel(SwlClient *client);
+#ifdef SWL_XWAYLAND
+extern struct wlr_xwayland_surface *swl_client_get_xwayland_surface(SwlClient *client);
 #endif
 
 static void set_corner_radius_recursive(struct wlr_scene_node *node, int radius,
                                          enum corner_location corners);
 
-DwlError dwl_scene_client_create(DwlSceneManager *mgr, DwlClient *client)
+SwlError swl_scene_client_create(SwlSceneManager *mgr, SwlClient *client)
 {
     if (!mgr || !client)
-        return DWL_ERR_INVALID_ARG;
+        return SWL_ERR_INVALID_ARG;
 
     ClientSceneData *data = calloc(1, sizeof(*data));
     if (!data)
-        return DWL_ERR_NOMEM;
+        return SWL_ERR_NOMEM;
 
-    DwlClientInfo info = dwl_client_get_info(client);
-    DwlSceneLayer layer = info.floating ? DWL_LAYER_FLOAT : DWL_LAYER_TILES;
+    SwlClientInfo info = swl_client_get_info(client);
+    SwlSceneLayer layer = info.floating ? SWL_LAYER_FLOAT : SWL_LAYER_TILES;
 
     data->tree = wlr_scene_tree_create(mgr->layers[layer]);
     if (!data->tree) {
         free(data);
-        return DWL_ERR_NOMEM;
+        return SWL_ERR_NOMEM;
     }
 
-    struct wlr_xdg_toplevel *toplevel = dwl_client_get_xdg_toplevel(client);
+    struct wlr_xdg_toplevel *toplevel = swl_client_get_xdg_toplevel(client);
     if (toplevel && toplevel->base->initialized) {
         data->surface_tree = wlr_scene_xdg_surface_create(data->tree, toplevel->base);
         toplevel->base->data = data->tree;
     }
-#ifdef DWL_XWAYLAND
+#ifdef SWL_XWAYLAND
     else {
-        struct wlr_xwayland_surface *xsurface = dwl_client_get_xwayland_surface(client);
+        struct wlr_xwayland_surface *xsurface = swl_client_get_xwayland_surface(client);
         if (xsurface && xsurface->surface) {
             data->surface_tree = wlr_scene_subsurface_tree_create(data->tree, xsurface->surface);
             xsurface->surface->data = data->tree;
@@ -108,8 +108,8 @@ DwlError dwl_scene_client_create(DwlSceneManager *mgr, DwlClient *client)
 
     data->tree->node.data = client;
 
-    DwlRenderer *renderer = dwl_compositor_get_renderer(mgr->comp);
-    DwlRenderConfig cfg = dwl_renderer_get_config(renderer);
+    SwlRenderer *renderer = swl_compositor_get_renderer(mgr->comp);
+    SwlRenderConfig cfg = swl_renderer_get_config(renderer);
 
     data->border_width = cfg.border_width;
     data->corner_radius = cfg.corner_radius;
@@ -138,18 +138,18 @@ DwlError dwl_scene_client_create(DwlSceneManager *mgr, DwlClient *client)
         set_corner_radius_recursive(&data->surface_tree->node, inner_radius, CORNER_LOCATION_ALL);
     }
 
-    dwl_client_set_scene_data(client, data);
+    swl_client_set_scene_data(client, data);
 
-    return DWL_OK;
+    return SWL_OK;
 }
 
-void dwl_scene_client_destroy(DwlSceneManager *mgr, DwlClient *client)
+void swl_scene_client_destroy(SwlSceneManager *mgr, SwlClient *client)
 {
     (void)mgr;
     if (!client)
         return;
 
-    ClientSceneData *data = dwl_client_get_scene_data(client);
+    ClientSceneData *data = swl_client_get_scene_data(client);
     if (!data)
         return;
 
@@ -157,27 +157,27 @@ void dwl_scene_client_destroy(DwlSceneManager *mgr, DwlClient *client)
         wlr_scene_node_destroy(&data->tree->node);
 
     free(data);
-    dwl_client_set_scene_data(client, NULL);
+    swl_client_set_scene_data(client, NULL);
 }
 
-void dwl_scene_client_set_position(DwlClient *client, int x, int y)
+void swl_scene_client_set_position(SwlClient *client, int x, int y)
 {
     if (!client)
         return;
 
-    ClientSceneData *data = dwl_client_get_scene_data(client);
+    ClientSceneData *data = swl_client_get_scene_data(client);
     if (!data || !data->tree)
         return;
 
     wlr_scene_node_set_position(&data->tree->node, x, y);
 }
 
-void dwl_scene_client_set_size(DwlClient *client, int width, int height)
+void swl_scene_client_set_size(SwlClient *client, int width, int height)
 {
     if (!client)
         return;
 
-    ClientSceneData *data = dwl_client_get_scene_data(client);
+    ClientSceneData *data = swl_client_get_scene_data(client);
     if (!data)
         return;
 
@@ -207,10 +207,10 @@ void dwl_scene_client_set_size(DwlClient *client, int width, int height)
         wlr_scene_rect_set_clipped_region(data->border, clip);
     }
 
-    // Clip surface matching dwl_mac's client_get_clip():
+    // Clip surface matching swl_mac's client_get_clip():
     // width = total - bw = (width + 2*bw) - bw = width + bw
     // x, y = xdg geometry offset
-    struct wlr_xdg_toplevel *toplevel = dwl_client_get_xdg_toplevel(client);
+    struct wlr_xdg_toplevel *toplevel = swl_client_get_xdg_toplevel(client);
     if (data->surface_tree) {
         struct wlr_box surface_clip = {
             .x = 0,
@@ -232,12 +232,12 @@ void dwl_scene_client_set_size(DwlClient *client, int width, int height)
         wlr_xdg_toplevel_set_size(toplevel, width, height);
 }
 
-void dwl_scene_update_client_size(DwlClient *client, int width, int height)
+void swl_scene_update_client_size(SwlClient *client, int width, int height)
 {
     if (!client)
         return;
 
-    ClientSceneData *data = dwl_client_get_scene_data(client);
+    ClientSceneData *data = swl_client_get_scene_data(client);
     if (!data)
         return;
 
@@ -274,7 +274,7 @@ void dwl_scene_update_client_size(DwlClient *client, int width, int height)
     // Note: Does NOT send configure to client - used for client-initiated resizes
 }
 
-void dwl_scene_client_apply_geometry(DwlClient *client)
+void swl_scene_client_apply_geometry(SwlClient *client)
 {
     // On commit, clip surface to client's ACTUAL rendered geometry.
     // This handles terminals like foot that snap to character cell boundaries.
@@ -282,11 +282,11 @@ void dwl_scene_client_apply_geometry(DwlClient *client)
     if (!client)
         return;
 
-    ClientSceneData *data = dwl_client_get_scene_data(client);
+    ClientSceneData *data = swl_client_get_scene_data(client);
     if (!data)
         return;
 
-    struct wlr_xdg_toplevel *toplevel = dwl_client_get_xdg_toplevel(client);
+    struct wlr_xdg_toplevel *toplevel = swl_client_get_xdg_toplevel(client);
     if (!toplevel || !toplevel->base->initialized)
         return;
 
@@ -317,58 +317,58 @@ void dwl_scene_client_apply_geometry(DwlClient *client)
     }
 }
 
-void dwl_scene_client_set_visible(DwlClient *client, bool visible)
+void swl_scene_client_set_visible(SwlClient *client, bool visible)
 {
     if (!client)
         return;
 
-    ClientSceneData *data = dwl_client_get_scene_data(client);
+    ClientSceneData *data = swl_client_get_scene_data(client);
     if (!data || !data->tree)
         return;
 
     wlr_scene_node_set_enabled(&data->tree->node, visible);
 }
 
-void dwl_scene_client_set_layer(DwlSceneManager *mgr, DwlClient *client, DwlSceneLayer layer)
+void swl_scene_client_set_layer(SwlSceneManager *mgr, SwlClient *client, SwlSceneLayer layer)
 {
-    if (!mgr || !client || layer < 0 || layer >= DWL_LAYER_COUNT)
+    if (!mgr || !client || layer < 0 || layer >= SWL_LAYER_COUNT)
         return;
 
-    ClientSceneData *data = dwl_client_get_scene_data(client);
+    ClientSceneData *data = swl_client_get_scene_data(client);
     if (!data || !data->tree)
         return;
 
     wlr_scene_node_reparent(&data->tree->node, mgr->layers[layer]);
 }
 
-void dwl_scene_client_raise(DwlClient *client)
+void swl_scene_client_raise(SwlClient *client)
 {
     if (!client)
         return;
 
-    ClientSceneData *data = dwl_client_get_scene_data(client);
+    ClientSceneData *data = swl_client_get_scene_data(client);
     if (!data || !data->tree)
         return;
 
     wlr_scene_node_raise_to_top(&data->tree->node);
 }
 
-void dwl_scene_client_set_activated(DwlClient *client, bool activated)
+void swl_scene_client_set_activated(SwlClient *client, bool activated)
 {
     if (!client)
         return;
 
-    struct wlr_xdg_toplevel *toplevel = dwl_client_get_xdg_toplevel(client);
+    struct wlr_xdg_toplevel *toplevel = swl_client_get_xdg_toplevel(client);
     if (toplevel && toplevel->base->initialized)
         wlr_xdg_toplevel_set_activated(toplevel, activated);
 }
 
-void dwl_scene_update_borders(DwlClient *client, int width, const float color[4])
+void swl_scene_update_borders(SwlClient *client, int width, const float color[4])
 {
     if (!client)
         return;
 
-    ClientSceneData *data = dwl_client_get_scene_data(client);
+    ClientSceneData *data = swl_client_get_scene_data(client);
     if (!data)
         return;
 
@@ -378,17 +378,17 @@ void dwl_scene_update_borders(DwlClient *client, int width, const float color[4]
         wlr_scene_rect_set_color(data->border, color);
 }
 
-void dwl_scene_client_set_clip(DwlClient *client, int clip_x, int clip_y, int clip_w, int clip_h)
+void swl_scene_client_set_clip(SwlClient *client, int clip_x, int clip_y, int clip_w, int clip_h)
 {
     if (!client)
         return;
 
-    ClientSceneData *data = dwl_client_get_scene_data(client);
+    ClientSceneData *data = swl_client_get_scene_data(client);
     if (!data || !data->surface_tree)
         return;
 
     int bw = data->border_width;
-    DwlClientInfo info = dwl_client_get_info(client);
+    SwlClientInfo info = swl_client_get_info(client);
     int total_w = info.geometry.width + 2 * bw;
     int total_h = info.geometry.height + 2 * bw;
 
@@ -460,12 +460,12 @@ void dwl_scene_client_set_clip(DwlClient *client, int clip_x, int clip_y, int cl
     }
 }
 
-void dwl_scene_client_clear_clip(DwlClient *client)
+void swl_scene_client_clear_clip(SwlClient *client)
 {
     if (!client)
         return;
 
-    ClientSceneData *data = dwl_client_get_scene_data(client);
+    ClientSceneData *data = swl_client_get_scene_data(client);
     if (!data || !data->surface_tree)
         return;
 
@@ -480,18 +480,18 @@ void dwl_scene_client_clear_clip(DwlClient *client)
         wlr_scene_node_set_enabled(&data->shadow->node, true);
 
     // Restore border to full size
-    DwlClientInfo info = dwl_client_get_info(client);
+    SwlClientInfo info = swl_client_get_info(client);
     int w = info.geometry.width;
     int h = info.geometry.height;
 
-    // Clip surface matching dwl_mac's client_get_clip()
+    // Clip surface matching swl_mac's client_get_clip()
     struct wlr_box surface_clip = {
         .x = 0,
         .y = 0,
         .width = w + bw,
         .height = h + bw,
     };
-    struct wlr_xdg_toplevel *toplevel = dwl_client_get_xdg_toplevel(client);
+    struct wlr_xdg_toplevel *toplevel = swl_client_get_xdg_toplevel(client);
     if (toplevel && toplevel->base->initialized) {
         surface_clip.x = toplevel->base->geometry.x;
         surface_clip.y = toplevel->base->geometry.y;
@@ -515,12 +515,12 @@ void dwl_scene_client_clear_clip(DwlClient *client)
     }
 }
 
-void dwl_scene_client_set_shadow(DwlClient *client, bool enabled, int blur_sigma, const float color[4])
+void swl_scene_client_set_shadow(SwlClient *client, bool enabled, int blur_sigma, const float color[4])
 {
     if (!client)
         return;
 
-    ClientSceneData *data = dwl_client_get_scene_data(client);
+    ClientSceneData *data = swl_client_get_scene_data(client);
     if (!data)
         return;
 
@@ -556,12 +556,12 @@ static void set_corner_radius_recursive(struct wlr_scene_node *node, int radius,
     }
 }
 
-void dwl_scene_client_set_corner_radius(DwlClient *client, int radius)
+void swl_scene_client_set_corner_radius(SwlClient *client, int radius)
 {
     if (!client)
         return;
 
-    ClientSceneData *data = dwl_client_get_scene_data(client);
+    ClientSceneData *data = swl_client_get_scene_data(client);
     if (!data)
         return;
 
@@ -579,7 +579,7 @@ void dwl_scene_client_set_corner_radius(DwlClient *client, int radius)
         wlr_scene_rect_set_corner_radius(data->border, radius, CORNER_LOCATION_ALL);
 
         // Inner clipped region uses inner radius for proper curve alignment
-        DwlClientInfo info = dwl_client_get_info(client);
+        SwlClientInfo info = swl_client_get_info(client);
         struct clipped_region clip = {
             .area = { bw, bw, info.geometry.width, info.geometry.height },
             .corner_radius = inner_radius,
@@ -594,12 +594,12 @@ void dwl_scene_client_set_corner_radius(DwlClient *client, int radius)
     }
 }
 
-void dwl_scene_client_set_opacity(DwlClient *client, float opacity)
+void swl_scene_client_set_opacity(SwlClient *client, float opacity)
 {
     if (!client)
         return;
 
-    ClientSceneData *data = dwl_client_get_scene_data(client);
+    ClientSceneData *data = swl_client_get_scene_data(client);
     if (!data)
         return;
 

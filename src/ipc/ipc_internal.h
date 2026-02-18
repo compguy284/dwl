@@ -1,26 +1,26 @@
-#ifndef DWL_IPC_INTERNAL_H
-#define DWL_IPC_INTERNAL_H
+#ifndef SWL_IPC_INTERNAL_H
+#define SWL_IPC_INTERNAL_H
 
 #include "ipc.h"
 #include <wayland-server-core.h>
 
 #define MAX_COMMANDS 64
-#define SOCKET_PATH "/tmp/dwl.sock"
+#define SOCKET_PATH "/tmp/swl.sock"
 #define BUFFER_SIZE 8192
 
 typedef struct {
     char *name;
-    DwlIPCHandler handler;
+    SwlIPCHandler handler;
 } IPCCommand;
 
 typedef struct {
     int fd;
-    DwlIPC *ipc;
+    SwlIPC *ipc;
     struct wl_event_source *event_source;
 } IPCClient;
 
-struct DwlIPC {
-    DwlCompositor *comp;
+struct SwlIPC {
+    SwlCompositor *comp;
     int socket_fd;
     char *socket_path;
     struct wl_event_source *event_source;
@@ -28,15 +28,15 @@ struct DwlIPC {
     IPCCommand commands[MAX_COMMANDS];
     size_t command_count;
 
-    DwlStatusHandler status_handler;
+    SwlStatusHandler status_handler;
     void *status_ctx;
 };
 
 /* socket.c */
-int dwl_ipc_socket_init(DwlIPC *ipc);
-void dwl_ipc_socket_cleanup(DwlIPC *ipc);
+int swl_ipc_socket_init(SwlIPC *ipc);
+void swl_ipc_socket_cleanup(SwlIPC *ipc);
 
 /* commands.c */
-void dwl_ipc_register_builtins(DwlIPC *ipc);
+void swl_ipc_register_builtins(SwlIPC *ipc);
 
-#endif /* DWL_IPC_INTERNAL_H */
+#endif /* SWL_IPC_INTERNAL_H */

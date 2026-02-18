@@ -1,18 +1,18 @@
-#ifndef DWL_CLIENT_H
-#define DWL_CLIENT_H
+#ifndef SWL_CLIENT_H
+#define SWL_CLIENT_H
 
 #include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
 #include "error.h"
 
-typedef struct DwlClient DwlClient;
-typedef struct DwlClientManager DwlClientManager;
-typedef struct DwlCompositor DwlCompositor;
-typedef struct DwlMonitor DwlMonitor;
+typedef struct SwlClient SwlClient;
+typedef struct SwlClientManager SwlClientManager;
+typedef struct SwlCompositor SwlCompositor;
+typedef struct SwlMonitor SwlMonitor;
 struct wlr_surface;
 
-typedef struct DwlClientInfo {
+typedef struct SwlClientInfo {
     uint32_t id;
     const char *app_id;
     const char *title;
@@ -24,52 +24,52 @@ typedef struct DwlClientInfo {
     bool urgent;
     bool focused;
     bool x11;
-} DwlClientInfo;
+} SwlClientInfo;
 
-DwlClientManager *dwl_client_manager_create(DwlCompositor *comp);
-void dwl_client_manager_destroy(DwlClientManager *mgr);
+SwlClientManager *swl_client_manager_create(SwlCompositor *comp);
+void swl_client_manager_destroy(SwlClientManager *mgr);
 
-typedef bool (*DwlClientIterator)(DwlClient *client, void *data);
-void dwl_client_foreach(DwlClientManager *mgr, DwlClientIterator iter, void *data);
-void dwl_client_foreach_visible(DwlClientManager *mgr, DwlMonitor *mon,
-                                 DwlClientIterator iter, void *data);
+typedef bool (*SwlClientIterator)(SwlClient *client, void *data);
+void swl_client_foreach(SwlClientManager *mgr, SwlClientIterator iter, void *data);
+void swl_client_foreach_visible(SwlClientManager *mgr, SwlMonitor *mon,
+                                 SwlClientIterator iter, void *data);
 
-DwlClient *dwl_client_at(DwlClientManager *mgr, double x, double y);
-DwlClient *dwl_client_focused(DwlClientManager *mgr);
-DwlClient *dwl_client_focus_top_on_monitor(DwlClientManager *mgr, DwlMonitor *mon);
-DwlClient *dwl_client_by_id(DwlClientManager *mgr, uint32_t id);
-bool dwl_client_is_valid(DwlClient *client);
-DwlClient *dwl_client_by_surface(DwlClientManager *mgr, struct wlr_surface *surface);
-size_t dwl_client_count(DwlClientManager *mgr);
-size_t dwl_client_count_visible(DwlClientManager *mgr, DwlMonitor *mon);
+SwlClient *swl_client_at(SwlClientManager *mgr, double x, double y);
+SwlClient *swl_client_focused(SwlClientManager *mgr);
+SwlClient *swl_client_focus_top_on_monitor(SwlClientManager *mgr, SwlMonitor *mon);
+SwlClient *swl_client_by_id(SwlClientManager *mgr, uint32_t id);
+bool swl_client_is_valid(SwlClient *client);
+SwlClient *swl_client_by_surface(SwlClientManager *mgr, struct wlr_surface *surface);
+size_t swl_client_count(SwlClientManager *mgr);
+size_t swl_client_count_visible(SwlClientManager *mgr, SwlMonitor *mon);
 
-DwlClientInfo dwl_client_get_info(const DwlClient *client);
-DwlMonitor *dwl_client_get_monitor(const DwlClient *client);
-struct wlr_surface *dwl_client_get_surface(const DwlClient *client);
-const char *dwl_client_get_output_name(const DwlClient *client);
-void dwl_client_set_monitor_internal(DwlClient *client, DwlMonitor *mon);
+SwlClientInfo swl_client_get_info(const SwlClient *client);
+SwlMonitor *swl_client_get_monitor(const SwlClient *client);
+struct wlr_surface *swl_client_get_surface(const SwlClient *client);
+const char *swl_client_get_output_name(const SwlClient *client);
+void swl_client_set_monitor_internal(SwlClient *client, SwlMonitor *mon);
 
-DwlError dwl_client_close(DwlClient *client);
-DwlError dwl_client_focus(DwlClient *client);
-DwlError dwl_client_set_floating(DwlClient *client, bool floating);
-DwlError dwl_client_toggle_floating(DwlClient *client);
-DwlError dwl_client_set_fullscreen(DwlClient *client, bool fullscreen);
-DwlError dwl_client_toggle_fullscreen(DwlClient *client);
-DwlError dwl_client_move_to_monitor(DwlClient *client, DwlMonitor *mon);
-DwlError dwl_client_resize(DwlClient *client, int x, int y, int w, int h);
-DwlError dwl_client_set_border_color(DwlClient *client, const float color[4]);
-DwlError dwl_client_set_border_width(DwlClient *client, int width);
-DwlError dwl_client_set_urgent(DwlClient *client, bool urgent);
-DwlError dwl_client_zoom(DwlClientManager *mgr);
+SwlError swl_client_close(SwlClient *client);
+SwlError swl_client_focus(SwlClient *client);
+SwlError swl_client_set_floating(SwlClient *client, bool floating);
+SwlError swl_client_toggle_floating(SwlClient *client);
+SwlError swl_client_set_fullscreen(SwlClient *client, bool fullscreen);
+SwlError swl_client_toggle_fullscreen(SwlClient *client);
+SwlError swl_client_move_to_monitor(SwlClient *client, SwlMonitor *mon);
+SwlError swl_client_resize(SwlClient *client, int x, int y, int w, int h);
+SwlError swl_client_set_border_color(SwlClient *client, const float color[4]);
+SwlError swl_client_set_border_width(SwlClient *client, int width);
+SwlError swl_client_set_urgent(SwlClient *client, bool urgent);
+SwlError swl_client_zoom(SwlClientManager *mgr);
 
-float dwl_client_get_scroller_ratio(const DwlClient *client);
-DwlError dwl_client_set_scroller_ratio(DwlClient *client, float ratio);
+float swl_client_get_scroller_ratio(const SwlClient *client);
+SwlError swl_client_set_scroller_ratio(SwlClient *client, float ratio);
 
 // Direction: 0=up, 1=down, 2=left, 3=right
-DwlClient *dwl_client_in_direction(DwlClientManager *mgr, DwlClient *from, int direction);
+SwlClient *swl_client_in_direction(SwlClientManager *mgr, SwlClient *from, int direction);
 
-struct DwlSceneManager *dwl_client_manager_get_scene(DwlClientManager *mgr);
-struct DwlRuleEngine *dwl_client_manager_get_rules(DwlClientManager *mgr);
-DwlError dwl_client_manager_load_rules(DwlClientManager *mgr);
+struct SwlSceneManager *swl_client_manager_get_scene(SwlClientManager *mgr);
+struct SwlRuleEngine *swl_client_manager_get_rules(SwlClientManager *mgr);
+SwlError swl_client_manager_load_rules(SwlClientManager *mgr);
 
-#endif /* DWL_CLIENT_H */
+#endif /* SWL_CLIENT_H */

@@ -5,8 +5,8 @@
 #include <sys/un.h>
 #include <unistd.h>
 
-#define SOCKET_PATH_ENV "DWL_SOCKET"
-#define DEFAULT_SOCKET_PATH "/tmp/dwl.sock"
+#define SOCKET_PATH_ENV "SWL_SOCKET"
+#define DEFAULT_SOCKET_PATH "/tmp/swl.sock"
 #define BUFFER_SIZE 8192
 
 static void usage(const char *name)
@@ -24,7 +24,7 @@ static void usage(const char *name)
     fprintf(stderr, "  reload-config     Reload configuration\n");
     fprintf(stderr, "  quit              Quit compositor\n");
     fprintf(stderr, "\nEnvironment:\n");
-    fprintf(stderr, "  DWL_SOCKET        Socket path (default: %s)\n", DEFAULT_SOCKET_PATH);
+    fprintf(stderr, "  SWL_SOCKET        Socket path (default: %s)\n", DEFAULT_SOCKET_PATH);
 }
 
 static int send_command(const char *socket_path, const char *cmd, char *response, size_t response_size)
@@ -95,7 +95,7 @@ int main(int argc, char *argv[])
 
     char response[BUFFER_SIZE];
     if (send_command(socket_path, cmd, response, sizeof(response)) < 0) {
-        fprintf(stderr, "Failed to communicate with dwl\n");
+        fprintf(stderr, "Failed to communicate with swl\n");
         return 1;
     }
 

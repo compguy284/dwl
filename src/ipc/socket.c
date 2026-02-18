@@ -13,12 +13,12 @@
 static int handle_client(int fd, uint32_t mask, void *data);
 static int handle_socket(int fd, uint32_t mask, void *data);
 
-int dwl_ipc_socket_init(DwlIPC *ipc)
+int swl_ipc_socket_init(SwlIPC *ipc)
 {
     char *runtime = getenv("XDG_RUNTIME_DIR");
     if (runtime) {
         ipc->socket_path = malloc(strlen(runtime) + 16);
-        sprintf(ipc->socket_path, "%s/dwl.sock", runtime);
+        sprintf(ipc->socket_path, "%s/swl.sock", runtime);
     } else {
         ipc->socket_path = strdup(SOCKET_PATH);
     }
@@ -57,17 +57,17 @@ int dwl_ipc_socket_init(DwlIPC *ipc)
         return -1;
     }
 
-    struct wl_display *display = dwl_compositor_get_wl_display(ipc->comp);
+    struct wl_display *display = swl_compositor_get_wl_display(ipc->comp);
     struct wl_event_loop *loop = wl_display_get_event_loop(display);
     ipc->event_source = wl_event_loop_add_fd(loop, ipc->socket_fd,
         WL_EVENT_READABLE, handle_socket, ipc);
 
-    setenv("DWL_SOCKET", ipc->socket_path, 1);
+    setenv("SWL_SOCKET", ipc->socket_path, 1);
 
     return 0;
 }
 
-void dwl_ipc_socket_cleanup(DwlIPC *ipc)
+void swl_ipc_socket_cleanup(SwlIPC *ipc)
 {
     if (ipc->event_source) {
         wl_event_source_remove(ipc->event_source);
@@ -87,7 +87,7 @@ void dwl_ipc_socket_cleanup(DwlIPC *ipc)
 
 static int handle_socket(int fd, uint32_t mask, void *data)
 {
-    DwlIPC *ipc = data;
+    SwlIPC *ipc = data;
     (void)mask;
 
     int client_fd = accept(fd, NULL, NULL);
@@ -97,7 +97,7 @@ static int handle_socket(int fd, uint32_t mask, void *data)
     int flags = fcntl(client_fd, F_GETFL);
     fcntl(client_fd, F_SETFL, flags | O_NONBLOCK);
 
-    struct wl_display *display = dwl_compositor_get_wl_display(ipc->comp);
+    struct wl_display *display = swl_compositor_get_wl_display(ipc->comp);
     struct wl_event_loop *loop = wl_display_get_event_loop(display);
 
     IPCClient *client = malloc(sizeof(*client));
@@ -142,7 +142,7 @@ static int handle_client(int fd, uint32_t mask, void *data)
         args = space + 1;
     }
 
-    DwlIPCResponse response = dwl_ipc_execute(client->ipc, cmd, args);
+    SwlIPCResponse response = swl_ipc_execute(client->ipc, cmd, args);
 
     char *reply;
     if (response.success && response.json)
@@ -156,7 +156,7 @@ static int handle_client(int fd, uint32_t mask, void *data)
         // Client disconnected or error - nothing to do
     }
 
-    dwl_ipc_response_free(&response);
+    swl_ipc_response_free(&response);
     ipc_client_cleanup(client);
 
     return 0;

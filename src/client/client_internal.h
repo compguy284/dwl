@@ -1,5 +1,5 @@
-#ifndef DWL_CLIENT_INTERNAL_H
-#define DWL_CLIENT_INTERNAL_H
+#ifndef SWL_CLIENT_INTERNAL_H
+#define SWL_CLIENT_INTERNAL_H
 
 #include "client.h"
 #include "rules.h"
@@ -8,7 +8,7 @@
 #include "events.h"
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_xdg_shell.h>
-#ifdef DWL_XWAYLAND
+#ifdef SWL_XWAYLAND
 #include <wlr/xwayland.h>
 #endif
 
@@ -19,13 +19,13 @@ typedef struct {
     int border_width;
 } ClientSceneData;
 
-#define DWL_CLIENT_MAGIC 0xDEADC0DE
+#define SWL_CLIENT_MAGIC 0xDEADC0DE
 
-struct DwlClient {
-    uint32_t magic;  // Must be DWL_CLIENT_MAGIC for valid clients
+struct SwlClient {
+    uint32_t magic;  // Must be SWL_CLIENT_MAGIC for valid clients
     uint32_t id;
-    DwlClientManager *mgr;
-    DwlMonitor *mon;
+    SwlClientManager *mgr;
+    SwlMonitor *mon;
     char *output_name;  // Remember which output this client was on (for restore-monitor)
 
     struct wlr_xdg_toplevel *xdg;
@@ -44,7 +44,7 @@ struct DwlClient {
 
     float scroller_ratio;  // Per-client scroller column ratio (0.0 = use default)
 
-#ifdef DWL_XWAYLAND
+#ifdef SWL_XWAYLAND
     struct wlr_xwayland_surface *xwayland;
     bool is_x11;
     struct wl_listener associate;
@@ -63,30 +63,30 @@ struct DwlClient {
     struct wl_list flink;
 };
 
-struct DwlClientManager {
-    DwlCompositor *comp;
+struct SwlClientManager {
+    SwlCompositor *comp;
     struct wl_list clients;
     struct wl_list focus_stack;
-    DwlClient *focused;
+    SwlClient *focused;
     uint32_t next_id;
-    DwlSceneManager *scene_mgr;
-    DwlRuleEngine *rules;
+    SwlSceneManager *scene_mgr;
+    SwlRuleEngine *rules;
 };
 
 /* Accessors used by client_x11.c */
-ClientSceneData *dwl_client_get_scene_data(DwlClient *client);
-void dwl_client_set_scene_data(DwlClient *client, ClientSceneData *data);
-struct wlr_xdg_toplevel *dwl_client_get_xdg_toplevel(DwlClient *client);
+ClientSceneData *swl_client_get_scene_data(SwlClient *client);
+void swl_client_set_scene_data(SwlClient *client, ClientSceneData *data);
+struct wlr_xdg_toplevel *swl_client_get_xdg_toplevel(SwlClient *client);
 
-#ifdef DWL_XWAYLAND
+#ifdef SWL_XWAYLAND
 /* client_x11.c */
-DwlClient *dwl_client_create_x11(DwlClientManager *mgr, struct wlr_xwayland_surface *surface);
-bool dwl_client_is_x11(const DwlClient *client);
-bool dwl_client_is_x11_unmanaged(const DwlClient *client);
-const char *dwl_client_get_x11_class(const DwlClient *client);
-const char *dwl_client_get_x11_instance(const DwlClient *client);
-int dwl_client_get_x11_pid(const DwlClient *client);
-struct wlr_xwayland_surface *dwl_client_get_xwayland_surface(DwlClient *client);
+SwlClient *swl_client_create_x11(SwlClientManager *mgr, struct wlr_xwayland_surface *surface);
+bool swl_client_is_x11(const SwlClient *client);
+bool swl_client_is_x11_unmanaged(const SwlClient *client);
+const char *swl_client_get_x11_class(const SwlClient *client);
+const char *swl_client_get_x11_instance(const SwlClient *client);
+int swl_client_get_x11_pid(const SwlClient *client);
+struct wlr_xwayland_surface *swl_client_get_xwayland_surface(SwlClient *client);
 #endif
 
-#endif /* DWL_CLIENT_INTERNAL_H */
+#endif /* SWL_CLIENT_INTERNAL_H */

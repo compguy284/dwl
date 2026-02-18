@@ -6,16 +6,16 @@
   ...
 }:
 let
-  cfg = config.programs.dwl;
+  cfg = config.programs.swl;
 in
 {
-  options.programs.dwl = {
-    enable = lib.mkEnableOption "dwl - Wayland compositor";
+  options.programs.swl = {
+    enable = lib.mkEnableOption "swl - Wayland compositor";
 
     package = lib.mkOption {
       type = lib.types.package;
-      default = self.packages.${pkgs.stdenv.hostPlatform.system}.dwl;
-      description = "The dwl package to use.";
+      default = self.packages.${pkgs.stdenv.hostPlatform.system}.swl;
+      description = "The swl package to use.";
     };
   };
 

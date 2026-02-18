@@ -1,4 +1,4 @@
-project('dwl', 'c',
+project('swl', 'c',
   version: '1.0.0',
   license: 'MIT',
   default_options: [
@@ -33,7 +33,7 @@ xwayland_opt = get_option('xwayland')
 if xwayland_opt
   xcb = dependency('xcb')
   xcb_icccm = dependency('xcb-icccm')
-  add_project_arguments('-DDWL_XWAYLAND', language: 'c')
+  add_project_arguments('-DSWL_XWAYLAND', language: 'c')
 endif
 
 # Wayland protocols
@@ -66,9 +66,9 @@ foreach p : protocols
     command: [wayland_scanner, 'private-code', '@INPUT@', '@OUTPUT@'])
 endforeach
 
-dwl_inc = include_directories('include', '.', 'lib/tomlc99')
+swl_inc = include_directories('include', '.', 'lib/tomlc99')
 
-dwl_sources = files(
+swl_sources = files(
   'src/main.c',
   # Vendored libraries
   'lib/tomlc99/toml.c',
@@ -109,7 +109,7 @@ dwl_sources = files(
   'src/toplevel/toplevel.c',
 )
 
-dwl_deps = [
+swl_deps = [
   scenefx,
   wlroots,
   wayland_server,
@@ -120,25 +120,25 @@ dwl_deps = [
 ]
 
 if xwayland_opt
-  dwl_sources += files(
+  swl_sources += files(
     'src/xwayland/xwayland.c',
     'src/client/client_x11.c',
   )
-  dwl_deps += [xcb, xcb_icccm]
+  swl_deps += [xcb, xcb_icccm]
 endif
 
-executable('dwl',
-  sources: [dwl_sources, protocol_headers, protocol_sources],
-  dependencies: dwl_deps,
-  include_directories: dwl_inc,
+executable('swl',
+  sources: [swl_sources, protocol_headers, protocol_sources],
+  dependencies: swl_deps,
+  include_directories: swl_inc,
   install: true)
 
-executable('dwlctl',
-  sources: ['tools/dwlctl.c'],
+executable('swlctl',
+  sources: ['tools/swlctl.c'],
   install: true)
 
 # Create static library for testable code (no main.c, no wlroots-dependent code)
-dwl_testable_sources = files(
+swl_testable_sources = files(
   'lib/tomlc99/toml.c',
   'src/core/events.c',
   'src/core/error.c',
@@ -149,8 +149,8 @@ dwl_testable_sources = files(
   'src/client/rules.c',
 )
 
-dwl_testable = static_library('dwl_testable',
-  sources: dwl_testable_sources,
-  include_directories: dwl_inc)
+swl_testable = static_library('swl_testable',
+  sources: swl_testable_sources,
+  include_directories: swl_inc)
 
 subdir('tests')

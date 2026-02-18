@@ -45,11 +45,11 @@
 #include <scenefx/render/fx_renderer/fx_renderer.h>
 #include <scenefx/types/wlr_scene.h>
 
-extern void dwl_signal_init(void);
-extern int dwl_signal_should_quit(void);
-extern void dwl_signal_request_quit(void);
+extern void swl_signal_init(void);
+extern int swl_signal_should_quit(void);
+extern void swl_signal_request_quit(void);
 
-struct DwlCompositor {
+struct SwlCompositor {
     struct wl_display *display;
     struct wl_event_loop *event_loop;
     struct wlr_backend *backend;
@@ -65,20 +65,20 @@ struct DwlCompositor {
     struct wlr_xdg_activation_v1 *activation;
     struct wlr_idle_notifier_v1 *idle_notifier;
 
-    DwlEventBus *event_bus;
+    SwlEventBus *event_bus;
 
-    DwlClientManager *clients;
-    DwlInput *input;
-    DwlOutputManager *output;
-    DwlConfig *config;
-    DwlRenderer *dwl_renderer;
-    DwlIPC *ipc;
-    DwlLayoutRegistry *layouts;
-    DwlLayerManager *layer_mgr;
-    DwlToplevelManager *toplevel_mgr;
+    SwlClientManager *clients;
+    SwlInput *input;
+    SwlOutputManager *output;
+    SwlConfig *config;
+    SwlRenderer *swl_renderer;
+    SwlIPC *ipc;
+    SwlLayoutRegistry *layouts;
+    SwlLayerManager *layer_mgr;
+    SwlToplevelManager *toplevel_mgr;
 
-#ifdef DWL_XWAYLAND
-    DwlXWayland *xwayland;
+#ifdef SWL_XWAYLAND
+    SwlXWayland *xwayland;
 #endif
 
     struct wlr_output_power_manager_v1 *output_power_mgr;
@@ -96,44 +96,44 @@ struct DwlCompositor {
 
 static void handle_new_xdg_toplevel(struct wl_listener *listener, void *data)
 {
-    DwlCompositor *comp = wl_container_of(listener, comp, new_xdg_toplevel);
-    dwl_xdg_shell_handle_new_toplevel(comp, data);
+    SwlCompositor *comp = wl_container_of(listener, comp, new_xdg_toplevel);
+    swl_xdg_shell_handle_new_toplevel(comp, data);
 }
 
 static void handle_new_xdg_popup(struct wl_listener *listener, void *data)
 {
     (void)listener;
-    dwl_xdg_shell_handle_new_popup(data);
+    swl_xdg_shell_handle_new_popup(data);
 }
 
 static void handle_new_xdg_decoration(struct wl_listener *listener, void *data)
 {
     (void)listener;
-    dwl_decoration_handle_new(data);
+    swl_decoration_handle_new(data);
 }
 
 static void handle_request_activate(struct wl_listener *listener, void *data)
 {
-    DwlCompositor *comp = wl_container_of(listener, comp, request_activate);
+    SwlCompositor *comp = wl_container_of(listener, comp, request_activate);
     struct wlr_xdg_activation_v1_request_activate_event *event = data;
 
     // Find the client associated with this surface
-    DwlClient *client = dwl_client_by_surface(comp->clients, event->surface);
+    SwlClient *client = swl_client_by_surface(comp->clients, event->surface);
     if (!client)
         return;
 
     // Don't mark as urgent if already focused
-    DwlClient *focused = dwl_client_focused(comp->clients);
+    SwlClient *focused = swl_client_focused(comp->clients);
     if (client == focused)
         return;
 
     // Mark as urgent
-    dwl_client_set_urgent(client, true);
+    swl_client_set_urgent(client, true);
 }
 
 static void handle_set_output_power_mode(struct wl_listener *listener, void *data)
 {
-    DwlCompositor *comp = wl_container_of(listener, comp, set_output_power_mode);
+    SwlCompositor *comp = wl_container_of(listener, comp, set_output_power_mode);
     (void)comp;
     struct wlr_output_power_v1_set_mode_event *event = data;
 
@@ -145,30 +145,30 @@ static void handle_set_output_power_mode(struct wl_listener *listener, void *dat
     wlr_output_state_finish(&state);
 }
 
-DwlError dwl_compositor_create(DwlCompositor **out, const DwlCompositorConfig *cfg)
+SwlError swl_compositor_create(SwlCompositor **out, const SwlCompositorConfig *cfg)
 {
     if (!out)
-        return DWL_ERR_INVALID_ARG;
+        return SWL_ERR_INVALID_ARG;
 
-    DwlCompositor *comp = calloc(1, sizeof(*comp));
+    SwlCompositor *comp = calloc(1, sizeof(*comp));
     if (!comp)
-        return DWL_ERR_NOMEM;
+        return SWL_ERR_NOMEM;
 
-    dwl_signal_init();
+    swl_signal_init();
 
     // Event bus
-    comp->event_bus = dwl_event_bus_create();
+    comp->event_bus = swl_event_bus_create();
     if (!comp->event_bus) {
         free(comp);
-        return DWL_ERR_NOMEM;
+        return SWL_ERR_NOMEM;
     }
 
     // Wayland display
     comp->display = wl_display_create();
     if (!comp->display) {
-        dwl_event_bus_destroy(comp->event_bus);
+        swl_event_bus_destroy(comp->event_bus);
         free(comp);
-        return DWL_ERR_WAYLAND;
+        return SWL_ERR_WAYLAND;
     }
 
     comp->event_loop = wl_display_get_event_loop(comp->display);
@@ -177,9 +177,9 @@ DwlError dwl_compositor_create(DwlCompositor **out, const DwlCompositorConfig *c
     comp->backend = wlr_backend_autocreate(comp->event_loop, &comp->session);
     if (!comp->backend) {
         wl_display_destroy(comp->display);
-        dwl_event_bus_destroy(comp->event_bus);
+        swl_event_bus_destroy(comp->event_bus);
         free(comp);
-        return DWL_ERR_BACKEND;
+        return SWL_ERR_BACKEND;
     }
 
     // Renderer (scenefx)
@@ -187,9 +187,9 @@ DwlError dwl_compositor_create(DwlCompositor **out, const DwlCompositorConfig *c
     if (!comp->renderer) {
         wlr_backend_destroy(comp->backend);
         wl_display_destroy(comp->display);
-        dwl_event_bus_destroy(comp->event_bus);
+        swl_event_bus_destroy(comp->event_bus);
         free(comp);
-        return DWL_ERR_BACKEND;
+        return SWL_ERR_BACKEND;
     }
 
     wlr_renderer_init_wl_display(comp->renderer, comp->display);
@@ -200,9 +200,9 @@ DwlError dwl_compositor_create(DwlCompositor **out, const DwlCompositorConfig *c
         wlr_renderer_destroy(comp->renderer);
         wlr_backend_destroy(comp->backend);
         wl_display_destroy(comp->display);
-        dwl_event_bus_destroy(comp->event_bus);
+        swl_event_bus_destroy(comp->event_bus);
         free(comp);
-        return DWL_ERR_BACKEND;
+        return SWL_ERR_BACKEND;
     }
 
     // Core Wayland protocols
@@ -261,75 +261,75 @@ DwlError dwl_compositor_create(DwlCompositor **out, const DwlCompositorConfig *c
     comp->seat = wlr_seat_create(comp->display, "seat0");
 
     // Configuration
-    comp->config = dwl_config_create();
+    comp->config = swl_config_create();
     if (cfg && cfg->config_path) {
         comp->config_path = strdup(cfg->config_path);
-        dwl_config_load_file(comp->config, cfg->config_path);
+        swl_config_load_file(comp->config, cfg->config_path);
     } else {
-        dwl_config_load_default(comp->config);
+        swl_config_load_default(comp->config);
     }
 
     // Layout registry
-    comp->layouts = dwl_layout_registry_create();
-    dwl_layout_register_builtins(comp->layouts);
+    comp->layouts = swl_layout_registry_create();
+    swl_layout_register_builtins(comp->layouts);
 
     // Client manager
-    comp->clients = dwl_client_manager_create(comp);
+    comp->clients = swl_client_manager_create(comp);
 
     // Output manager
-    comp->output = dwl_output_create(comp);
+    comp->output = swl_output_create(comp);
 
     // Input
-    comp->input = dwl_input_create(comp);
+    comp->input = swl_input_create(comp);
 
     // Renderer
-    comp->dwl_renderer = dwl_renderer_create(comp);
+    comp->swl_renderer = swl_renderer_create(comp);
 
     // Configure scenefx blur
-    DwlRenderConfig rcfg = dwl_renderer_get_config(comp->dwl_renderer);
+    SwlRenderConfig rcfg = swl_renderer_get_config(comp->swl_renderer);
     wlr_scene_set_blur_data(comp->scene, rcfg.blur_passes, rcfg.blur_radius,
         0.0f, 1.0f, 1.0f, 1.0f);  // noise, brightness, contrast, saturation
 
     // IPC
-    comp->ipc = dwl_ipc_create(comp);
-    dwl_ipc_register_builtins(comp->ipc);
+    comp->ipc = swl_ipc_create(comp);
+    swl_ipc_register_builtins(comp->ipc);
 
     // Layer shell
-    comp->layer_mgr = dwl_layer_manager_create(comp);
+    comp->layer_mgr = swl_layer_manager_create(comp);
 
     // Foreign toplevel manager
-    comp->toplevel_mgr = dwl_toplevel_manager_create(comp);
+    comp->toplevel_mgr = swl_toplevel_manager_create(comp);
 
-#ifdef DWL_XWAYLAND
+#ifdef SWL_XWAYLAND
     if (!cfg || cfg->enable_xwayland)
-        comp->xwayland = dwl_xwayland_create(comp);
+        comp->xwayland = swl_xwayland_create(comp);
 #endif
 
     if (cfg && cfg->startup_cmd)
         comp->startup_cmd = strdup(cfg->startup_cmd);
 
     *out = comp;
-    return DWL_OK;
+    return SWL_OK;
 }
 
-void dwl_compositor_destroy(DwlCompositor *comp)
+void swl_compositor_destroy(SwlCompositor *comp)
 {
     if (!comp)
         return;
 
-#ifdef DWL_XWAYLAND
-    dwl_xwayland_destroy(comp->xwayland);
+#ifdef SWL_XWAYLAND
+    swl_xwayland_destroy(comp->xwayland);
 #endif
 
-    dwl_toplevel_manager_destroy(comp->toplevel_mgr);
-    dwl_layer_manager_destroy(comp->layer_mgr);
-    dwl_ipc_destroy(comp->ipc);
-    dwl_renderer_destroy(comp->dwl_renderer);
-    dwl_input_destroy(comp->input);
-    dwl_output_destroy(comp->output);
-    dwl_client_manager_destroy(comp->clients);
-    dwl_layout_registry_destroy(comp->layouts);
-    dwl_config_destroy(comp->config);
+    swl_toplevel_manager_destroy(comp->toplevel_mgr);
+    swl_layer_manager_destroy(comp->layer_mgr);
+    swl_ipc_destroy(comp->ipc);
+    swl_renderer_destroy(comp->swl_renderer);
+    swl_input_destroy(comp->input);
+    swl_output_destroy(comp->output);
+    swl_client_manager_destroy(comp->clients);
+    swl_layout_registry_destroy(comp->layouts);
+    swl_config_destroy(comp->config);
 
     free(comp->startup_cmd);
     free(comp->config_path);
@@ -345,28 +345,28 @@ void dwl_compositor_destroy(DwlCompositor *comp)
     wlr_renderer_destroy(comp->renderer);
     wlr_backend_destroy(comp->backend);
     wl_display_destroy(comp->display);
-    dwl_event_bus_destroy(comp->event_bus);
+    swl_event_bus_destroy(comp->event_bus);
     free(comp);
 }
 
-DwlError dwl_compositor_run(DwlCompositor *comp)
+SwlError swl_compositor_run(SwlCompositor *comp)
 {
     if (!comp)
-        return DWL_ERR_INVALID_ARG;
+        return SWL_ERR_INVALID_ARG;
 
     const char *socket = wl_display_add_socket_auto(comp->display);
     if (!socket)
-        return DWL_ERR_WAYLAND;
+        return SWL_ERR_WAYLAND;
 
     if (!wlr_backend_start(comp->backend))
-        return DWL_ERR_BACKEND;
+        return SWL_ERR_BACKEND;
 
     setenv("WAYLAND_DISPLAY", socket, 1);
     setenv("XDG_CURRENT_DESKTOP", "wlroots", 1);
 
-#ifdef DWL_XWAYLAND
+#ifdef SWL_XWAYLAND
     if (comp->xwayland) {
-        const char *xdisplay = dwl_xwayland_get_display(comp->xwayland);
+        const char *xdisplay = swl_xwayland_get_display(comp->xwayland);
         if (xdisplay)
             setenv("DISPLAY", xdisplay, 1);
     }
@@ -375,7 +375,7 @@ DwlError dwl_compositor_run(DwlCompositor *comp)
     // Import environment variables into D-Bus and systemd user session
     // This enables portals, notifications, and other D-Bus services
     if (fork() == 0) {
-#ifdef DWL_XWAYLAND
+#ifdef SWL_XWAYLAND
         execlp("dbus-update-activation-environment", "dbus-update-activation-environment",
             "--systemd", "WAYLAND_DISPLAY", "XDG_CURRENT_DESKTOP", "DISPLAY", NULL);
 #else
@@ -396,115 +396,115 @@ DwlError dwl_compositor_run(DwlCompositor *comp)
     comp->running = true;
     wl_display_run(comp->display);
 
-    return DWL_OK;
+    return SWL_OK;
 }
 
-void dwl_compositor_quit(DwlCompositor *comp)
+void swl_compositor_quit(SwlCompositor *comp)
 {
     if (!comp)
         return;
 
     comp->running = false;
-    dwl_signal_request_quit();
+    swl_signal_request_quit();
     wl_display_terminate(comp->display);
 }
 
-DwlEventBus *dwl_compositor_get_event_bus(DwlCompositor *comp)
+SwlEventBus *swl_compositor_get_event_bus(SwlCompositor *comp)
 {
     return comp ? comp->event_bus : NULL;
 }
 
-DwlInput *dwl_compositor_get_input(DwlCompositor *comp)
+SwlInput *swl_compositor_get_input(SwlCompositor *comp)
 {
     return comp ? comp->input : NULL;
 }
 
-DwlOutputManager *dwl_compositor_get_output(DwlCompositor *comp)
+SwlOutputManager *swl_compositor_get_output(SwlCompositor *comp)
 {
     return comp ? comp->output : NULL;
 }
 
-DwlClientManager *dwl_compositor_get_clients(DwlCompositor *comp)
+SwlClientManager *swl_compositor_get_clients(SwlCompositor *comp)
 {
     return comp ? comp->clients : NULL;
 }
 
-DwlConfig *dwl_compositor_get_config(DwlCompositor *comp)
+SwlConfig *swl_compositor_get_config(SwlCompositor *comp)
 {
     return comp ? comp->config : NULL;
 }
 
-DwlRenderer *dwl_compositor_get_renderer(DwlCompositor *comp)
+SwlRenderer *swl_compositor_get_renderer(SwlCompositor *comp)
 {
-    return comp ? comp->dwl_renderer : NULL;
+    return comp ? comp->swl_renderer : NULL;
 }
 
-DwlIPC *dwl_compositor_get_ipc(DwlCompositor *comp)
+SwlIPC *swl_compositor_get_ipc(SwlCompositor *comp)
 {
     return comp ? comp->ipc : NULL;
 }
 
-DwlLayoutRegistry *dwl_compositor_get_layouts(DwlCompositor *comp)
+SwlLayoutRegistry *swl_compositor_get_layouts(SwlCompositor *comp)
 {
     return comp ? comp->layouts : NULL;
 }
 
-struct wl_display *dwl_compositor_get_wl_display(DwlCompositor *comp)
+struct wl_display *swl_compositor_get_wl_display(SwlCompositor *comp)
 {
     return comp ? comp->display : NULL;
 }
 
-struct wlr_backend *dwl_compositor_get_backend(DwlCompositor *comp)
+struct wlr_backend *swl_compositor_get_backend(SwlCompositor *comp)
 {
     return comp ? comp->backend : NULL;
 }
 
-struct wlr_session *dwl_compositor_get_session(DwlCompositor *comp)
+struct wlr_session *swl_compositor_get_session(SwlCompositor *comp)
 {
     return comp ? comp->session : NULL;
 }
 
-struct wlr_allocator *dwl_compositor_get_allocator(DwlCompositor *comp)
+struct wlr_allocator *swl_compositor_get_allocator(SwlCompositor *comp)
 {
     return comp ? comp->allocator : NULL;
 }
 
-struct wlr_renderer *dwl_compositor_get_wlr_renderer(DwlCompositor *comp)
+struct wlr_renderer *swl_compositor_get_wlr_renderer(SwlCompositor *comp)
 {
     return comp ? comp->renderer : NULL;
 }
 
-struct wlr_scene *dwl_compositor_get_scene(DwlCompositor *comp)
+struct wlr_scene *swl_compositor_get_scene(SwlCompositor *comp)
 {
     return comp ? comp->scene : NULL;
 }
 
-struct wlr_seat *dwl_compositor_get_seat(DwlCompositor *comp)
+struct wlr_seat *swl_compositor_get_seat(SwlCompositor *comp)
 {
     return comp ? comp->seat : NULL;
 }
 
-struct wlr_output_layout *dwl_compositor_get_output_layout(DwlCompositor *comp)
+struct wlr_output_layout *swl_compositor_get_output_layout(SwlCompositor *comp)
 {
     return comp ? comp->output_layout : NULL;
 }
 
-struct wlr_idle_notifier_v1 *dwl_compositor_get_idle_notifier(DwlCompositor *comp)
+struct wlr_idle_notifier_v1 *swl_compositor_get_idle_notifier(SwlCompositor *comp)
 {
     return comp ? comp->idle_notifier : NULL;
 }
 
-struct wlr_compositor *dwl_compositor_get_wlr_compositor(DwlCompositor *comp)
+struct wlr_compositor *swl_compositor_get_wlr_compositor(SwlCompositor *comp)
 {
     return comp ? comp->wlr_compositor : NULL;
 }
 
-DwlLayerManager *dwl_compositor_get_layer_manager(DwlCompositor *comp)
+SwlLayerManager *swl_compositor_get_layer_manager(SwlCompositor *comp)
 {
     return comp ? comp->layer_mgr : NULL;
 }
 
-DwlToplevelManager *dwl_compositor_get_toplevel_manager(DwlCompositor *comp)
+SwlToplevelManager *swl_compositor_get_toplevel_manager(SwlCompositor *comp)
 {
     return comp ? comp->toplevel_mgr : NULL;
 }

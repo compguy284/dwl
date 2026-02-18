@@ -15,10 +15,10 @@ typedef struct {
     bool first;
 } GetWindowsCtx;
 
-static bool get_windows_iter(DwlClient *c, void *data)
+static bool get_windows_iter(SwlClient *c, void *data)
 {
     GetWindowsCtx *ctx = data;
-    DwlClientInfo info = dwl_client_get_info(c);
+    SwlClientInfo info = swl_client_get_info(c);
 
     if (!ctx->first) ctx->offset += sprintf(ctx->json + ctx->offset, ",");
     ctx->first = false;
@@ -39,12 +39,12 @@ static bool get_windows_iter(DwlClient *c, void *data)
     return true;
 }
 
-static DwlIPCResponse cmd_get_windows(DwlCompositor *comp, const char *args)
+static SwlIPCResponse cmd_get_windows(SwlCompositor *comp, const char *args)
 {
     (void)args;
-    DwlIPCResponse r = {.success = true};
+    SwlIPCResponse r = {.success = true};
 
-    DwlClientManager *mgr = dwl_compositor_get_clients(comp);
+    SwlClientManager *mgr = swl_compositor_get_clients(comp);
     if (!mgr) {
         r.json = strdup("[]");
         return r;
@@ -57,28 +57,28 @@ static DwlIPCResponse cmd_get_windows(DwlCompositor *comp, const char *args)
     };
     ctx.offset += sprintf(ctx.json + ctx.offset, "[");
 
-    dwl_client_foreach(mgr, get_windows_iter, &ctx);
+    swl_client_foreach(mgr, get_windows_iter, &ctx);
 
     ctx.offset += sprintf(ctx.json + ctx.offset, "]");
     r.json = ctx.json;
     return r;
 }
 
-static DwlIPCResponse cmd_quit(DwlCompositor *comp, const char *args)
+static SwlIPCResponse cmd_quit(SwlCompositor *comp, const char *args)
 {
     (void)args;
-    DwlIPCResponse r = {.success = true, .json = strdup("ok")};
-    dwl_compositor_quit(comp);
+    SwlIPCResponse r = {.success = true, .json = strdup("ok")};
+    swl_compositor_quit(comp);
     return r;
 }
 
-static DwlIPCResponse cmd_reload_config(DwlCompositor *comp, const char *args)
+static SwlIPCResponse cmd_reload_config(SwlCompositor *comp, const char *args)
 {
     (void)args;
-    DwlIPCResponse r = {.success = true};
+    SwlIPCResponse r = {.success = true};
 
-    DwlConfig *cfg = dwl_compositor_get_config(comp);
-    if (cfg && dwl_config_reload(cfg) == DWL_OK)
+    SwlConfig *cfg = swl_compositor_get_config(comp);
+    if (cfg && swl_config_reload(cfg) == SWL_OK)
         r.json = strdup("ok");
     else {
         r.success = false;
@@ -88,12 +88,12 @@ static DwlIPCResponse cmd_reload_config(DwlCompositor *comp, const char *args)
     return r;
 }
 
-static DwlIPCResponse cmd_get_monitors(DwlCompositor *comp, const char *args)
+static SwlIPCResponse cmd_get_monitors(SwlCompositor *comp, const char *args)
 {
     (void)args;
-    DwlIPCResponse r = {.success = true};
+    SwlIPCResponse r = {.success = true};
 
-    DwlOutputManager *output = dwl_compositor_get_output(comp);
+    SwlOutputManager *output = swl_compositor_get_output(comp);
     if (!output) {
         r.json = strdup("[]");
         return r;
@@ -104,12 +104,12 @@ static DwlIPCResponse cmd_get_monitors(DwlCompositor *comp, const char *args)
     offset += sprintf(json + offset, "[");
 
     bool first = true;
-    size_t count = dwl_monitor_count(output);
+    size_t count = swl_monitor_count(output);
     for (size_t i = 0; i < count; i++) {
-        DwlMonitor *mon = dwl_monitor_by_index(output, i);
+        SwlMonitor *mon = swl_monitor_by_index(output, i);
         if (!mon) continue;
 
-        DwlMonitorInfo info = dwl_monitor_get_info(mon);
+        SwlMonitorInfo info = swl_monitor_get_info(mon);
 
         if (!first) offset += sprintf(json + offset, ",");
         first = false;
@@ -130,9 +130,9 @@ static DwlIPCResponse cmd_get_monitors(DwlCompositor *comp, const char *args)
     return r;
 }
 
-static DwlIPCResponse cmd_focus(DwlCompositor *comp, const char *args)
+static SwlIPCResponse cmd_focus(SwlCompositor *comp, const char *args)
 {
-    DwlIPCResponse r = {.success = true};
+    SwlIPCResponse r = {.success = true};
 
     if (!args) {
         r.success = false;
@@ -141,8 +141,8 @@ static DwlIPCResponse cmd_focus(DwlCompositor *comp, const char *args)
     }
 
     uint32_t id = (uint32_t)atoi(args);
-    DwlClientManager *clients = dwl_compositor_get_clients(comp);
-    DwlClient *client = dwl_client_by_id(clients, id);
+    SwlClientManager *clients = swl_compositor_get_clients(comp);
+    SwlClient *client = swl_client_by_id(clients, id);
 
     if (!client) {
         r.success = false;
@@ -150,14 +150,14 @@ static DwlIPCResponse cmd_focus(DwlCompositor *comp, const char *args)
         return r;
     }
 
-    dwl_client_focus(client);
+    swl_client_focus(client);
     r.json = strdup("ok");
     return r;
 }
 
-static DwlIPCResponse cmd_close(DwlCompositor *comp, const char *args)
+static SwlIPCResponse cmd_close(SwlCompositor *comp, const char *args)
 {
-    DwlIPCResponse r = {.success = true};
+    SwlIPCResponse r = {.success = true};
 
     if (!args) {
         r.success = false;
@@ -166,8 +166,8 @@ static DwlIPCResponse cmd_close(DwlCompositor *comp, const char *args)
     }
 
     uint32_t id = (uint32_t)atoi(args);
-    DwlClientManager *clients = dwl_compositor_get_clients(comp);
-    DwlClient *client = dwl_client_by_id(clients, id);
+    SwlClientManager *clients = swl_compositor_get_clients(comp);
+    SwlClient *client = swl_client_by_id(clients, id);
 
     if (!client) {
         r.success = false;
@@ -175,14 +175,14 @@ static DwlIPCResponse cmd_close(DwlCompositor *comp, const char *args)
         return r;
     }
 
-    dwl_client_close(client);
+    swl_client_close(client);
     r.json = strdup("ok");
     return r;
 }
 
-static DwlIPCResponse cmd_layout(DwlCompositor *comp, const char *args)
+static SwlIPCResponse cmd_layout(SwlCompositor *comp, const char *args)
 {
-    DwlIPCResponse r = {.success = true};
+    SwlIPCResponse r = {.success = true};
 
     if (!args) {
         r.success = false;
@@ -190,8 +190,8 @@ static DwlIPCResponse cmd_layout(DwlCompositor *comp, const char *args)
         return r;
     }
 
-    DwlLayoutRegistry *layouts = dwl_compositor_get_layouts(comp);
-    const DwlLayout *layout = dwl_layout_get(layouts, args);
+    SwlLayoutRegistry *layouts = swl_compositor_get_layouts(comp);
+    const SwlLayout *layout = swl_layout_get(layouts, args);
 
     if (!layout) {
         r.success = false;
@@ -199,8 +199,8 @@ static DwlIPCResponse cmd_layout(DwlCompositor *comp, const char *args)
         return r;
     }
 
-    DwlOutputManager *output = dwl_compositor_get_output(comp);
-    DwlMonitor *mon = dwl_monitor_get_focused(output);
+    SwlOutputManager *output = swl_compositor_get_output(comp);
+    SwlMonitor *mon = swl_monitor_get_focused(output);
 
     if (!mon) {
         r.success = false;
@@ -208,25 +208,25 @@ static DwlIPCResponse cmd_layout(DwlCompositor *comp, const char *args)
         return r;
     }
 
-    dwl_monitor_set_layout(mon, layout);
-    dwl_monitor_arrange(mon);
+    swl_monitor_set_layout(mon, layout);
+    swl_monitor_arrange(mon);
     r.json = strdup("ok");
     return r;
 }
 
-static DwlIPCResponse cmd_get_layouts(DwlCompositor *comp, const char *args)
+static SwlIPCResponse cmd_get_layouts(SwlCompositor *comp, const char *args)
 {
     (void)args;
-    DwlIPCResponse r = {.success = true};
+    SwlIPCResponse r = {.success = true};
 
-    DwlLayoutRegistry *layouts = dwl_compositor_get_layouts(comp);
+    SwlLayoutRegistry *layouts = swl_compositor_get_layouts(comp);
     if (!layouts) {
         r.json = strdup("[]");
         return r;
     }
 
     size_t count;
-    const char **names = dwl_layout_list(layouts, &count);
+    const char **names = swl_layout_list(layouts, &count);
 
     char *json = malloc(BUFFER_SIZE);
     int offset = 0;
@@ -243,9 +243,9 @@ static DwlIPCResponse cmd_get_layouts(DwlCompositor *comp, const char *args)
     return r;
 }
 
-static DwlIPCResponse cmd_output_power(DwlCompositor *comp, const char *args)
+static SwlIPCResponse cmd_output_power(SwlCompositor *comp, const char *args)
 {
-    DwlIPCResponse r = {.success = true};
+    SwlIPCResponse r = {.success = true};
 
     if (!args) {
         r.success = false;
@@ -273,16 +273,16 @@ static DwlIPCResponse cmd_output_power(DwlCompositor *comp, const char *args)
         return r;
     }
 
-    DwlOutputManager *output = dwl_compositor_get_output(comp);
-    DwlMonitor *mon = dwl_monitor_by_name(output, name);
+    SwlOutputManager *output = swl_compositor_get_output(comp);
+    SwlMonitor *mon = swl_monitor_by_name(output, name);
     if (!mon) {
         r.success = false;
         r.error = strdup("monitor not found");
         return r;
     }
 
-    DwlMonitorConfig cfg = {0};
-    DwlMonitorInfo info = dwl_monitor_get_info(mon);
+    SwlMonitorConfig cfg = {0};
+    SwlMonitorInfo info = swl_monitor_get_info(mon);
     cfg.enabled = enabled;
     cfg.width = info.width;
     cfg.height = info.height;
@@ -290,8 +290,8 @@ static DwlIPCResponse cmd_output_power(DwlCompositor *comp, const char *args)
     cfg.scale = info.scale;
     cfg.transform = info.transform;
 
-    DwlError err = dwl_monitor_configure(mon, &cfg);
-    if (err != DWL_OK) {
+    SwlError err = swl_monitor_configure(mon, &cfg);
+    if (err != SWL_OK) {
         r.success = false;
         r.error = strdup("failed to set output power");
         return r;
@@ -301,15 +301,15 @@ static DwlIPCResponse cmd_output_power(DwlCompositor *comp, const char *args)
     return r;
 }
 
-void dwl_ipc_register_builtins(DwlIPC *ipc)
+void swl_ipc_register_builtins(SwlIPC *ipc)
 {
-    dwl_ipc_register_command(ipc, "get-windows", cmd_get_windows);
-    dwl_ipc_register_command(ipc, "get-monitors", cmd_get_monitors);
-    dwl_ipc_register_command(ipc, "get-layouts", cmd_get_layouts);
-    dwl_ipc_register_command(ipc, "focus", cmd_focus);
-    dwl_ipc_register_command(ipc, "close", cmd_close);
-    dwl_ipc_register_command(ipc, "layout", cmd_layout);
-    dwl_ipc_register_command(ipc, "quit", cmd_quit);
-    dwl_ipc_register_command(ipc, "reload-config", cmd_reload_config);
-    dwl_ipc_register_command(ipc, "output-power", cmd_output_power);
+    swl_ipc_register_command(ipc, "get-windows", cmd_get_windows);
+    swl_ipc_register_command(ipc, "get-monitors", cmd_get_monitors);
+    swl_ipc_register_command(ipc, "get-layouts", cmd_get_layouts);
+    swl_ipc_register_command(ipc, "focus", cmd_focus);
+    swl_ipc_register_command(ipc, "close", cmd_close);
+    swl_ipc_register_command(ipc, "layout", cmd_layout);
+    swl_ipc_register_command(ipc, "quit", cmd_quit);
+    swl_ipc_register_command(ipc, "reload-config", cmd_reload_config);
+    swl_ipc_register_command(ipc, "output-power", cmd_output_power);
 }

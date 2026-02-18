@@ -1,17 +1,17 @@
-#ifndef DWL_MONITOR_H
-#define DWL_MONITOR_H
+#ifndef SWL_MONITOR_H
+#define SWL_MONITOR_H
 
 #include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
 #include "error.h"
 
-typedef struct DwlMonitor DwlMonitor;
-typedef struct DwlOutputManager DwlOutputManager;
-typedef struct DwlCompositor DwlCompositor;
-typedef struct DwlLayout DwlLayout;
+typedef struct SwlMonitor SwlMonitor;
+typedef struct SwlOutputManager SwlOutputManager;
+typedef struct SwlCompositor SwlCompositor;
+typedef struct SwlLayout SwlLayout;
 
-typedef struct DwlMonitorInfo {
+typedef struct SwlMonitorInfo {
     uint32_t id;
     const char *name;
     const char *description;
@@ -21,50 +21,50 @@ typedef struct DwlMonitorInfo {
     float scale;
     int transform;
     bool enabled;
-} DwlMonitorInfo;
+} SwlMonitorInfo;
 
-typedef struct DwlMonitorConfig {
+typedef struct SwlMonitorConfig {
     int x, y;
     int width, height;
     int refresh;
     float scale;
     int transform;
     bool enabled;
-} DwlMonitorConfig;
+} SwlMonitorConfig;
 
-DwlOutputManager *dwl_output_create(DwlCompositor *comp);
-void dwl_output_destroy(DwlOutputManager *mgr);
+SwlOutputManager *swl_output_create(SwlCompositor *comp);
+void swl_output_destroy(SwlOutputManager *mgr);
 
-size_t dwl_monitor_count(DwlOutputManager *mgr);
-DwlMonitor *dwl_monitor_get_focused(DwlOutputManager *mgr);
-DwlMonitor *dwl_monitor_at(DwlOutputManager *mgr, double x, double y);
-DwlMonitor *dwl_monitor_by_name(DwlOutputManager *mgr, const char *name);
-DwlMonitor *dwl_monitor_by_index(DwlOutputManager *mgr, size_t index);
-DwlMonitor *dwl_monitor_in_direction(DwlOutputManager *mgr, DwlMonitor *from, int dir);
+size_t swl_monitor_count(SwlOutputManager *mgr);
+SwlMonitor *swl_monitor_get_focused(SwlOutputManager *mgr);
+SwlMonitor *swl_monitor_at(SwlOutputManager *mgr, double x, double y);
+SwlMonitor *swl_monitor_by_name(SwlOutputManager *mgr, const char *name);
+SwlMonitor *swl_monitor_by_index(SwlOutputManager *mgr, size_t index);
+SwlMonitor *swl_monitor_in_direction(SwlOutputManager *mgr, SwlMonitor *from, int dir);
 
-typedef bool (*DwlMonitorIterator)(DwlMonitor *mon, void *data);
-void dwl_monitor_foreach(DwlOutputManager *mgr, DwlMonitorIterator iter, void *data);
+typedef bool (*SwlMonitorIterator)(SwlMonitor *mon, void *data);
+void swl_monitor_foreach(SwlOutputManager *mgr, SwlMonitorIterator iter, void *data);
 
-DwlMonitorInfo dwl_monitor_get_info(const DwlMonitor *mon);
-void dwl_monitor_get_usable_area(const DwlMonitor *mon, int *x, int *y, int *w, int *h);
+SwlMonitorInfo swl_monitor_get_info(const SwlMonitor *mon);
+void swl_monitor_get_usable_area(const SwlMonitor *mon, int *x, int *y, int *w, int *h);
 
-DwlError dwl_monitor_configure(DwlMonitor *mon, const DwlMonitorConfig *cfg);
-DwlError dwl_monitor_set_layout(DwlMonitor *mon, const DwlLayout *layout);
-DwlError dwl_monitor_focus(DwlMonitor *mon);
+SwlError swl_monitor_configure(SwlMonitor *mon, const SwlMonitorConfig *cfg);
+SwlError swl_monitor_set_layout(SwlMonitor *mon, const SwlLayout *layout);
+SwlError swl_monitor_focus(SwlMonitor *mon);
 
-const DwlLayout *dwl_monitor_get_layout(const DwlMonitor *mon);
-struct wlr_output *dwl_monitor_get_wlr_output(const DwlMonitor *mon);
+const SwlLayout *swl_monitor_get_layout(const SwlMonitor *mon);
+struct wlr_output *swl_monitor_get_wlr_output(const SwlMonitor *mon);
 
-float dwl_monitor_get_mfact(const DwlMonitor *mon);
-float dwl_monitor_get_scroller_ratio(const DwlMonitor *mon);
-int dwl_monitor_get_nmaster(const DwlMonitor *mon);
-DwlError dwl_monitor_set_mfact(DwlMonitor *mon, float mfact);
-DwlError dwl_monitor_set_nmaster(DwlMonitor *mon, int nmaster);
-DwlError dwl_monitor_adjust_mfact(DwlMonitor *mon, float delta);
-DwlError dwl_monitor_adjust_nmaster(DwlMonitor *mon, int delta);
+float swl_monitor_get_mfact(const SwlMonitor *mon);
+float swl_monitor_get_scroller_ratio(const SwlMonitor *mon);
+int swl_monitor_get_nmaster(const SwlMonitor *mon);
+SwlError swl_monitor_set_mfact(SwlMonitor *mon, float mfact);
+SwlError swl_monitor_set_nmaster(SwlMonitor *mon, int nmaster);
+SwlError swl_monitor_adjust_mfact(SwlMonitor *mon, float delta);
+SwlError swl_monitor_adjust_nmaster(SwlMonitor *mon, int delta);
 
-void dwl_monitor_set_usable_area(DwlMonitor *mon, int x, int y, int w, int h);
-void dwl_monitor_arrange(DwlMonitor *mon);
-void dwl_monitor_arrange_all(DwlOutputManager *mgr);
+void swl_monitor_set_usable_area(SwlMonitor *mon, int x, int y, int w, int h);
+void swl_monitor_arrange(SwlMonitor *mon);
+void swl_monitor_arrange_all(SwlOutputManager *mgr);
 
-#endif /* DWL_MONITOR_H */
+#endif /* SWL_MONITOR_H */

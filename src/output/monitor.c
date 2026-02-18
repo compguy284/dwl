@@ -17,17 +17,17 @@
 #include <wlr/types/wlr_output_layout.h>
 #include <scenefx/types/wlr_scene.h>
 
-struct DwlMonitor {
+struct SwlMonitor {
     uint32_t id;
-    DwlOutputManager *mgr;
+    SwlOutputManager *mgr;
     struct wlr_output *output;
     struct wlr_scene_output *scene_output;
 
     int x, y, width, height;
     int usable_x, usable_y, usable_width, usable_height;
 
-    const DwlLayout *layout;
-    const DwlLayout *prev_layout;
+    const SwlLayout *layout;
+    const SwlLayout *prev_layout;
 
     float mfact;
     float scroller_ratio;
@@ -42,11 +42,11 @@ struct DwlMonitor {
     struct wl_list link;
 };
 
-struct DwlOutputManager {
-    DwlCompositor *comp;
+struct SwlOutputManager {
+    SwlCompositor *comp;
     struct wlr_output_layout *layout;
     struct wl_list monitors;
-    DwlMonitor *focused;
+    SwlMonitor *focused;
     uint32_t next_id;
 
     struct wl_listener new_output;
@@ -58,29 +58,29 @@ static void handle_destroy(struct wl_listener *listener, void *data);
 static void handle_request_state(struct wl_listener *listener, void *data);
 static void handle_new_output(struct wl_listener *listener, void *data);
 static void handle_layout_change(struct wl_listener *listener, void *data);
-static void apply_monitor_rules(DwlMonitor *mon);
+static void apply_monitor_rules(SwlMonitor *mon);
 
 /* Data structure for restore_client_to_monitor callback */
 typedef struct {
-    DwlMonitor *mon;
+    SwlMonitor *mon;
     const char *output_name;
     bool restored;
 } RestoreMonitorData;
 
-static bool restore_client_to_monitor(DwlClient *c, void *data)
+static bool restore_client_to_monitor(SwlClient *c, void *data)
 {
     RestoreMonitorData *rd = data;
-    const char *client_output = dwl_client_get_output_name(c);
+    const char *client_output = swl_client_get_output_name(c);
     if (client_output && strcmp(client_output, rd->output_name) == 0) {
-        dwl_client_set_monitor_internal(c, rd->mon);
+        swl_client_set_monitor_internal(c, rd->mon);
         rd->restored = true;
     }
     return true;
 }
 
-DwlOutputManager *dwl_output_create(DwlCompositor *comp)
+SwlOutputManager *swl_output_create(SwlCompositor *comp)
 {
-    DwlOutputManager *mgr = calloc(1, sizeof(*mgr));
+    SwlOutputManager *mgr = calloc(1, sizeof(*mgr));
     if (!mgr)
         return NULL;
 
@@ -89,9 +89,9 @@ DwlOutputManager *dwl_output_create(DwlCompositor *comp)
     wl_list_init(&mgr->monitors);
 
     // Use the compositor's output layout (shared with XDG output manager)
-    mgr->layout = dwl_compositor_get_output_layout(comp);
+    mgr->layout = swl_compositor_get_output_layout(comp);
 
-    struct wlr_backend *backend = dwl_compositor_get_backend(comp);
+    struct wlr_backend *backend = swl_compositor_get_backend(comp);
     mgr->new_output.notify = handle_new_output;
     wl_signal_add(&backend->events.new_output, &mgr->new_output);
 
@@ -101,7 +101,7 @@ DwlOutputManager *dwl_output_create(DwlCompositor *comp)
     return mgr;
 }
 
-void dwl_output_destroy(DwlOutputManager *mgr)
+void swl_output_destroy(SwlOutputManager *mgr)
 {
     if (!mgr)
         return;
@@ -109,7 +109,7 @@ void dwl_output_destroy(DwlOutputManager *mgr)
     wl_list_remove(&mgr->new_output.link);
     wl_list_remove(&mgr->layout_change.link);
 
-    DwlMonitor *mon, *tmp;
+    SwlMonitor *mon, *tmp;
     wl_list_for_each_safe(mon, tmp, &mgr->monitors, link) {
         // Remove all listeners before freeing to prevent use-after-free
         // when backend destroy triggers output destroy signals
@@ -126,35 +126,35 @@ void dwl_output_destroy(DwlOutputManager *mgr)
 
 static void handle_new_output(struct wl_listener *listener, void *data)
 {
-    DwlOutputManager *mgr = wl_container_of(listener, mgr, new_output);
+    SwlOutputManager *mgr = wl_container_of(listener, mgr, new_output);
     struct wlr_output *output = data;
 
     wlr_output_init_render(output,
-        dwl_compositor_get_allocator(mgr->comp),
-        dwl_compositor_get_wlr_renderer(mgr->comp));
+        swl_compositor_get_allocator(mgr->comp),
+        swl_compositor_get_wlr_renderer(mgr->comp));
 
-    DwlMonitor *mon = calloc(1, sizeof(*mon));
+    SwlMonitor *mon = calloc(1, sizeof(*mon));
     if (!mon)
         return;
 
     mon->id = mgr->next_id++;
     mon->mgr = mgr;
     mon->output = output;
-    DwlConfig *cfg = dwl_compositor_get_config(mgr->comp);
-    mon->mfact = dwl_config_get_float(cfg, "appearance.mfact", 0.55f);
-    mon->scroller_ratio = dwl_config_get_float(cfg, "appearance.scroller_ratio", 0.8f);
-    mon->nmaster = dwl_config_get_int(cfg, "appearance.nmaster", 1);
-    mon->gap_inner_h = dwl_config_get_int(cfg, "appearance.gap_inner_h", 10);
-    mon->gap_inner_v = dwl_config_get_int(cfg, "appearance.gap_inner_v", 10);
-    mon->gap_outer_h = dwl_config_get_int(cfg, "appearance.gap_outer_h", 10);
-    mon->gap_outer_v = dwl_config_get_int(cfg, "appearance.gap_outer_v", 10);
+    SwlConfig *cfg = swl_compositor_get_config(mgr->comp);
+    mon->mfact = swl_config_get_float(cfg, "appearance.mfact", 0.55f);
+    mon->scroller_ratio = swl_config_get_float(cfg, "appearance.scroller_ratio", 0.8f);
+    mon->nmaster = swl_config_get_int(cfg, "appearance.nmaster", 1);
+    mon->gap_inner_h = swl_config_get_int(cfg, "appearance.gap_inner_h", 10);
+    mon->gap_inner_v = swl_config_get_int(cfg, "appearance.gap_inner_v", 10);
+    mon->gap_outer_h = swl_config_get_int(cfg, "appearance.gap_outer_h", 10);
+    mon->gap_outer_v = swl_config_get_int(cfg, "appearance.gap_outer_v", 10);
 
     // Set default layout
-    DwlLayoutRegistry *layouts = dwl_compositor_get_layouts(mgr->comp);
-    const char *layout_name = dwl_config_get_string(cfg, "appearance.layout", "scroller");
-    mon->layout = dwl_layout_get(layouts, layout_name);
+    SwlLayoutRegistry *layouts = swl_compositor_get_layouts(mgr->comp);
+    const char *layout_name = swl_config_get_string(cfg, "appearance.layout", "scroller");
+    mon->layout = swl_layout_get(layouts, layout_name);
     if (!mon->layout)
-        mon->layout = dwl_layout_get(layouts, "scroller");
+        mon->layout = swl_layout_get(layouts, "scroller");
 
     struct wlr_output_state state;
     wlr_output_state_init(&state);
@@ -171,7 +171,7 @@ static void handle_new_output(struct wl_listener *listener, void *data)
     wlr_output_layout_add_auto(mgr->layout, output);
 
     // Get the scene output that was automatically created by wlr_scene_attach_output_layout
-    struct wlr_scene *scene = dwl_compositor_get_scene(mgr->comp);
+    struct wlr_scene *scene = swl_compositor_get_scene(mgr->comp);
     mon->scene_output = wlr_scene_get_scene_output(scene, output);
     if (!mon->scene_output) {
         // Fallback: create manually if automatic creation didn't happen
@@ -219,7 +219,7 @@ static void handle_new_output(struct wl_listener *listener, void *data)
         mgr->focused = mon;
 
     // Restore clients that were previously on this monitor
-    DwlClientManager *clients = dwl_compositor_get_clients(mgr->comp);
+    SwlClientManager *clients = swl_compositor_get_clients(mgr->comp);
     if (clients) {
         RestoreMonitorData rdata = {
             .mon = mon,
@@ -227,20 +227,20 @@ static void handle_new_output(struct wl_listener *listener, void *data)
             .restored = false
         };
 
-        dwl_client_foreach(clients, restore_client_to_monitor, &rdata);
+        swl_client_foreach(clients, restore_client_to_monitor, &rdata);
 
         if (rdata.restored) {
-            dwl_monitor_arrange(mon);
+            swl_monitor_arrange(mon);
         }
     }
 
-    DwlEventBus *bus = dwl_compositor_get_event_bus(mgr->comp);
-    dwl_event_bus_emit_simple(bus, DWL_EVENT_MONITOR_ADD, mon);
+    SwlEventBus *bus = swl_compositor_get_event_bus(mgr->comp);
+    swl_event_bus_emit_simple(bus, SWL_EVENT_MONITOR_ADD, mon);
 }
 
 static void handle_frame(struct wl_listener *listener, void *data)
 {
-    DwlMonitor *mon = wl_container_of(listener, mon, frame);
+    SwlMonitor *mon = wl_container_of(listener, mon, frame);
     (void)data;
 
     wlr_scene_output_commit(mon->scene_output, NULL);
@@ -252,13 +252,13 @@ static void handle_frame(struct wl_listener *listener, void *data)
 
 static void handle_destroy(struct wl_listener *listener, void *data)
 {
-    DwlMonitor *mon = wl_container_of(listener, mon, destroy);
+    SwlMonitor *mon = wl_container_of(listener, mon, destroy);
     (void)data;
 
     if (mon->mgr && mon->mgr->comp) {
-        DwlEventBus *bus = dwl_compositor_get_event_bus(mon->mgr->comp);
+        SwlEventBus *bus = swl_compositor_get_event_bus(mon->mgr->comp);
         if (bus)
-            dwl_event_bus_emit_simple(bus, DWL_EVENT_MONITOR_REMOVE, mon);
+            swl_event_bus_emit_simple(bus, SWL_EVENT_MONITOR_REMOVE, mon);
     }
 
     wl_list_remove(&mon->frame.link);
@@ -278,7 +278,7 @@ static void handle_destroy(struct wl_listener *listener, void *data)
 
 static void handle_request_state(struct wl_listener *listener, void *data)
 {
-    DwlMonitor *mon = wl_container_of(listener, mon, request_state);
+    SwlMonitor *mon = wl_container_of(listener, mon, request_state);
     struct wlr_output_event_request_state *event = data;
 
     wlr_output_commit_state(mon->output, event->state);
@@ -286,10 +286,10 @@ static void handle_request_state(struct wl_listener *listener, void *data)
 
 static void handle_layout_change(struct wl_listener *listener, void *data)
 {
-    DwlOutputManager *mgr = wl_container_of(listener, mgr, layout_change);
+    SwlOutputManager *mgr = wl_container_of(listener, mgr, layout_change);
     (void)data;
 
-    DwlMonitor *mon;
+    SwlMonitor *mon;
     wl_list_for_each(mon, &mgr->monitors, link) {
         struct wlr_output_layout_output *l_output = wlr_output_layout_get(mgr->layout, mon->output);
         if (l_output) {
@@ -315,12 +315,12 @@ static void handle_layout_change(struct wl_listener *listener, void *data)
     }
 }
 
-static void apply_monitor_rules(DwlMonitor *mon)
+static void apply_monitor_rules(SwlMonitor *mon)
 {
     if (!mon || !mon->mgr || !mon->output)
         return;
 
-    DwlConfig *cfg = dwl_compositor_get_config(mon->mgr->comp);
+    SwlConfig *cfg = swl_compositor_get_config(mon->mgr->comp);
     if (!cfg)
         return;
 
@@ -329,7 +329,7 @@ static void apply_monitor_rules(DwlMonitor *mon)
 
     // Check if there are rules for this monitor by name
     snprintf(key, sizeof(key), "monitors.%s.scale", name);
-    if (!dwl_config_has_key(cfg, key)) {
+    if (!swl_config_has_key(cfg, key)) {
         // No rules for this monitor
         return;
     }
@@ -343,8 +343,8 @@ static void apply_monitor_rules(DwlMonitor *mon)
 
     // Scale
     snprintf(key, sizeof(key), "monitors.%s.scale", name);
-    if (dwl_config_has_key(cfg, key)) {
-        float scale = dwl_config_get_float(cfg, key, 1.0f);
+    if (swl_config_has_key(cfg, key)) {
+        float scale = swl_config_get_float(cfg, key, 1.0f);
         if (scale > 0) {
             wlr_output_state_set_scale(&state, scale);
             needs_commit = true;
@@ -353,8 +353,8 @@ static void apply_monitor_rules(DwlMonitor *mon)
 
     // Transform (0-7: normal, 90, 180, 270, flipped, flipped-90, flipped-180, flipped-270)
     snprintf(key, sizeof(key), "monitors.%s.transform", name);
-    if (dwl_config_has_key(cfg, key)) {
-        int transform = dwl_config_get_int(cfg, key, 0);
+    if (swl_config_has_key(cfg, key)) {
+        int transform = swl_config_get_int(cfg, key, 0);
         if (transform >= 0 && transform <= 7) {
             wlr_output_state_set_transform(&state, transform);
             needs_commit = true;
@@ -363,11 +363,11 @@ static void apply_monitor_rules(DwlMonitor *mon)
 
     // Resolution and refresh rate
     snprintf(key, sizeof(key), "monitors.%s.width", name);
-    int width = dwl_config_get_int(cfg, key, 0);
+    int width = swl_config_get_int(cfg, key, 0);
     snprintf(key, sizeof(key), "monitors.%s.height", name);
-    int height = dwl_config_get_int(cfg, key, 0);
+    int height = swl_config_get_int(cfg, key, 0);
     snprintf(key, sizeof(key), "monitors.%s.refresh", name);
-    int refresh = dwl_config_get_int(cfg, key, 0);
+    int refresh = swl_config_get_int(cfg, key, 0);
 
     if (width > 0 && height > 0) {
         struct wlr_output_mode *mode;
@@ -389,11 +389,11 @@ static void apply_monitor_rules(DwlMonitor *mon)
 
     // Position (requires removing and re-adding to layout)
     snprintf(key, sizeof(key), "monitors.%s.x", name);
-    bool has_x = dwl_config_has_key(cfg, key);
-    int x = dwl_config_get_int(cfg, key, 0);
+    bool has_x = swl_config_has_key(cfg, key);
+    int x = swl_config_get_int(cfg, key, 0);
     snprintf(key, sizeof(key), "monitors.%s.y", name);
-    bool has_y = dwl_config_has_key(cfg, key);
-    int y = dwl_config_get_int(cfg, key, 0);
+    bool has_y = swl_config_has_key(cfg, key);
+    int y = swl_config_get_int(cfg, key, 0);
 
     if (has_x && has_y) {
         wlr_output_layout_remove(mon->mgr->layout, mon->output);
@@ -402,46 +402,46 @@ static void apply_monitor_rules(DwlMonitor *mon)
 
     // Layout-specific settings (mfact, nmaster, gaps, layout)
     snprintf(key, sizeof(key), "monitors.%s.mfact", name);
-    if (dwl_config_has_key(cfg, key)) {
-        mon->mfact = dwl_config_get_float(cfg, key, mon->mfact);
+    if (swl_config_has_key(cfg, key)) {
+        mon->mfact = swl_config_get_float(cfg, key, mon->mfact);
     }
 
     snprintf(key, sizeof(key), "monitors.%s.scroller_ratio", name);
-    if (dwl_config_has_key(cfg, key)) {
-        mon->scroller_ratio = dwl_config_get_float(cfg, key, mon->scroller_ratio);
+    if (swl_config_has_key(cfg, key)) {
+        mon->scroller_ratio = swl_config_get_float(cfg, key, mon->scroller_ratio);
     }
 
     snprintf(key, sizeof(key), "monitors.%s.nmaster", name);
-    if (dwl_config_has_key(cfg, key)) {
-        mon->nmaster = dwl_config_get_int(cfg, key, mon->nmaster);
+    if (swl_config_has_key(cfg, key)) {
+        mon->nmaster = swl_config_get_int(cfg, key, mon->nmaster);
     }
 
     snprintf(key, sizeof(key), "monitors.%s.gap_inner_h", name);
-    if (dwl_config_has_key(cfg, key)) {
-        mon->gap_inner_h = dwl_config_get_int(cfg, key, mon->gap_inner_h);
+    if (swl_config_has_key(cfg, key)) {
+        mon->gap_inner_h = swl_config_get_int(cfg, key, mon->gap_inner_h);
     }
 
     snprintf(key, sizeof(key), "monitors.%s.gap_inner_v", name);
-    if (dwl_config_has_key(cfg, key)) {
-        mon->gap_inner_v = dwl_config_get_int(cfg, key, mon->gap_inner_v);
+    if (swl_config_has_key(cfg, key)) {
+        mon->gap_inner_v = swl_config_get_int(cfg, key, mon->gap_inner_v);
     }
 
     snprintf(key, sizeof(key), "monitors.%s.gap_outer_h", name);
-    if (dwl_config_has_key(cfg, key)) {
-        mon->gap_outer_h = dwl_config_get_int(cfg, key, mon->gap_outer_h);
+    if (swl_config_has_key(cfg, key)) {
+        mon->gap_outer_h = swl_config_get_int(cfg, key, mon->gap_outer_h);
     }
 
     snprintf(key, sizeof(key), "monitors.%s.gap_outer_v", name);
-    if (dwl_config_has_key(cfg, key)) {
-        mon->gap_outer_v = dwl_config_get_int(cfg, key, mon->gap_outer_v);
+    if (swl_config_has_key(cfg, key)) {
+        mon->gap_outer_v = swl_config_get_int(cfg, key, mon->gap_outer_v);
     }
 
     snprintf(key, sizeof(key), "monitors.%s.layout", name);
-    if (dwl_config_has_key(cfg, key)) {
-        const char *layout_name = dwl_config_get_string(cfg, key, NULL);
+    if (swl_config_has_key(cfg, key)) {
+        const char *layout_name = swl_config_get_string(cfg, key, NULL);
         if (layout_name) {
-            DwlLayoutRegistry *layouts = dwl_compositor_get_layouts(mon->mgr->comp);
-            const DwlLayout *layout = dwl_layout_get(layouts, layout_name);
+            SwlLayoutRegistry *layouts = swl_compositor_get_layouts(mon->mgr->comp);
+            const SwlLayout *layout = swl_layout_get(layouts, layout_name);
             if (layout)
                 mon->layout = layout;
         }
@@ -449,8 +449,8 @@ static void apply_monitor_rules(DwlMonitor *mon)
 
     // Enabled/disabled
     snprintf(key, sizeof(key), "monitors.%s.enabled", name);
-    if (dwl_config_has_key(cfg, key)) {
-        bool enabled = dwl_config_get_bool(cfg, key, true);
+    if (swl_config_has_key(cfg, key)) {
+        bool enabled = swl_config_get_bool(cfg, key, true);
         if (!enabled) {
             struct wlr_output_state disable_state;
             wlr_output_state_init(&disable_state);
@@ -461,25 +461,25 @@ static void apply_monitor_rules(DwlMonitor *mon)
     }
 }
 
-size_t dwl_monitor_count(DwlOutputManager *mgr)
+size_t swl_monitor_count(SwlOutputManager *mgr)
 {
     if (!mgr)
         return 0;
 
     size_t count = 0;
-    DwlMonitor *mon;
+    SwlMonitor *mon;
     wl_list_for_each(mon, &mgr->monitors, link) {
         count++;
     }
     return count;
 }
 
-DwlMonitor *dwl_monitor_get_focused(DwlOutputManager *mgr)
+SwlMonitor *swl_monitor_get_focused(SwlOutputManager *mgr)
 {
     return mgr ? mgr->focused : NULL;
 }
 
-DwlMonitor *dwl_monitor_at(DwlOutputManager *mgr, double x, double y)
+SwlMonitor *swl_monitor_at(SwlOutputManager *mgr, double x, double y)
 {
     if (!mgr)
         return NULL;
@@ -488,7 +488,7 @@ DwlMonitor *dwl_monitor_at(DwlOutputManager *mgr, double x, double y)
     if (!output)
         return NULL;
 
-    DwlMonitor *mon;
+    SwlMonitor *mon;
     wl_list_for_each(mon, &mgr->monitors, link) {
         if (mon->output == output)
             return mon;
@@ -497,12 +497,12 @@ DwlMonitor *dwl_monitor_at(DwlOutputManager *mgr, double x, double y)
     return NULL;
 }
 
-DwlMonitor *dwl_monitor_by_name(DwlOutputManager *mgr, const char *name)
+SwlMonitor *swl_monitor_by_name(SwlOutputManager *mgr, const char *name)
 {
     if (!mgr || !name)
         return NULL;
 
-    DwlMonitor *mon;
+    SwlMonitor *mon;
     wl_list_for_each(mon, &mgr->monitors, link) {
         if (strcmp(mon->output->name, name) == 0)
             return mon;
@@ -511,13 +511,13 @@ DwlMonitor *dwl_monitor_by_name(DwlOutputManager *mgr, const char *name)
     return NULL;
 }
 
-DwlMonitor *dwl_monitor_by_index(DwlOutputManager *mgr, size_t index)
+SwlMonitor *swl_monitor_by_index(SwlOutputManager *mgr, size_t index)
 {
     if (!mgr)
         return NULL;
 
     size_t i = 0;
-    DwlMonitor *mon;
+    SwlMonitor *mon;
     wl_list_for_each(mon, &mgr->monitors, link) {
         if (i == index)
             return mon;
@@ -527,7 +527,7 @@ DwlMonitor *dwl_monitor_by_index(DwlOutputManager *mgr, size_t index)
     return NULL;
 }
 
-DwlMonitor *dwl_monitor_in_direction(DwlOutputManager *mgr, DwlMonitor *from, int dir)
+SwlMonitor *swl_monitor_in_direction(SwlOutputManager *mgr, SwlMonitor *from, int dir)
 {
     if (!mgr || !from)
         return NULL;
@@ -542,24 +542,24 @@ DwlMonitor *dwl_monitor_in_direction(DwlOutputManager *mgr, DwlMonitor *from, in
     case 3: cx += from->width; break;  // right
     }
 
-    return dwl_monitor_at(mgr, cx, cy);
+    return swl_monitor_at(mgr, cx, cy);
 }
 
-void dwl_monitor_foreach(DwlOutputManager *mgr, DwlMonitorIterator iter, void *data)
+void swl_monitor_foreach(SwlOutputManager *mgr, SwlMonitorIterator iter, void *data)
 {
     if (!mgr || !iter)
         return;
 
-    DwlMonitor *mon, *tmp;
+    SwlMonitor *mon, *tmp;
     wl_list_for_each_safe(mon, tmp, &mgr->monitors, link) {
         if (!iter(mon, data))
             break;
     }
 }
 
-DwlMonitorInfo dwl_monitor_get_info(const DwlMonitor *mon)
+SwlMonitorInfo swl_monitor_get_info(const SwlMonitor *mon)
 {
-    DwlMonitorInfo info = {0};
+    SwlMonitorInfo info = {0};
     if (!mon)
         return info;
 
@@ -578,7 +578,7 @@ DwlMonitorInfo dwl_monitor_get_info(const DwlMonitor *mon)
     return info;
 }
 
-void dwl_monitor_get_usable_area(const DwlMonitor *mon, int *x, int *y, int *w, int *h)
+void swl_monitor_get_usable_area(const SwlMonitor *mon, int *x, int *y, int *w, int *h)
 {
     if (!mon)
         return;
@@ -589,10 +589,10 @@ void dwl_monitor_get_usable_area(const DwlMonitor *mon, int *x, int *y, int *w, 
     if (h) *h = mon->usable_height;
 }
 
-DwlError dwl_monitor_configure(DwlMonitor *mon, const DwlMonitorConfig *cfg)
+SwlError swl_monitor_configure(SwlMonitor *mon, const SwlMonitorConfig *cfg)
 {
     if (!mon || !cfg)
-        return DWL_ERR_INVALID_ARG;
+        return SWL_ERR_INVALID_ARG;
 
     struct wlr_output_state state;
     wlr_output_state_init(&state);
@@ -618,65 +618,65 @@ DwlError dwl_monitor_configure(DwlMonitor *mon, const DwlMonitorConfig *cfg)
     bool ok = wlr_output_commit_state(mon->output, &state);
     wlr_output_state_finish(&state);
 
-    return ok ? DWL_OK : DWL_ERR_BACKEND;
+    return ok ? SWL_OK : SWL_ERR_BACKEND;
 }
 
-DwlError dwl_monitor_set_layout(DwlMonitor *mon, const DwlLayout *layout)
+SwlError swl_monitor_set_layout(SwlMonitor *mon, const SwlLayout *layout)
 {
     if (!mon)
-        return DWL_ERR_INVALID_ARG;
+        return SWL_ERR_INVALID_ARG;
 
     mon->prev_layout = mon->layout;
     mon->layout = layout;
 
-    DwlEventBus *bus = dwl_compositor_get_event_bus(mon->mgr->comp);
-    dwl_event_bus_emit_simple(bus, DWL_EVENT_LAYOUT_CHANGE, mon);
+    SwlEventBus *bus = swl_compositor_get_event_bus(mon->mgr->comp);
+    swl_event_bus_emit_simple(bus, SWL_EVENT_LAYOUT_CHANGE, mon);
 
-    return DWL_OK;
+    return SWL_OK;
 }
 
-DwlError dwl_monitor_focus(DwlMonitor *mon)
+SwlError swl_monitor_focus(SwlMonitor *mon)
 {
     if (!mon || !mon->mgr)
-        return DWL_ERR_INVALID_ARG;
+        return SWL_ERR_INVALID_ARG;
 
     mon->mgr->focused = mon;
 
-    DwlEventBus *bus = dwl_compositor_get_event_bus(mon->mgr->comp);
-    dwl_event_bus_emit_simple(bus, DWL_EVENT_MONITOR_FOCUS, mon);
+    SwlEventBus *bus = swl_compositor_get_event_bus(mon->mgr->comp);
+    swl_event_bus_emit_simple(bus, SWL_EVENT_MONITOR_FOCUS, mon);
 
-    return DWL_OK;
+    return SWL_OK;
 }
 
-const DwlLayout *dwl_monitor_get_layout(const DwlMonitor *mon)
+const SwlLayout *swl_monitor_get_layout(const SwlMonitor *mon)
 {
     return mon ? mon->layout : NULL;
 }
 
-struct wlr_output *dwl_monitor_get_wlr_output(const DwlMonitor *mon)
+struct wlr_output *swl_monitor_get_wlr_output(const SwlMonitor *mon)
 {
     return mon ? mon->output : NULL;
 }
 
-float dwl_monitor_get_mfact(const DwlMonitor *mon)
+float swl_monitor_get_mfact(const SwlMonitor *mon)
 {
     return mon ? mon->mfact : 0.55f;
 }
 
-float dwl_monitor_get_scroller_ratio(const DwlMonitor *mon)
+float swl_monitor_get_scroller_ratio(const SwlMonitor *mon)
 {
     return mon ? mon->scroller_ratio : 0.8f;
 }
 
-int dwl_monitor_get_nmaster(const DwlMonitor *mon)
+int swl_monitor_get_nmaster(const SwlMonitor *mon)
 {
     return mon ? mon->nmaster : 1;
 }
 
-DwlError dwl_monitor_set_mfact(DwlMonitor *mon, float mfact)
+SwlError swl_monitor_set_mfact(SwlMonitor *mon, float mfact)
 {
     if (!mon)
-        return DWL_ERR_INVALID_ARG;
+        return SWL_ERR_INVALID_ARG;
 
     if (mfact < 0.05f)
         mfact = 0.05f;
@@ -684,40 +684,40 @@ DwlError dwl_monitor_set_mfact(DwlMonitor *mon, float mfact)
         mfact = 0.95f;
 
     mon->mfact = mfact;
-    dwl_monitor_arrange(mon);
-    return DWL_OK;
+    swl_monitor_arrange(mon);
+    return SWL_OK;
 }
 
-DwlError dwl_monitor_set_nmaster(DwlMonitor *mon, int nmaster)
+SwlError swl_monitor_set_nmaster(SwlMonitor *mon, int nmaster)
 {
     if (!mon)
-        return DWL_ERR_INVALID_ARG;
+        return SWL_ERR_INVALID_ARG;
 
     if (nmaster < 0)
         nmaster = 0;
 
     mon->nmaster = nmaster;
-    dwl_monitor_arrange(mon);
-    return DWL_OK;
+    swl_monitor_arrange(mon);
+    return SWL_OK;
 }
 
-DwlError dwl_monitor_adjust_mfact(DwlMonitor *mon, float delta)
+SwlError swl_monitor_adjust_mfact(SwlMonitor *mon, float delta)
 {
     if (!mon)
-        return DWL_ERR_INVALID_ARG;
+        return SWL_ERR_INVALID_ARG;
 
-    return dwl_monitor_set_mfact(mon, mon->mfact + delta);
+    return swl_monitor_set_mfact(mon, mon->mfact + delta);
 }
 
-DwlError dwl_monitor_adjust_nmaster(DwlMonitor *mon, int delta)
+SwlError swl_monitor_adjust_nmaster(SwlMonitor *mon, int delta)
 {
     if (!mon)
-        return DWL_ERR_INVALID_ARG;
+        return SWL_ERR_INVALID_ARG;
 
-    return dwl_monitor_set_nmaster(mon, mon->nmaster + delta);
+    return swl_monitor_set_nmaster(mon, mon->nmaster + delta);
 }
 
-void dwl_monitor_set_usable_area(DwlMonitor *mon, int x, int y, int w, int h)
+void swl_monitor_set_usable_area(SwlMonitor *mon, int x, int y, int w, int h)
 {
     if (!mon)
         return;
@@ -728,39 +728,39 @@ void dwl_monitor_set_usable_area(DwlMonitor *mon, int x, int y, int w, int h)
 }
 
 typedef struct {
-    DwlClient **clients;
+    SwlClient **clients;
     size_t count;
     size_t capacity;
 } ClientCollector;
 
-static bool collect_tiled_client(DwlClient *c, void *data)
+static bool collect_tiled_client(SwlClient *c, void *data)
 {
     ClientCollector *col = data;
-    DwlClientInfo info = dwl_client_get_info(c);
+    SwlClientInfo info = swl_client_get_info(c);
 
     if (info.floating || info.fullscreen)
         return true;
 
     if (col->count >= col->capacity) {
         col->capacity = col->capacity ? col->capacity * 2 : 16;
-        col->clients = realloc(col->clients, col->capacity * sizeof(DwlClient *));
+        col->clients = realloc(col->clients, col->capacity * sizeof(SwlClient *));
     }
 
     col->clients[col->count++] = c;
     return true;
 }
 
-void dwl_monitor_arrange(DwlMonitor *mon)
+void swl_monitor_arrange(SwlMonitor *mon)
 {
     if (!mon)
         return;
 
-    DwlClientManager *clients = dwl_compositor_get_clients(mon->mgr->comp);
+    SwlClientManager *clients = swl_compositor_get_clients(mon->mgr->comp);
     if (!clients)
         return;
 
     ClientCollector col = {0};
-    dwl_client_foreach_visible(clients, mon, collect_tiled_client, &col);
+    swl_client_foreach_visible(clients, mon, collect_tiled_client, &col);
 
     if (col.count == 0) {
         free(col.clients);
@@ -770,9 +770,9 @@ void dwl_monitor_arrange(DwlMonitor *mon)
     if (mon->layout && mon->layout->arrange) {
         // Find focused client index — fall back to focus stack if global
         // focus is on another monitor so the scroller stays in place
-        DwlClient *focused = dwl_client_focused(clients);
-        if (!focused || dwl_client_get_monitor(focused) != mon)
-            focused = dwl_client_focus_top_on_monitor(clients, mon);
+        SwlClient *focused = swl_client_focused(clients);
+        if (!focused || swl_client_get_monitor(focused) != mon)
+            focused = swl_client_focus_top_on_monitor(clients, mon);
         int focused_index = -1;
         for (size_t i = 0; i < col.count; i++) {
             if (col.clients[i] == focused) {
@@ -785,7 +785,7 @@ void dwl_monitor_arrange(DwlMonitor *mon)
         bool is_scroller = mon->layout->name && strcmp(mon->layout->name, "scroller") == 0;
         float layout_mfact = is_scroller ? mon->scroller_ratio : mon->mfact;
 
-        DwlLayoutParams params = {
+        SwlLayoutParams params = {
             .area_x = mon->usable_x,
             .area_y = mon->usable_y,
             .area_width = mon->usable_width,
@@ -798,25 +798,25 @@ void dwl_monitor_arrange(DwlMonitor *mon)
             .master_count = mon->nmaster,
             .client_count = col.count,
             .focused_index = focused_index,
-            .clients = calloc(col.count, sizeof(DwlLayoutClient)),
+            .clients = calloc(col.count, sizeof(SwlLayoutClient)),
         };
 
         for (size_t i = 0; i < col.count; i++) {
-            DwlClientInfo info = dwl_client_get_info(col.clients[i]);
+            SwlClientInfo info = swl_client_get_info(col.clients[i]);
             params.clients[i].id = info.id;
             params.clients[i].width = info.geometry.width;
             params.clients[i].height = info.geometry.height;
             if (is_scroller)
-                params.clients[i].column_ratio = dwl_client_get_scroller_ratio(col.clients[i]);
+                params.clients[i].column_ratio = swl_client_get_scroller_ratio(col.clients[i]);
         }
 
         mon->layout->arrange(&params);
 
         for (size_t i = 0; i < col.count; i++) {
-            DwlLayoutClient *lc = &params.clients[i];
+            SwlLayoutClient *lc = &params.clients[i];
             fprintf(stderr, "Arrange client on %s: pos=(%d,%d) size=%dx%d\n",
                     mon->output->name, lc->x, lc->y, lc->width, lc->height);
-            dwl_client_resize(col.clients[i], lc->x, lc->y, lc->width, lc->height);
+            swl_client_resize(col.clients[i], lc->x, lc->y, lc->width, lc->height);
         }
 
         free(params.clients);
@@ -824,18 +824,18 @@ void dwl_monitor_arrange(DwlMonitor *mon)
 
     free(col.clients);
 
-    DwlClient *focused = dwl_client_focused(clients);
-    if (focused && dwl_client_get_monitor(focused) == mon)
-        dwl_client_focus(focused);
+    SwlClient *focused = swl_client_focused(clients);
+    if (focused && swl_client_get_monitor(focused) == mon)
+        swl_client_focus(focused);
 }
 
-void dwl_monitor_arrange_all(DwlOutputManager *mgr)
+void swl_monitor_arrange_all(SwlOutputManager *mgr)
 {
     if (!mgr)
         return;
 
-    DwlMonitor *mon;
+    SwlMonitor *mon;
     wl_list_for_each(mon, &mgr->monitors, link) {
-        dwl_monitor_arrange(mon);
+        swl_monitor_arrange(mon);
     }
 }

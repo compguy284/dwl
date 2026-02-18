@@ -1,6 +1,6 @@
 #include "xwayland.h"
 
-#ifdef DWL_XWAYLAND
+#ifdef SWL_XWAYLAND
 
 #include "compositor.h"
 #include "client.h"
@@ -17,8 +17,8 @@
 #include <xcb/xcb.h>
 #include <xcb/xcb_icccm.h>
 
-struct DwlXWayland {
-    DwlCompositor *comp;
+struct SwlXWayland {
+    SwlCompositor *comp;
     struct wlr_xwayland *xwayland;
     bool ready;
 
@@ -27,21 +27,21 @@ struct DwlXWayland {
 };
 
 // Forward declaration of X11 client creation
-extern DwlClient *dwl_client_create_x11(DwlClientManager *mgr, struct wlr_xwayland_surface *surface);
+extern SwlClient *swl_client_create_x11(SwlClientManager *mgr, struct wlr_xwayland_surface *surface);
 
 static void handle_ready(struct wl_listener *listener, void *data);
 static void handle_new_surface(struct wl_listener *listener, void *data);
 
-DwlXWayland *dwl_xwayland_create(DwlCompositor *comp)
+SwlXWayland *swl_xwayland_create(SwlCompositor *comp)
 {
-    DwlXWayland *xwl = calloc(1, sizeof(*xwl));
+    SwlXWayland *xwl = calloc(1, sizeof(*xwl));
     if (!xwl)
         return NULL;
 
     xwl->comp = comp;
 
-    struct wl_display *display = dwl_compositor_get_wl_display(comp);
-    struct wlr_compositor *wlr_comp = dwl_compositor_get_wlr_compositor(comp);
+    struct wl_display *display = swl_compositor_get_wl_display(comp);
+    struct wlr_compositor *wlr_comp = swl_compositor_get_wlr_compositor(comp);
 
     xwl->xwayland = wlr_xwayland_create(display, wlr_comp, true);
     if (!xwl->xwayland) {
@@ -61,7 +61,7 @@ DwlXWayland *dwl_xwayland_create(DwlCompositor *comp)
     return xwl;
 }
 
-void dwl_xwayland_destroy(DwlXWayland *xwl)
+void swl_xwayland_destroy(SwlXWayland *xwl)
 {
     if (!xwl)
         return;
@@ -77,12 +77,12 @@ void dwl_xwayland_destroy(DwlXWayland *xwl)
 
 static void handle_ready(struct wl_listener *listener, void *data)
 {
-    DwlXWayland *xwl = wl_container_of(listener, xwl, xwl_ready);
+    SwlXWayland *xwl = wl_container_of(listener, xwl, xwl_ready);
     (void)data;
 
     xwl->ready = true;
 
-    struct wlr_seat *seat = dwl_compositor_get_seat(xwl->comp);
+    struct wlr_seat *seat = swl_compositor_get_seat(xwl->comp);
     if (seat)
         wlr_xwayland_set_seat(xwl->xwayland, seat);
 
@@ -91,7 +91,7 @@ static void handle_ready(struct wl_listener *listener, void *data)
 
 static void handle_new_surface(struct wl_listener *listener, void *data)
 {
-    DwlXWayland *xwl = wl_container_of(listener, xwl, new_surface);
+    SwlXWayland *xwl = wl_container_of(listener, xwl, new_surface);
     struct wlr_xwayland_surface *surface = data;
 
     // Skip surfaces that want to handle themselves (override_redirect)
@@ -108,25 +108,25 @@ static void handle_new_surface(struct wl_listener *listener, void *data)
             surface->class ? surface->class : "(null)",
             surface->instance ? surface->instance : "(null)");
 
-    DwlClientManager *clients = dwl_compositor_get_clients(xwl->comp);
-    DwlClient *client = dwl_client_create_x11(clients, surface);
+    SwlClientManager *clients = swl_compositor_get_clients(xwl->comp);
+    SwlClient *client = swl_client_create_x11(clients, surface);
     if (!client) {
         fprintf(stderr, "XWayland: failed to create client\n");
         return;
     }
 
-    DwlOutputManager *output = dwl_compositor_get_output(xwl->comp);
-    DwlMonitor *mon = dwl_monitor_get_focused(output);
+    SwlOutputManager *output = swl_compositor_get_output(xwl->comp);
+    SwlMonitor *mon = swl_monitor_get_focused(output);
     if (mon)
-        dwl_client_move_to_monitor(client, mon);
+        swl_client_move_to_monitor(client, mon);
 }
 
-bool dwl_xwayland_is_ready(DwlXWayland *xwl)
+bool swl_xwayland_is_ready(SwlXWayland *xwl)
 {
     return xwl && xwl->ready;
 }
 
-const char *dwl_xwayland_get_display(DwlXWayland *xwl)
+const char *swl_xwayland_get_display(SwlXWayland *xwl)
 {
     if (!xwl || !xwl->xwayland)
         return NULL;
@@ -134,4 +134,4 @@ const char *dwl_xwayland_get_display(DwlXWayland *xwl)
     return xwl->xwayland->display_name;
 }
 
-#endif /* DWL_XWAYLAND */
+#endif /* SWL_XWAYLAND */
