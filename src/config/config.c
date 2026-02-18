@@ -222,7 +222,7 @@ static void flatten_array(SwlConfig *cfg, toml_array_t *arr, const char *prefix)
             if (strcmp(prefix, "monitors") == 0) {
                 toml_datum_t name = toml_string_in(elem, "name");
                 if (name.ok) {
-                    char sub_prefix[512];
+                    char sub_prefix[2048];
                     snprintf(sub_prefix, sizeof(sub_prefix), "%s.%s",
                              prefix, name.u.s);
                     free(name.u.s);
@@ -232,7 +232,7 @@ static void flatten_array(SwlConfig *cfg, toml_array_t *arr, const char *prefix)
             }
 
             /* Default: use numeric index */
-            char sub_prefix[512];
+            char sub_prefix[2048];
             snprintf(sub_prefix, sizeof(sub_prefix), "%s.%d", prefix, i);
             flatten_table(cfg, elem, sub_prefix);
         }
