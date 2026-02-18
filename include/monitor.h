@@ -50,10 +50,8 @@ void dwl_monitor_get_usable_area(const DwlMonitor *mon, int *x, int *y, int *w, 
 
 DwlError dwl_monitor_configure(DwlMonitor *mon, const DwlMonitorConfig *cfg);
 DwlError dwl_monitor_set_layout(DwlMonitor *mon, const DwlLayout *layout);
-DwlError dwl_monitor_set_tags(DwlMonitor *mon, uint32_t tags);
 DwlError dwl_monitor_focus(DwlMonitor *mon);
 
-uint32_t dwl_monitor_get_tags(const DwlMonitor *mon);
 const DwlLayout *dwl_monitor_get_layout(const DwlMonitor *mon);
 struct wlr_output *dwl_monitor_get_wlr_output(const DwlMonitor *mon);
 

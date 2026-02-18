@@ -148,8 +148,6 @@ void dwl_rule_engine_apply(DwlRuleEngine *engine, DwlClient *client)
         }
 
         if (match) {
-            if (engine->rules[i].tags)
-                dwl_client_set_tags(client, engine->rules[i].tags);
             if (engine->rules[i].floating)
                 dwl_client_set_floating(client, true);
             break;

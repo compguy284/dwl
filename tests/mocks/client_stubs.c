@@ -12,7 +12,6 @@ DwlClientInfo dwl_client_get_info(const DwlClient *client)
         .app_id = NULL,
         .title = NULL,
         .geometry = { 0, 0, 0, 0 },
-        .tags = 0,
         .floating = false,
         .fullscreen = false,
         .urgent = false,
@@ -20,13 +19,6 @@ DwlClientInfo dwl_client_get_info(const DwlClient *client)
         .x11 = false,
     };
     return info;
-}
-
-DwlError dwl_client_set_tags(DwlClient *client, uint32_t tags)
-{
-    (void)client;
-    (void)tags;
-    return DWL_OK;
 }
 
 DwlError dwl_client_set_floating(DwlClient *client, bool floating)

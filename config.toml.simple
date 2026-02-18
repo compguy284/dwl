@@ -99,33 +99,11 @@ accel_speed = 0.0
 "mod+m" = "set-layout:monocle"
 "mod+s" = "set-layout:scroller"
 
-# Tags (workspaces)
-"mod+0" = "view-all"
-"mod+1" = "view:1"
-"mod+2" = "view:2"
-"mod+3" = "view:3"
-"mod+4" = "view:4"
-"mod+5" = "view:5"
-"mod+6" = "view:6"
-"mod+7" = "view:7"
-"mod+8" = "view:8"
-"mod+9" = "view:9"
-
-"mod+shift+1" = "tag:1"
-"mod+shift+2" = "tag:2"
-"mod+shift+3" = "tag:3"
-"mod+shift+4" = "tag:4"
-"mod+shift+5" = "tag:5"
-"mod+shift+6" = "tag:6"
-"mod+shift+7" = "tag:7"
-"mod+shift+8" = "tag:8"
-"mod+shift+9" = "tag:9"
-
 # Multi-monitor
 "mod+comma" = "focus-monitor:-1"
 "mod+period" = "focus-monitor:1"
-"mod+shift+comma" = "tag-monitor:-1"
-"mod+shift+period" = "tag-monitor:1"
+"mod+shift+comma" = "send-monitor:-1"
+"mod+shift+period" = "send-monitor:1"
 
 # Button bindings (mouse)
 [buttons]
@@ -181,14 +159,8 @@ accel_speed = 0.0
 # Available rule properties:
 #   app_id = "pattern"     # Match Wayland app_id / X11 class
 #   title = "pattern"      # Match window title (regex)
-#   tags = N               # Set window to tag N (1-9)
 #   floating = true/false  # Force window floating
 #   monitor = N            # Send window to monitor N (-1 = any)
-
-# Example: Send Firefox to tag 2
-# [rules.0]
-# app_id = "firefox"
-# tags = 2
 
 # Example: Float all mpv windows
 # [rules.1]

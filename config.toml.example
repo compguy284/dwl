@@ -5,8 +5,6 @@
 #   /etc/dwl/config.toml
 
 [general]
-# Number of tags (workspaces), max 31
-tag_count = 9
 # Default modifier key: "super", "alt", "ctrl", or "shift"
 # Use "mod" in keybindings to reference this
 modkey = "alt"
@@ -113,16 +111,10 @@ button_map = "lrm"
 send_events = "enabled"
 
 # Window rules - applied when windows are created
-# Tags are bitmasks: 1=tag1, 2=tag2, 4=tag3, 8=tag4, 256=tag9, etc.
 [[rules]]
 app_id = "Gimp"
 floating = true
 monitor = -1  # -1 = current monitor
-
-[[rules]]
-app_id = "firefox"
-tags = 256  # Tag 9 (1 << 8)
-floating = false
 
 # Monitor rules - applied when monitors are connected
 # Use [[monitors]] with a "name" field to identify the output.
@@ -193,57 +185,11 @@ y = -1
 "mod+bracketright" = { action = "consume_or_expel", arg = 1 }
 "mod+r" = { action = "cycle-ratio" }
 
-# Tags (workspaces)
-"mod+Tab" = { action = "view" }
-"mod+0" = { action = "view", arg = -1 }  # -1 = all tags (~0)
-"mod+shift+parenright" = { action = "tag", arg = -1 }
-
-# Tag 1-9
-"mod+1" = { action = "view", arg = 1 }
-"mod+2" = { action = "view", arg = 2 }
-"mod+3" = { action = "view", arg = 4 }
-"mod+4" = { action = "view", arg = 8 }
-"mod+5" = { action = "view", arg = 16 }
-"mod+6" = { action = "view", arg = 32 }
-"mod+7" = { action = "view", arg = 64 }
-"mod+8" = { action = "view", arg = 128 }
-"mod+9" = { action = "view", arg = 256 }
-
-"mod+ctrl+1" = { action = "toggleview", arg = 1 }
-"mod+ctrl+2" = { action = "toggleview", arg = 2 }
-"mod+ctrl+3" = { action = "toggleview", arg = 4 }
-"mod+ctrl+4" = { action = "toggleview", arg = 8 }
-"mod+ctrl+5" = { action = "toggleview", arg = 16 }
-"mod+ctrl+6" = { action = "toggleview", arg = 32 }
-"mod+ctrl+7" = { action = "toggleview", arg = 64 }
-"mod+ctrl+8" = { action = "toggleview", arg = 128 }
-"mod+ctrl+9" = { action = "toggleview", arg = 256 }
-
-"mod+shift+exclam" = { action = "tag", arg = 1 }
-"mod+shift+at" = { action = "tag", arg = 2 }
-"mod+shift+numbersign" = { action = "tag", arg = 4 }
-"mod+shift+dollar" = { action = "tag", arg = 8 }
-"mod+shift+percent" = { action = "tag", arg = 16 }
-"mod+shift+asciicircum" = { action = "tag", arg = 32 }
-"mod+shift+ampersand" = { action = "tag", arg = 64 }
-"mod+shift+asterisk" = { action = "tag", arg = 128 }
-"mod+shift+parenleft" = { action = "tag", arg = 256 }
-
-"mod+ctrl+shift+exclam" = { action = "toggletag", arg = 1 }
-"mod+ctrl+shift+at" = { action = "toggletag", arg = 2 }
-"mod+ctrl+shift+numbersign" = { action = "toggletag", arg = 4 }
-"mod+ctrl+shift+dollar" = { action = "toggletag", arg = 8 }
-"mod+ctrl+shift+percent" = { action = "toggletag", arg = 16 }
-"mod+ctrl+shift+asciicircum" = { action = "toggletag", arg = 32 }
-"mod+ctrl+shift+ampersand" = { action = "toggletag", arg = 64 }
-"mod+ctrl+shift+asterisk" = { action = "toggletag", arg = 128 }
-"mod+ctrl+shift+parenleft" = { action = "toggletag", arg = 256 }
-
 # Multi-monitor
 "mod+comma" = { action = "focusmon", arg = "left" }
 "mod+period" = { action = "focusmon", arg = "right" }
-"mod+shift+less" = { action = "tagmon", arg = "left" }
-"mod+shift+greater" = { action = "tagmon", arg = "right" }
+"mod+shift+less" = { action = "sendmon", arg = "left" }
+"mod+shift+greater" = { action = "sendmon", arg = "right" }
 
 # Session
 "mod+shift+q" = { action = "quit" }

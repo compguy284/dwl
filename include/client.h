@@ -19,7 +19,6 @@ typedef struct DwlClientInfo {
     struct {
         int x, y, width, height;
     } geometry;
-    uint32_t tags;
     bool floating;
     bool fullscreen;
     bool urgent;
@@ -34,8 +33,6 @@ typedef bool (*DwlClientIterator)(DwlClient *client, void *data);
 void dwl_client_foreach(DwlClientManager *mgr, DwlClientIterator iter, void *data);
 void dwl_client_foreach_visible(DwlClientManager *mgr, DwlMonitor *mon,
                                  DwlClientIterator iter, void *data);
-void dwl_client_foreach_on_tag(DwlClientManager *mgr, uint32_t tags,
-                                DwlClientIterator iter, void *data);
 
 DwlClient *dwl_client_at(DwlClientManager *mgr, double x, double y);
 DwlClient *dwl_client_focused(DwlClientManager *mgr);
@@ -54,8 +51,6 @@ void dwl_client_set_monitor_internal(DwlClient *client, DwlMonitor *mon);
 
 DwlError dwl_client_close(DwlClient *client);
 DwlError dwl_client_focus(DwlClient *client);
-DwlError dwl_client_set_tags(DwlClient *client, uint32_t tags);
-DwlError dwl_client_toggle_tag(DwlClient *client, uint32_t tag);
 DwlError dwl_client_set_floating(DwlClient *client, bool floating);
 DwlError dwl_client_toggle_floating(DwlClient *client);
 DwlError dwl_client_set_fullscreen(DwlClient *client, bool fullscreen);

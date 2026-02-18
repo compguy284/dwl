@@ -26,7 +26,6 @@ struct DwlMonitor {
     int x, y, width, height;
     int usable_x, usable_y, usable_width, usable_height;
 
-    uint32_t tags;
     const DwlLayout *layout;
     const DwlLayout *prev_layout;
 
@@ -141,8 +140,6 @@ static void handle_new_output(struct wl_listener *listener, void *data)
     mon->id = mgr->next_id++;
     mon->mgr = mgr;
     mon->output = output;
-    mon->tags = 1;
-
     DwlConfig *cfg = dwl_compositor_get_config(mgr->comp);
     mon->mfact = dwl_config_get_float(cfg, "appearance.mfact", 0.55f);
     mon->scroller_ratio = dwl_config_get_float(cfg, "appearance.scroller_ratio", 0.8f);
@@ -638,22 +635,6 @@ DwlError dwl_monitor_set_layout(DwlMonitor *mon, const DwlLayout *layout)
     return DWL_OK;
 }
 
-DwlError dwl_monitor_set_tags(DwlMonitor *mon, uint32_t tags)
-{
-    if (!mon)
-        return DWL_ERR_INVALID_ARG;
-
-    if (tags == 0)
-        tags = 1;
-
-    mon->tags = tags;
-
-    DwlEventBus *bus = dwl_compositor_get_event_bus(mon->mgr->comp);
-    dwl_event_bus_emit_simple(bus, DWL_EVENT_TAG_CHANGE, mon);
-
-    return DWL_OK;
-}
-
 DwlError dwl_monitor_focus(DwlMonitor *mon)
 {
     if (!mon || !mon->mgr)
@@ -665,11 +646,6 @@ DwlError dwl_monitor_focus(DwlMonitor *mon)
     dwl_event_bus_emit_simple(bus, DWL_EVENT_MONITOR_FOCUS, mon);
 
     return DWL_OK;
-}
-
-uint32_t dwl_monitor_get_tags(const DwlMonitor *mon)
-{
-    return mon ? mon->tags : 0;
 }
 
 const DwlLayout *dwl_monitor_get_layout(const DwlMonitor *mon)

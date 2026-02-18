@@ -93,8 +93,6 @@ dwl_sources = files(
   'src/layout/monocle.c',
   'src/layout/scroller.c',
   'src/layout/floating.c',
-  # Workspace
-  'src/workspace/workspace.c',
   # Config
   'src/config/config.c',
   # Render

@@ -25,7 +25,6 @@ struct DwlInput *dwl_compositor_get_input(DwlCompositor *comp);
 struct DwlOutputManager *dwl_compositor_get_output(DwlCompositor *comp);
 struct DwlClientManager *dwl_compositor_get_clients(DwlCompositor *comp);
 struct DwlConfig *dwl_compositor_get_config(DwlCompositor *comp);
-struct DwlWorkspaceManager *dwl_compositor_get_workspaces(DwlCompositor *comp);
 struct DwlRenderer *dwl_compositor_get_renderer(DwlCompositor *comp);
 struct DwlIPC *dwl_compositor_get_ipc(DwlCompositor *comp);
 struct DwlLayoutRegistry *dwl_compositor_get_layouts(DwlCompositor *comp);

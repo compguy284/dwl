@@ -96,7 +96,6 @@ DwlClient *dwl_client_create_xdg(DwlClientManager *mgr, struct wlr_xdg_toplevel 
     c->id = mgr->next_id++;
     c->mgr = mgr;
     c->xdg = toplevel;
-    c->tags = 1;
     c->border_width = 2;
 
     c->map.notify = client_handle_map;
@@ -389,33 +388,14 @@ void dwl_client_foreach_visible(DwlClientManager *mgr, DwlMonitor *mon,
     if (!mgr || !iter)
         return;
 
-    uint32_t tags = mon ? dwl_monitor_get_tags(mon) : ~0u;
-
     DwlClient *c, *tmp;
     wl_list_for_each_safe(c, tmp, &mgr->clients, link) {
         if (!c->mapped)
             continue;
         if (mon && c->mon != mon)
             continue;
-        if (!(c->tags & tags))
-            continue;
         if (!iter(c, data))
             break;
-    }
-}
-
-void dwl_client_foreach_on_tag(DwlClientManager *mgr, uint32_t tags,
-                                DwlClientIterator iter, void *data)
-{
-    if (!mgr || !iter)
-        return;
-
-    DwlClient *c, *tmp;
-    wl_list_for_each_safe(c, tmp, &mgr->clients, link) {
-        if (c->tags & tags) {
-            if (!iter(c, data))
-                break;
-        }
     }
 }
 
@@ -445,10 +425,9 @@ DwlClient *dwl_client_focus_top_on_monitor(DwlClientManager *mgr, DwlMonitor *mo
 {
     if (!mgr || !mon)
         return NULL;
-    uint32_t tags = dwl_monitor_get_tags(mon);
     DwlClient *c;
     wl_list_for_each(c, &mgr->focus_stack, flink) {
-        if (c->mapped && c->mon == mon && (c->tags & tags))
+        if (c->mapped && c->mon == mon)
             return c;
     }
     return NULL;
@@ -502,7 +481,6 @@ size_t dwl_client_count_visible(DwlClientManager *mgr, DwlMonitor *mon)
     if (!mgr)
         return 0;
 
-    uint32_t tags = mon ? dwl_monitor_get_tags(mon) : ~0u;
     size_t count = 0;
 
     DwlClient *c;
@@ -511,8 +489,7 @@ size_t dwl_client_count_visible(DwlClientManager *mgr, DwlMonitor *mon)
             continue;
         if (mon && c->mon != mon)
             continue;
-        if (c->tags & tags)
-            count++;
+        count++;
     }
 
     return count;
@@ -531,7 +508,6 @@ DwlClientInfo dwl_client_get_info(const DwlClient *client)
     info.geometry.y = client->y;
     info.geometry.width = client->width;
     info.geometry.height = client->height;
-    info.tags = client->tags;
     info.floating = client->floating;
     info.fullscreen = client->fullscreen;
     info.urgent = client->urgent;
@@ -661,37 +637,6 @@ DwlError dwl_client_focus(DwlClient *client)
         dwl_monitor_arrange(client->mon);
 
     return DWL_OK;
-}
-
-DwlError dwl_client_set_tags(DwlClient *client, uint32_t tags)
-{
-    if (!client)
-        return DWL_ERR_INVALID_ARG;
-
-    if (tags == 0)
-        tags = 1;
-
-    client->tags = tags;
-
-    DwlEventBus *bus = dwl_compositor_get_event_bus(client->mgr->comp);
-    dwl_event_bus_emit_simple(bus, DWL_EVENT_CLIENT_TAG, client);
-
-    if (client->mon)
-        dwl_monitor_arrange(client->mon);
-
-    return DWL_OK;
-}
-
-DwlError dwl_client_toggle_tag(DwlClient *client, uint32_t tag)
-{
-    if (!client)
-        return DWL_ERR_INVALID_ARG;
-
-    uint32_t newtags = client->tags ^ tag;
-    if (newtags == 0)
-        return DWL_OK;
-
-    return dwl_client_set_tags(client, newtags);
 }
 
 DwlError dwl_client_set_floating(DwlClient *client, bool floating)
@@ -912,8 +857,6 @@ DwlError dwl_client_zoom(DwlClientManager *mgr)
             continue;
         if (c->mon != focused->mon)
             continue;
-        if (!(c->tags & dwl_monitor_get_tags(c->mon)))
-            continue;
         first = c;
         break;
     }
@@ -956,8 +899,6 @@ DwlClient *dwl_client_in_direction(DwlClientManager *mgr, DwlClient *from, int d
         if (c == from || !c->mapped)
             continue;
         if (c->mon != from->mon)
-            continue;
-        if (!(c->tags & dwl_monitor_get_tags(c->mon)))
             continue;
 
         int c_cx = c->x + c->width / 2;
@@ -1030,10 +971,9 @@ DwlError dwl_client_manager_load_rules(DwlClientManager *mgr)
     // Enumerate rule indices (rules.0, rules.1, etc.)
     // Find the highest index by checking for rules.N.app_id or rules.N.title
     for (int i = 0; i < 128; i++) {
-        char key_app_id[64], key_title[64], key_tags[64], key_floating[64], key_monitor[64];
+        char key_app_id[64], key_title[64], key_floating[64], key_monitor[64];
         snprintf(key_app_id, sizeof(key_app_id), "rules.%d.app_id", i);
         snprintf(key_title, sizeof(key_title), "rules.%d.title", i);
-        snprintf(key_tags, sizeof(key_tags), "rules.%d.tags", i);
         snprintf(key_floating, sizeof(key_floating), "rules.%d.floating", i);
         snprintf(key_monitor, sizeof(key_monitor), "rules.%d.monitor", i);
 
@@ -1044,7 +984,6 @@ DwlError dwl_client_manager_load_rules(DwlClientManager *mgr)
         DwlRule rule = {0};
         rule.app_id_pattern = dwl_config_get_string(cfg, key_app_id, NULL);
         rule.title_pattern = dwl_config_get_string(cfg, key_title, NULL);
-        rule.tags = (uint32_t)dwl_config_get_int(cfg, key_tags, 0);
         rule.floating = dwl_config_get_bool(cfg, key_floating, false);
         rule.monitor = dwl_config_get_int(cfg, key_monitor, -1);
 

@@ -36,8 +36,6 @@ struct DwlClient {
 
     int x, y, width, height;
     int border_width;
-    uint32_t tags;
-
     bool floating;
     bool fullscreen;
     bool urgent;

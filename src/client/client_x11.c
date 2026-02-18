@@ -31,7 +31,6 @@ DwlClient *dwl_client_create_x11(DwlClientManager *mgr, struct wlr_xwayland_surf
     c->mgr = mgr;
     c->xwayland = surface;
     c->is_x11 = true;
-    c->tags = 1;
     c->border_width = 2;
 
     // Check if this should be floating (transient windows, dialogs, etc.)

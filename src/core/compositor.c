@@ -9,7 +9,6 @@
 #include "monitor.h"
 #include "render.h"
 #include "toplevel.h"
-#include "workspace.h"
 #include "xwayland.h"
 #include "../protocols/decoration.h"
 #include "../protocols/xdg_shell.h"
@@ -72,7 +71,6 @@ struct DwlCompositor {
     DwlInput *input;
     DwlOutputManager *output;
     DwlConfig *config;
-    DwlWorkspaceManager *workspaces;
     DwlRenderer *dwl_renderer;
     DwlIPC *ipc;
     DwlLayoutRegistry *layouts;
@@ -284,9 +282,6 @@ DwlError dwl_compositor_create(DwlCompositor **out, const DwlCompositorConfig *c
     // Input
     comp->input = dwl_input_create(comp);
 
-    // Workspace manager
-    comp->workspaces = dwl_workspace_create(comp);
-
     // Renderer
     comp->dwl_renderer = dwl_renderer_create(comp);
 
@@ -330,7 +325,6 @@ void dwl_compositor_destroy(DwlCompositor *comp)
     dwl_layer_manager_destroy(comp->layer_mgr);
     dwl_ipc_destroy(comp->ipc);
     dwl_renderer_destroy(comp->dwl_renderer);
-    dwl_workspace_destroy(comp->workspaces);
     dwl_input_destroy(comp->input);
     dwl_output_destroy(comp->output);
     dwl_client_manager_destroy(comp->clients);
@@ -438,11 +432,6 @@ DwlClientManager *dwl_compositor_get_clients(DwlCompositor *comp)
 DwlConfig *dwl_compositor_get_config(DwlCompositor *comp)
 {
     return comp ? comp->config : NULL;
-}
-
-DwlWorkspaceManager *dwl_compositor_get_workspaces(DwlCompositor *comp)
-{
-    return comp ? comp->workspaces : NULL;
 }
 
 DwlRenderer *dwl_compositor_get_renderer(DwlCompositor *comp)

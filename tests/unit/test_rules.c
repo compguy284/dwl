@@ -40,7 +40,6 @@ static void test_rule_engine_add(void **state)
     DwlRule rule = {
         .app_id_pattern = "firefox",
         .title_pattern = NULL,
-        .tags = 1 << 1,
         .floating = false,
         .monitor = -1,
     };
@@ -59,7 +58,6 @@ static void test_rule_engine_add_null_checks(void **state)
     DwlRule rule = {
         .app_id_pattern = "test",
         .title_pattern = NULL,
-        .tags = 1,
         .floating = false,
         .monitor = -1,
     };
@@ -79,8 +77,8 @@ static void test_rule_engine_add_multiple(void **state)
     assert_non_null(engine);
 
     DwlRule rules[] = {
-        { .app_id_pattern = "firefox", .tags = 1 << 1 },
-        { .app_id_pattern = "thunderbird", .tags = 1 << 2 },
+        { .app_id_pattern = "firefox" },
+        { .app_id_pattern = "thunderbird" },
         { .app_id_pattern = "mpv", .floating = true },
     };
 
@@ -104,7 +102,6 @@ static void test_rule_engine_get(void **state)
     DwlRule rule = {
         .app_id_pattern = "firefox",
         .title_pattern = "Mozilla.*",
-        .tags = 1 << 1,
         .floating = true,
         .monitor = 0,
     };
@@ -115,7 +112,6 @@ static void test_rule_engine_get(void **state)
     assert_non_null(got);
     assert_string_equal(got->app_id_pattern, "firefox");
     assert_string_equal(got->title_pattern, "Mozilla.*");
-    assert_int_equal(got->tags, 1 << 1);
     assert_true(got->floating);
     assert_int_equal(got->monitor, 0);
 
@@ -242,8 +238,8 @@ static void test_rule_regex_app_id(void **state)
     assert_non_null(engine);
 
     /* Regex patterns */
-    DwlRule rule1 = { .app_id_pattern = "^firefox.*$", .tags = 1 << 1 };
-    DwlRule rule2 = { .app_id_pattern = ".*terminal.*", .tags = 1 << 2 };
+    DwlRule rule1 = { .app_id_pattern = "^firefox.*$" };
+    DwlRule rule2 = { .app_id_pattern = ".*terminal.*" };
 
     dwl_rule_engine_add(engine, &rule1);
     dwl_rule_engine_add(engine, &rule2);
@@ -269,7 +265,6 @@ static void test_rule_regex_title(void **state)
     DwlRule rule = {
         .app_id_pattern = NULL,
         .title_pattern = ".*YouTube.*",
-        .tags = 1 << 3,
     };
 
     dwl_rule_engine_add(engine, &rule);
@@ -318,7 +313,6 @@ static void test_rule_pattern_ownership(void **state)
     DwlRule rule = {
         .app_id_pattern = app_id,
         .title_pattern = title,
-        .tags = 1,
     };
 
     dwl_rule_engine_add(engine, &rule);

@@ -9,7 +9,6 @@
 typedef struct DwlRule {
     const char *app_id_pattern;
     const char *title_pattern;
-    uint32_t tags;
     bool floating;
     int monitor;
 } DwlRule;

@@ -6,7 +6,6 @@
 #include "input.h"
 #include "layout.h"
 #include "monitor.h"
-#include "workspace.h"
 #include <ctype.h>
 #include <linux/input-event-codes.h>
 #include <stdlib.h>
@@ -349,75 +348,6 @@ static void action_toggle_fullscreen(DwlCompositor *comp, const char *arg)
         dwl_client_toggle_fullscreen(focused);
 }
 
-static void action_view(DwlCompositor *comp, const char *arg)
-{
-    if (!arg)
-        return;
-
-    int tag = atoi(arg);
-    if (tag < 1 || tag > 32)
-        return;
-
-    DwlOutputManager *output = dwl_compositor_get_output(comp);
-    DwlMonitor *mon = dwl_monitor_get_focused(output);
-    if (mon)
-        dwl_workspace_view(mon, 1 << (tag - 1));
-}
-
-static void action_tag(DwlCompositor *comp, const char *arg)
-{
-    if (!arg)
-        return;
-
-    int tag = atoi(arg);
-    if (tag < 1 || tag > 32)
-        return;
-
-    DwlClientManager *clients = dwl_compositor_get_clients(comp);
-    DwlClient *focused = dwl_client_focused(clients);
-    if (focused)
-        dwl_client_set_tags(focused, 1 << (tag - 1));
-}
-
-static void action_toggle_view(DwlCompositor *comp, const char *arg)
-{
-    if (!arg)
-        return;
-
-    int tag = atoi(arg);
-    if (tag < 1 || tag > 32)
-        return;
-
-    DwlOutputManager *output = dwl_compositor_get_output(comp);
-    DwlMonitor *mon = dwl_monitor_get_focused(output);
-    if (mon)
-        dwl_workspace_view_toggle(mon, 1 << (tag - 1));
-}
-
-static void action_toggle_tag(DwlCompositor *comp, const char *arg)
-{
-    if (!arg)
-        return;
-
-    int tag = atoi(arg);
-    if (tag < 1 || tag > 32)
-        return;
-
-    DwlClientManager *clients = dwl_compositor_get_clients(comp);
-    DwlClient *focused = dwl_client_focused(clients);
-    if (focused)
-        dwl_client_toggle_tag(focused, 1 << (tag - 1));
-}
-
-static void action_view_all(DwlCompositor *comp, const char *arg)
-{
-    (void)arg;
-    DwlOutputManager *output = dwl_compositor_get_output(comp);
-    DwlMonitor *mon = dwl_monitor_get_focused(output);
-    if (mon)
-        dwl_workspace_view_all(mon);
-}
-
 static void action_set_layout(DwlCompositor *comp, const char *arg)
 {
     if (!arg)
@@ -452,7 +382,7 @@ static void action_focus_monitor(DwlCompositor *comp, const char *arg)
         dwl_monitor_focus(next);
 }
 
-static void action_tag_monitor(DwlCompositor *comp, const char *arg)
+static void action_send_monitor(DwlCompositor *comp, const char *arg)
 {
     if (!arg)
         return;
@@ -876,19 +806,14 @@ void dwl_action_register_builtins(DwlKeybindingManager *mgr)
     dwl_action_register(mgr, "togglefloating", action_toggle_floating);  // Alias
     dwl_action_register(mgr, "toggle-fullscreen", action_toggle_fullscreen);
     dwl_action_register(mgr, "togglefullscreen", action_toggle_fullscreen);  // Alias
-    dwl_action_register(mgr, "view", action_view);
-    dwl_action_register(mgr, "tag", action_tag);
-    dwl_action_register(mgr, "toggleview", action_toggle_view);
-    dwl_action_register(mgr, "toggle-view", action_toggle_view);
-    dwl_action_register(mgr, "toggletag", action_toggle_tag);
-    dwl_action_register(mgr, "toggle-tag", action_toggle_tag);
-    dwl_action_register(mgr, "view-all", action_view_all);
     dwl_action_register(mgr, "setlayout", action_set_layout);
     dwl_action_register(mgr, "set-layout", action_set_layout);
     dwl_action_register(mgr, "focus-monitor", action_focus_monitor);
     dwl_action_register(mgr, "focusmon", action_focus_monitor);  // Alias
-    dwl_action_register(mgr, "tag-monitor", action_tag_monitor);
-    dwl_action_register(mgr, "tagmon", action_tag_monitor);  // Alias
+    dwl_action_register(mgr, "send-monitor", action_send_monitor);
+    dwl_action_register(mgr, "sendmon", action_send_monitor);  // Alias
+    dwl_action_register(mgr, "tag-monitor", action_send_monitor);  // Compat alias
+    dwl_action_register(mgr, "tagmon", action_send_monitor);  // Compat alias
     dwl_action_register(mgr, "reload-config", action_reload_config);
     dwl_action_register(mgr, "reload_config", action_reload_config);  // Alias
     dwl_action_register(mgr, "zoom", action_zoom);
@@ -935,8 +860,6 @@ void dwl_action_register_builtins(DwlKeybindingManager *mgr)
     dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_k, "focus-prev", NULL});
     dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_space, "toggle-floating", NULL});
     dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_f, "toggle-fullscreen", NULL});
-    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_0, "view-all", NULL});
-
     // Layout keybindings
     dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_t, "set-layout", "tile"});
     dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_m, "set-layout", "monocle"});
@@ -956,35 +879,14 @@ void dwl_action_register_builtins(DwlKeybindingManager *mgr)
     // Monitor focus/move (left = -1, right = 1)
     dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_comma, "focus-monitor", "-1"});
     dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_period, "focus-monitor", "1"});
-    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD | SHIFT, XKB_KEY_comma, "tag-monitor", "-1"});
-    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD | SHIFT, XKB_KEY_period, "tag-monitor", "1"});
+    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD | SHIFT, XKB_KEY_comma, "send-monitor", "-1"});
+    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD | SHIFT, XKB_KEY_period, "send-monitor", "1"});
 
     // Directional focus (arrow keys)
     dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_Up, "focusdir", "up"});
     dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_Down, "focusdir", "down"});
     dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_Left, "focusdir", "left"});
     dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_Right, "focusdir", "right"});
-
-    // Tag keybindings (1-9)
-    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_1, "view", "1"});
-    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_2, "view", "2"});
-    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_3, "view", "3"});
-    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_4, "view", "4"});
-    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_5, "view", "5"});
-    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_6, "view", "6"});
-    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_7, "view", "7"});
-    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_8, "view", "8"});
-    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD, XKB_KEY_9, "view", "9"});
-
-    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD | SHIFT, XKB_KEY_1, "tag", "1"});
-    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD | SHIFT, XKB_KEY_2, "tag", "2"});
-    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD | SHIFT, XKB_KEY_3, "tag", "3"});
-    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD | SHIFT, XKB_KEY_4, "tag", "4"});
-    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD | SHIFT, XKB_KEY_5, "tag", "5"});
-    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD | SHIFT, XKB_KEY_6, "tag", "6"});
-    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD | SHIFT, XKB_KEY_7, "tag", "7"});
-    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD | SHIFT, XKB_KEY_8, "tag", "8"});
-    dwl_keybinding_add(mgr, &(DwlKeybinding){MOD | SHIFT, XKB_KEY_9, "tag", "9"});
 
     // Default button bindings (Mod+click = move/resize)
     dwl_button_binding_add(mgr, &(DwlButtonBinding){MOD, BTN_LEFT, "moveresize", "move"});
