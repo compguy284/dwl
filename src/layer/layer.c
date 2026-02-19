@@ -447,6 +447,18 @@ void swl_layer_get_exclusive_zone(SwlLayerManager *mgr, SwlMonitor *mon,
     if (right) *right = r;
 }
 
+void swl_layer_cleanup_monitor(SwlLayerManager *mgr, SwlMonitor *mon)
+{
+    if (!mgr || !mon)
+        return;
+
+    SwlLayerSurface *s;
+    wl_list_for_each(s, &mgr->surfaces, link) {
+        if (s->mon == mon)
+            s->mon = NULL;
+    }
+}
+
 void swl_layer_foreach(SwlLayerManager *mgr, SwlLayerSurfaceIterator iter, void *data)
 {
     if (!mgr || !iter)

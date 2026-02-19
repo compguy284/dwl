@@ -4,6 +4,7 @@
 #include "config.h"
 #include "layout.h"
 #include "client.h"
+#include "layer.h"
 #include "events.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -263,6 +264,11 @@ static void handle_destroy(struct wl_listener *listener, void *data)
         if (bus)
             swl_event_bus_emit_simple(bus, SWL_EVENT_MONITOR_REMOVE, mon);
     }
+
+    // Detach layer surfaces before freeing so late unmap handlers
+    // don't dereference a freed monitor pointer.
+    SwlLayerManager *layers = swl_compositor_get_layer_manager(mon->mgr->comp);
+    swl_layer_cleanup_monitor(layers, mon);
 
     wl_list_remove(&mon->frame.link);
     wl_list_remove(&mon->destroy.link);

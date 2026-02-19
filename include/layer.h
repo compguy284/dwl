@@ -39,6 +39,8 @@ void swl_layer_foreach(SwlLayerManager *mgr, SwlLayerSurfaceIterator iter, void 
 void swl_layer_foreach_on_monitor(SwlLayerManager *mgr, SwlMonitor *mon,
                                    SwlLayerSurfaceIterator iter, void *data);
 
+void swl_layer_cleanup_monitor(SwlLayerManager *mgr, SwlMonitor *mon);
+
 SwlLayerSurfaceInfo swl_layer_surface_get_info(const SwlLayerSurface *surface);
 struct wlr_surface *swl_layer_surface_get_wlr_surface(const SwlLayerSurface *surface);
 SwlMonitor *swl_layer_surface_get_monitor(const SwlLayerSurface *surface);
