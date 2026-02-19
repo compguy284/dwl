@@ -415,6 +415,12 @@ void swl_scene_client_set_clip(SwlClient *client, int clip_x, int clip_y, int cl
         .width = clip_w,
         .height = clip_h,
     };
+    // Apply XDG geometry offset for CSD apps (e.g., Firefox draws its own shadow)
+    struct wlr_xdg_toplevel *toplevel = swl_client_get_xdg_toplevel(client);
+    if (toplevel && toplevel->base->initialized) {
+        surface_clip.x += toplevel->base->geometry.x;
+        surface_clip.y += toplevel->base->geometry.y;
+    }
     wlr_scene_subsurface_tree_set_clip(&data->surface_tree->node, &surface_clip);
 
     // Update surface buffer corner radius to match clipped edges
