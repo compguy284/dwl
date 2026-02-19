@@ -377,10 +377,12 @@ SwlError swl_compositor_run(SwlCompositor *comp)
     if (fork() == 0) {
 #ifdef SWL_XWAYLAND
         execlp("dbus-update-activation-environment", "dbus-update-activation-environment",
-            "--systemd", "WAYLAND_DISPLAY", "XDG_CURRENT_DESKTOP", "DISPLAY", NULL);
+            "--systemd", "WAYLAND_DISPLAY", "XDG_CURRENT_DESKTOP", "PATH", "SWL_SOCKET",
+            "DISPLAY", NULL);
 #else
         execlp("dbus-update-activation-environment", "dbus-update-activation-environment",
-            "--systemd", "WAYLAND_DISPLAY", "XDG_CURRENT_DESKTOP", NULL);
+            "--systemd", "WAYLAND_DISPLAY", "XDG_CURRENT_DESKTOP", "PATH", "SWL_SOCKET",
+            NULL);
 #endif
         _exit(1);
     }
