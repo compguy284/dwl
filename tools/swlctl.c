@@ -15,13 +15,12 @@ static void usage(const char *name)
     fprintf(stderr, "\nCommands:\n");
     fprintf(stderr, "  get-windows       List all windows as JSON\n");
     fprintf(stderr, "  get-monitors      List all monitors as JSON\n");
-    fprintf(stderr, "  get-tags          Get tag state\n");
+    fprintf(stderr, "  get-layouts       List available layouts as JSON\n");
     fprintf(stderr, "  focus <id>        Focus window by ID\n");
     fprintf(stderr, "  close <id>        Close window by ID\n");
-    fprintf(stderr, "  tag <id> <tags>   Set window tags\n");
-    fprintf(stderr, "  view <tags>       View tags on focused monitor\n");
     fprintf(stderr, "  layout <name>     Set layout\n");
     fprintf(stderr, "  reload-config     Reload configuration\n");
+    fprintf(stderr, "  output-power <name> <on|off>  Set monitor power state\n");
     fprintf(stderr, "  quit              Quit compositor\n");
     fprintf(stderr, "\nEnvironment:\n");
     fprintf(stderr, "  SWL_SOCKET        Socket path (default: %s)\n", DEFAULT_SOCKET_PATH);
