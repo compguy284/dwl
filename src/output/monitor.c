@@ -243,6 +243,9 @@ static void handle_frame(struct wl_listener *listener, void *data)
     SwlMonitor *mon = wl_container_of(listener, mon, frame);
     (void)data;
 
+    if (!mon->output->enabled)
+        return;
+
     wlr_scene_output_commit(mon->scene_output, NULL);
 
     struct timespec now;
