@@ -201,13 +201,20 @@ static void handle_lock_unlock(struct wl_listener *listener, void *data)
     // Lock surfaces are destroyed by wlroots when the lock is destroyed,
     // which triggers our lock_surface_handle_destroy for cleanup.
 
-    // Restore focus to previously focused client
+    // Restore keyboard focus to previously focused client.
+    // swl_client_focus() would no-op here because mgr->focused was never
+    // cleared during lock, so it sees old == client and early-returns.
+    // We must re-enter keyboard focus on the seat directly.
+    struct wlr_seat *seat = swl_compositor_get_seat(lock->comp);
     SwlClientManager *clients = swl_compositor_get_clients(lock->comp);
     SwlClient *focused = swl_client_focused(clients);
-    if (focused)
-        swl_client_focus(focused);
-    else {
-        struct wlr_seat *seat = swl_compositor_get_seat(lock->comp);
+    if (focused) {
+        struct wlr_surface *surface = swl_client_get_surface(focused);
+        struct wlr_keyboard *kb = wlr_seat_get_keyboard(seat);
+        if (surface && kb)
+            wlr_seat_keyboard_notify_enter(seat, surface,
+                kb->keycodes, kb->num_keycodes, &kb->modifiers);
+    } else {
         wlr_seat_keyboard_notify_clear_focus(seat);
     }
 
