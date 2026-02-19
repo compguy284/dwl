@@ -8,6 +8,7 @@
 #include <wlr/types/wlr_seat.h>
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/types/wlr_keyboard_group.h>
+#include <wlr/types/wlr_switch.h>
 
 typedef struct SwlClient SwlClient;
 
@@ -36,7 +37,9 @@ struct SwlInput {
     struct wl_listener request_cursor;
     struct wl_listener request_set_selection;
     struct wl_listener request_set_primary_selection;
+    struct wl_listener switch_toggle;
 
+    bool lid_closed;
     SwlKeyboardConfig kb_config;
     SwlPointerConfig ptr_config;
 
@@ -70,5 +73,9 @@ void handle_request_cursor(struct wl_listener *listener, void *data);
 void handle_request_set_selection(struct wl_listener *listener, void *data);
 void handle_request_set_primary_selection(struct wl_listener *listener, void *data);
 SwlClient *client_at_cursor(SwlInput *input);
+
+/* switch.c */
+void swl_switch_setup(SwlInput *input, struct wlr_switch *sw);
+void handle_switch_toggle(struct wl_listener *listener, void *data);
 
 #endif /* SWL_INPUT_INTERNAL_H */

@@ -66,6 +66,12 @@ brightness = 0.9
 contrast = 0.9
 saturation = 1.1
 
+[lid]
+# Shell command to run when laptop lid is closed
+# Examples: "swaylock", "systemctl suspend", "swaylock && systemctl suspend"
+# Leave empty or omit to do nothing (events are still emitted for IPC subscribers)
+command = ""
+
 [keyboard]
 # Enable numlock on startup
 numlock = true

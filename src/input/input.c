@@ -13,6 +13,7 @@
 #include <wlr/types/wlr_keyboard.h>
 #include <wlr/interfaces/wlr_keyboard.h>
 #include <wlr/types/wlr_pointer.h>
+#include <wlr/types/wlr_switch.h>
 #ifdef SWL_XWAYLAND
 #include <wlr/xwayland.h>
 #endif
@@ -151,6 +152,11 @@ static void handle_new_input(struct wl_listener *listener, void *data)
         struct wlr_pointer *ptr = wlr_pointer_from_input_device(device);
         configure_pointer(input, ptr);
         wlr_cursor_attach_input_device(input->cursor, device);
+        break;
+    }
+    case WLR_INPUT_DEVICE_SWITCH: {
+        struct wlr_switch *sw = wlr_switch_from_input_device(device);
+        swl_switch_setup(input, sw);
         break;
     }
     default:

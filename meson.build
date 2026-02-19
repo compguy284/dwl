@@ -85,6 +85,7 @@ swl_sources = files(
   'src/input/keyboard.c',
   'src/input/pointer.c',
   'src/input/keybindings.c',
+  'src/input/switch.c',
   # Output
   'src/output/monitor.c',
   # Layout
