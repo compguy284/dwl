@@ -167,6 +167,7 @@ static void x11_handle_unmap(struct wl_listener *listener, void *data)
         }
     }
 
+    swl_client_unlink_column(c);
     swl_scene_client_destroy(c->mgr->scene_mgr, c);
 
     if (c->mon)
@@ -181,6 +182,8 @@ static void x11_handle_destroy(struct wl_listener *listener, void *data)
     // Clear focused pointer if this was the focused client
     if (c->mgr->focused == c)
         c->mgr->focused = NULL;
+
+    swl_client_unlink_column(c);
 
     SwlEventBus *bus = swl_compositor_get_event_bus(c->mgr->comp);
     swl_event_bus_emit_simple(bus, SWL_EVENT_CLIENT_DESTROY, c);

@@ -580,6 +580,34 @@ static void action_cycle_ratio(SwlCompositor *comp, const char *arg)
         swl_monitor_arrange(mon);
 }
 
+static void action_consume_or_expel(SwlCompositor *comp, const char *arg)
+{
+    SwlClientManager *clients = swl_compositor_get_clients(comp);
+    SwlClient *focused = swl_client_focused(clients);
+    if (!focused)
+        return;
+
+    SwlClientInfo info = swl_client_get_info(focused);
+    if (info.floating || info.fullscreen)
+        return;
+
+    // Only meaningful in scroller layout
+    SwlMonitor *mon = swl_client_get_monitor(focused);
+    if (!mon) {
+        SwlOutputManager *output = swl_compositor_get_output(comp);
+        mon = swl_monitor_get_focused(output);
+    }
+    if (!mon)
+        return;
+
+    const SwlLayout *layout = swl_monitor_get_layout(mon);
+    if (!layout || !layout->name || strcmp(layout->name, "scroller") != 0)
+        return;
+
+    int dir = arg ? atoi(arg) : 1;
+    swl_client_consume_or_expel(clients, focused, dir);
+}
+
 static void action_chvt(SwlCompositor *comp, const char *arg)
 {
     if (!arg)
@@ -842,6 +870,8 @@ void swl_action_register_builtins(SwlKeybindingManager *mgr)
     swl_action_register(mgr, "focusdir", action_focusdir);
     swl_action_register(mgr, "moveresize", action_moveresize);
     swl_action_register(mgr, "cycle-ratio", action_cycle_ratio);
+    swl_action_register(mgr, "consume_or_expel", action_consume_or_expel);
+    swl_action_register(mgr, "consume-or-expel", action_consume_or_expel);
     swl_action_register(mgr, "chvt", action_chvt);
 
     // Try to load keybindings from config

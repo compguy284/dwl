@@ -44,6 +44,9 @@ struct SwlClient {
 
     float scroller_ratio;  // Per-client scroller column ratio (0.0 = use default)
 
+    SwlClient *column_prev;  // Previous client in column stack (NULL = column head)
+    SwlClient *column_next;  // Next client in column stack
+
 #ifdef SWL_XWAYLAND
     struct wlr_xwayland_surface *xwayland;
     bool is_x11;

@@ -768,17 +768,36 @@ void swl_monitor_arrange(SwlMonitor *mon)
     }
 
     if (mon->layout && mon->layout->arrange) {
-        // Find focused client index — fall back to focus stack if global
-        // focus is on another monitor so the scroller stays in place
+        // Build array of column heads only — non-head clients are arranged
+        // within their column after the layout positions the heads.
+        size_t head_count = 0;
+        SwlClient **heads = calloc(col.count, sizeof(SwlClient *));
+        for (size_t i = 0; i < col.count; i++) {
+            if (swl_client_is_column_head(col.clients[i]))
+                heads[head_count++] = col.clients[i];
+        }
+
+        // Find focused client index among column heads — fall back to
+        // focus stack if global focus is on another monitor
         SwlClient *focused = swl_client_focused(clients);
         if (!focused || swl_client_get_monitor(focused) != mon)
             focused = swl_client_focus_top_on_monitor(clients, mon);
         int focused_index = -1;
-        for (size_t i = 0; i < col.count; i++) {
-            if (col.clients[i] == focused) {
+        for (size_t i = 0; i < head_count; i++) {
+            if (heads[i] == focused) {
                 focused_index = (int)i;
                 break;
             }
+            // Also match if the focused client is inside this column
+            SwlClient *m;
+            for (m = heads[i]; m; m = swl_client_column_next(m)) {
+                if (m == focused) {
+                    focused_index = (int)i;
+                    break;
+                }
+            }
+            if (focused_index >= 0)
+                break;
         }
 
         // Use scroller_ratio instead of mfact when layout is scroller
@@ -796,30 +815,59 @@ void swl_monitor_arrange(SwlMonitor *mon)
             .gap_outer_v = mon->gap_outer_v,
             .master_factor = layout_mfact,
             .master_count = mon->nmaster,
-            .client_count = col.count,
+            .client_count = head_count,
             .focused_index = focused_index,
-            .clients = calloc(col.count, sizeof(SwlLayoutClient)),
+            .clients = calloc(head_count, sizeof(SwlLayoutClient)),
         };
 
-        for (size_t i = 0; i < col.count; i++) {
-            SwlClientInfo info = swl_client_get_info(col.clients[i]);
+        for (size_t i = 0; i < head_count; i++) {
+            SwlClientInfo info = swl_client_get_info(heads[i]);
             params.clients[i].id = info.id;
             params.clients[i].width = info.geometry.width;
             params.clients[i].height = info.geometry.height;
             if (is_scroller)
-                params.clients[i].column_ratio = swl_client_get_scroller_ratio(col.clients[i]);
+                params.clients[i].column_ratio = swl_client_get_scroller_ratio(heads[i]);
         }
 
         mon->layout->arrange(&params);
 
-        for (size_t i = 0; i < col.count; i++) {
+        // Apply layout results — subdivide each column's geometry among its members
+        for (size_t i = 0; i < head_count; i++) {
             SwlLayoutClient *lc = &params.clients[i];
-            fprintf(stderr, "Arrange client on %s: pos=(%d,%d) size=%dx%d\n",
-                    mon->output->name, lc->x, lc->y, lc->width, lc->height);
-            swl_client_resize(col.clients[i], lc->x, lc->y, lc->width, lc->height);
+
+            // Count members in this column
+            int members = 0;
+            SwlClient *m;
+            for (m = heads[i]; m; m = swl_client_column_next(m))
+                members++;
+
+            if (members <= 1) {
+                // Single client column — use layout geometry directly
+                fprintf(stderr, "Arrange client on %s: pos=(%d,%d) size=%dx%d\n",
+                        mon->output->name, lc->x, lc->y, lc->width, lc->height);
+                swl_client_resize(heads[i], lc->x, lc->y, lc->width, lc->height);
+            } else {
+                // Multi-client column — divide height evenly with inner gaps
+                int total_gaps = (members - 1) * mon->gap_inner_v;
+                int avail_h = lc->height - total_gaps;
+                int member_h = avail_h / members;
+                int remainder = avail_h - member_h * members;
+                int y = lc->y;
+                int idx = 0;
+
+                for (m = heads[i]; m; m = swl_client_column_next(m)) {
+                    int h = member_h + (idx < remainder ? 1 : 0);
+                    fprintf(stderr, "Arrange stacked client on %s: pos=(%d,%d) size=%dx%d\n",
+                            mon->output->name, lc->x, y, lc->width, h);
+                    swl_client_resize(m, lc->x, y, lc->width, h);
+                    y += h + mon->gap_inner_v;
+                    idx++;
+                }
+            }
         }
 
         free(params.clients);
+        free(heads);
     }
 
     free(col.clients);

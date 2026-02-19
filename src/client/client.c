@@ -277,6 +277,7 @@ static void client_handle_unmap(struct wl_listener *listener, void *data)
         }
     }
 
+    swl_client_unlink_column(c);
     swl_scene_client_destroy(c->mgr->scene_mgr, c);
 
     if (c->mon)
@@ -291,6 +292,8 @@ static void client_handle_destroy(struct wl_listener *listener, void *data)
     // Clear focused pointer if this was the focused client
     if (c->mgr->focused == c)
         c->mgr->focused = NULL;
+
+    swl_client_unlink_column(c);
 
     SwlEventBus *bus = swl_compositor_get_event_bus(c->mgr->comp);
     swl_event_bus_emit_simple(bus, SWL_EVENT_CLIENT_DESTROY, c);
@@ -570,6 +573,121 @@ SwlError swl_client_set_scroller_ratio(SwlClient *client, float ratio)
     return SWL_OK;
 }
 
+bool swl_client_is_column_head(const SwlClient *client)
+{
+    return client && !client->column_prev;
+}
+
+void swl_client_unlink_column(SwlClient *client)
+{
+    if (!client)
+        return;
+
+    if (client->column_prev)
+        client->column_prev->column_next = client->column_next;
+    if (client->column_next)
+        client->column_next->column_prev = client->column_prev;
+
+    client->column_prev = NULL;
+    client->column_next = NULL;
+}
+
+SwlClient *swl_client_column_next(const SwlClient *client)
+{
+    return client ? client->column_next : NULL;
+}
+
+static SwlClient *column_head(SwlClient *c)
+{
+    while (c && c->column_prev)
+        c = c->column_prev;
+    return c;
+}
+
+static SwlClient *column_tail(SwlClient *c)
+{
+    while (c && c->column_next)
+        c = c->column_next;
+    return c;
+}
+
+SwlError swl_client_consume_or_expel(SwlClientManager *mgr, SwlClient *focused, int dir)
+{
+    if (!mgr || !focused)
+        return SWL_ERR_INVALID_ARG;
+
+    if (focused->column_prev || focused->column_next) {
+        // EXPEL: client is part of a column stack — remove and make standalone
+        // Save column neighbors BEFORE unlinking so we have valid references
+        // for repositioning (focused itself may be the head or tail, and after
+        // unlink + wl_list_remove its link becomes self-referencing).
+        SwlClient *prev_in_col = focused->column_prev;
+        SwlClient *next_in_col = focused->column_next;
+
+        swl_client_unlink_column(focused);
+        wl_list_remove(&focused->link);
+
+        if (dir < 0) {
+            // Insert before the column: find the (new) column head
+            SwlClient *new_head = prev_in_col ? column_head(prev_in_col) : next_in_col;
+            wl_list_insert(new_head->link.prev, &focused->link);
+        } else {
+            // Insert after the column: find the (new) column tail
+            SwlClient *new_tail = next_in_col ? column_tail(next_in_col) : prev_in_col;
+            wl_list_insert(&new_tail->link, &focused->link);
+        }
+    } else {
+        // CONSUME: find adjacent tiled column head and merge
+        SwlClient *neighbor = NULL;
+        SwlClient *c;
+        struct wl_list *pos;
+
+        if (dir > 0) {
+            // Walk forward from focused to find the next tiled column head
+            for (pos = focused->link.next; pos != &mgr->clients; pos = pos->next) {
+                c = wl_container_of(pos, c, link);
+                if (!c->mapped || c->floating || c->fullscreen)
+                    continue;
+                if (c->mon != focused->mon)
+                    continue;
+                if (swl_client_is_column_head(c)) {
+                    neighbor = c;
+                    break;
+                }
+            }
+        } else {
+            // Walk backward from focused to find the previous tiled column head
+            for (pos = focused->link.prev; pos != &mgr->clients; pos = pos->prev) {
+                c = wl_container_of(pos, c, link);
+                if (!c->mapped || c->floating || c->fullscreen)
+                    continue;
+                if (c->mon != focused->mon)
+                    continue;
+                // Any tiled client we find belongs to some column; find its head
+                neighbor = column_head(c);
+                break;
+            }
+        }
+
+        if (!neighbor)
+            return SWL_ERR_NOT_FOUND;
+
+        // Merge: append focused to the neighbor's column
+        SwlClient *ntail = column_tail(neighbor);
+        ntail->column_next = focused;
+        focused->column_prev = ntail;
+
+        // Move focused in wl_list to right after the neighbor's tail
+        wl_list_remove(&focused->link);
+        wl_list_insert(&ntail->link, &focused->link);
+    }
+
+    if (focused->mon)
+        swl_monitor_arrange(focused->mon);
+
+    return SWL_OK;
+}
+
 SwlError swl_client_close(SwlClient *client)
 {
     if (!client)
@@ -644,6 +762,9 @@ SwlError swl_client_set_floating(SwlClient *client, bool floating)
     if (!client)
         return SWL_ERR_INVALID_ARG;
 
+    if (floating)
+        swl_client_unlink_column(client);
+
     client->floating = floating;
 
     if (client->mgr->scene_mgr) {
@@ -672,6 +793,9 @@ SwlError swl_client_set_fullscreen(SwlClient *client, bool fullscreen)
 {
     if (!client)
         return SWL_ERR_INVALID_ARG;
+
+    if (fullscreen)
+        swl_client_unlink_column(client);
 
     client->fullscreen = fullscreen;
 
@@ -705,6 +829,8 @@ SwlError swl_client_move_to_monitor(SwlClient *client, SwlMonitor *mon)
 {
     if (!client || !mon)
         return SWL_ERR_INVALID_ARG;
+
+    swl_client_unlink_column(client);
 
     SwlMonitor *old = client->mon;
     client->mon = mon;

@@ -65,6 +65,11 @@ SwlError swl_client_zoom(SwlClientManager *mgr);
 float swl_client_get_scroller_ratio(const SwlClient *client);
 SwlError swl_client_set_scroller_ratio(SwlClient *client, float ratio);
 
+bool swl_client_is_column_head(const SwlClient *client);
+void swl_client_unlink_column(SwlClient *client);
+SwlClient *swl_client_column_next(const SwlClient *client);
+SwlError swl_client_consume_or_expel(SwlClientManager *mgr, SwlClient *focused, int dir);
+
 // Direction: 0=up, 1=down, 2=left, 3=right
 SwlClient *swl_client_in_direction(SwlClientManager *mgr, SwlClient *from, int direction);
 
