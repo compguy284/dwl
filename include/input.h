@@ -36,6 +36,9 @@ typedef struct SwlPointerConfig {
     bool left_handed;
     bool middle_emulation;
     int scroll_method;
+    int click_method;
+    int accel_profile;
+    int tap_button_map;
     bool disable_while_typing;
     SwlSendEventsMode send_events;
 } SwlPointerConfig;

@@ -198,8 +198,10 @@ void configure_pointer(SwlInput *input, struct wlr_pointer *ptr)
     if (!dev)
         return;
 
-    if (libinput_device_config_accel_is_available(dev))
+    if (libinput_device_config_accel_is_available(dev)) {
         libinput_device_config_accel_set_speed(dev, input->ptr_config.accel_speed);
+        libinput_device_config_accel_set_profile(dev, input->ptr_config.accel_profile);
+    }
 
     if (libinput_device_config_scroll_has_natural_scroll(dev))
         libinput_device_config_scroll_set_natural_scroll_enabled(dev,
@@ -215,7 +217,11 @@ void configure_pointer(SwlInput *input, struct wlr_pointer *ptr)
         libinput_device_config_tap_set_drag_lock_enabled(dev,
             input->ptr_config.drag_lock ? LIBINPUT_CONFIG_DRAG_LOCK_ENABLED
                                         : LIBINPUT_CONFIG_DRAG_LOCK_DISABLED);
+        libinput_device_config_tap_set_button_map(dev, input->ptr_config.tap_button_map);
     }
+
+    if (libinput_device_config_click_get_methods(dev) != LIBINPUT_CONFIG_CLICK_METHOD_NONE)
+        libinput_device_config_click_set_method(dev, input->ptr_config.click_method);
 
     if (libinput_device_config_left_handed_is_available(dev))
         libinput_device_config_left_handed_set(dev, input->ptr_config.left_handed);

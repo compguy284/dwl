@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <libinput.h>
 #include <wayland-server-core.h>
 #include <wlr/backend.h>
 #include <wlr/types/wlr_input_device.h>
@@ -49,6 +50,40 @@ SwlInput *swl_input_create(SwlCompositor *comp)
     input->ptr_config.left_handed = swl_config_get_bool(cfg, "pointer.left_handed", false);
     input->ptr_config.middle_emulation = swl_config_get_bool(cfg, "pointer.middle_button_emulation", false);
     input->ptr_config.accel_speed = swl_config_get_float(cfg, "pointer.accel_speed", 0.0f);
+
+    // Parse scroll method
+    const char *scroll_str = swl_config_get_string(cfg, "pointer.scroll_method", "two_finger");
+    if (strcasecmp(scroll_str, "edge") == 0)
+        input->ptr_config.scroll_method = LIBINPUT_CONFIG_SCROLL_EDGE;
+    else if (strcasecmp(scroll_str, "button") == 0)
+        input->ptr_config.scroll_method = LIBINPUT_CONFIG_SCROLL_ON_BUTTON_DOWN;
+    else if (strcasecmp(scroll_str, "none") == 0)
+        input->ptr_config.scroll_method = LIBINPUT_CONFIG_SCROLL_NO_SCROLL;
+    else
+        input->ptr_config.scroll_method = LIBINPUT_CONFIG_SCROLL_2FG;
+
+    // Parse click method
+    const char *click_str = swl_config_get_string(cfg, "pointer.click_method", "button_areas");
+    if (strcasecmp(click_str, "clickfinger") == 0)
+        input->ptr_config.click_method = LIBINPUT_CONFIG_CLICK_METHOD_CLICKFINGER;
+    else if (strcasecmp(click_str, "none") == 0)
+        input->ptr_config.click_method = LIBINPUT_CONFIG_CLICK_METHOD_NONE;
+    else
+        input->ptr_config.click_method = LIBINPUT_CONFIG_CLICK_METHOD_BUTTON_AREAS;
+
+    // Parse acceleration profile
+    const char *accel_str = swl_config_get_string(cfg, "pointer.accel_profile", "adaptive");
+    if (strcasecmp(accel_str, "flat") == 0)
+        input->ptr_config.accel_profile = LIBINPUT_CONFIG_ACCEL_PROFILE_FLAT;
+    else
+        input->ptr_config.accel_profile = LIBINPUT_CONFIG_ACCEL_PROFILE_ADAPTIVE;
+
+    // Parse tap button map
+    const char *map_str = swl_config_get_string(cfg, "pointer.button_map", "lrm");
+    if (strcasecmp(map_str, "lmr") == 0)
+        input->ptr_config.tap_button_map = LIBINPUT_CONFIG_TAP_MAP_LMR;
+    else
+        input->ptr_config.tap_button_map = LIBINPUT_CONFIG_TAP_MAP_LRM;
 
     // Parse send_events mode
     const char *send_events_str = swl_config_get_string(cfg, "pointer.send_events", "enabled");
