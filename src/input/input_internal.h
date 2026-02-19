@@ -46,6 +46,8 @@ struct SwlInput {
     uint32_t locked_mods;
     uint32_t modifiers;
 
+    struct wl_list pointer_devices; // SwlPointerDevice.link
+
     // Move/resize state
     enum SwlCursorMode cursor_mode;
     SwlClient *grabbed_client;
@@ -61,9 +63,17 @@ void handle_keyboard_key(struct wl_listener *listener, void *data);
 void handle_keyboard_modifiers(struct wl_listener *listener, void *data);
 
 /* pointer.c */
+struct SwlPointerDevice {
+    struct wlr_pointer *ptr;
+    struct wl_listener destroy;
+    struct wl_list link;
+};
+
 void swl_pointer_setup(SwlInput *input);
 void swl_pointer_cleanup(SwlInput *input);
 void configure_pointer(SwlInput *input, struct wlr_pointer *ptr);
+void swl_pointer_track(SwlInput *input, struct wlr_pointer *ptr);
+void swl_pointer_reconfigure_all(SwlInput *input);
 void handle_cursor_motion(struct wl_listener *listener, void *data);
 void handle_cursor_motion_abs(struct wl_listener *listener, void *data);
 void handle_cursor_button(struct wl_listener *listener, void *data);

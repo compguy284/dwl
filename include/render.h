@@ -38,6 +38,7 @@ SwlRenderer *swl_renderer_create(SwlCompositor *comp);
 void swl_renderer_destroy(SwlRenderer *r);
 
 SwlError swl_renderer_configure(SwlRenderer *r, const SwlRenderConfig *cfg);
+SwlError swl_renderer_reload_config(SwlRenderer *r);
 SwlRenderConfig swl_renderer_get_config(const SwlRenderer *r);
 
 SwlError swl_renderer_set_client_opacity(SwlRenderer *r, SwlClient *c, float opacity);

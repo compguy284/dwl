@@ -261,6 +261,36 @@ void configure_pointer(SwlInput *input, struct wlr_pointer *ptr)
     }
 }
 
+static void pointer_device_handle_destroy(struct wl_listener *listener, void *data)
+{
+    struct SwlPointerDevice *pd = wl_container_of(listener, pd, destroy);
+    (void)data;
+
+    wl_list_remove(&pd->destroy.link);
+    wl_list_remove(&pd->link);
+    free(pd);
+}
+
+void swl_pointer_track(SwlInput *input, struct wlr_pointer *ptr)
+{
+    struct SwlPointerDevice *pd = calloc(1, sizeof(*pd));
+    if (!pd)
+        return;
+
+    pd->ptr = ptr;
+    pd->destroy.notify = pointer_device_handle_destroy;
+    wl_signal_add(&ptr->base.events.destroy, &pd->destroy);
+    wl_list_insert(&input->pointer_devices, &pd->link);
+}
+
+void swl_pointer_reconfigure_all(SwlInput *input)
+{
+    struct SwlPointerDevice *pd;
+    wl_list_for_each(pd, &input->pointer_devices, link) {
+        configure_pointer(input, pd->ptr);
+    }
+}
+
 void swl_pointer_setup(SwlInput *input)
 {
     input->cursor_motion.notify = handle_cursor_motion;

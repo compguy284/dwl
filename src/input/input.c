@@ -28,6 +28,7 @@ SwlInput *swl_input_create(SwlCompositor *comp)
         return NULL;
 
     input->comp = comp;
+    wl_list_init(&input->pointer_devices);
 
     // Load keyboard config from config file
     SwlConfig *cfg = swl_compositor_get_config(comp);
@@ -186,6 +187,7 @@ static void handle_new_input(struct wl_listener *listener, void *data)
     case WLR_INPUT_DEVICE_POINTER: {
         struct wlr_pointer *ptr = wlr_pointer_from_input_device(device);
         configure_pointer(input, ptr);
+        swl_pointer_track(input, ptr);
         wlr_cursor_attach_input_device(input->cursor, device);
         break;
     }
@@ -223,6 +225,83 @@ SwlError swl_input_configure_pointer(SwlInput *input, const SwlPointerConfig *cf
         return SWL_ERR_INVALID_ARG;
 
     input->ptr_config = *cfg;
+    return SWL_OK;
+}
+
+SwlError swl_input_reload_config(SwlInput *input)
+{
+    if (!input)
+        return SWL_ERR_INVALID_ARG;
+
+    SwlConfig *cfg = swl_compositor_get_config(input->comp);
+    if (!cfg)
+        return SWL_ERR_INVALID_ARG;
+
+    // Re-read keyboard config
+    input->kb_config.repeat_rate = swl_config_get_int(cfg, "keyboard.repeat_rate", 25);
+    input->kb_config.repeat_delay = swl_config_get_int(cfg, "keyboard.repeat_delay", 600);
+    input->kb_config.xkb_layout = swl_config_get_string(cfg, "keyboard.xkb.layout", NULL);
+    input->kb_config.xkb_rules = swl_config_get_string(cfg, "keyboard.xkb.rules", NULL);
+    input->kb_config.xkb_model = swl_config_get_string(cfg, "keyboard.xkb.model", NULL);
+    input->kb_config.xkb_variant = swl_config_get_string(cfg, "keyboard.xkb.variant", NULL);
+    input->kb_config.xkb_options = swl_config_get_string(cfg, "keyboard.xkb.options", NULL);
+
+    configure_keyboard(input, &input->kb_group->keyboard);
+    wlr_keyboard_set_repeat_info(&input->kb_group->keyboard,
+        input->kb_config.repeat_rate > 0 ? input->kb_config.repeat_rate : 25,
+        input->kb_config.repeat_delay > 0 ? input->kb_config.repeat_delay : 600);
+
+    // Re-read pointer config
+    input->ptr_config.tap_to_click = swl_config_get_bool(cfg, "pointer.tap_to_click", true);
+    input->ptr_config.tap_and_drag = swl_config_get_bool(cfg, "pointer.tap_and_drag", true);
+    input->ptr_config.drag_lock = swl_config_get_bool(cfg, "pointer.drag_lock", true);
+    input->ptr_config.natural_scroll = swl_config_get_bool(cfg, "pointer.natural_scrolling", false);
+    input->ptr_config.disable_while_typing = swl_config_get_bool(cfg, "pointer.disable_while_typing", true);
+    input->ptr_config.left_handed = swl_config_get_bool(cfg, "pointer.left_handed", false);
+    input->ptr_config.middle_emulation = swl_config_get_bool(cfg, "pointer.middle_button_emulation", false);
+    input->ptr_config.accel_speed = swl_config_get_float(cfg, "pointer.accel_speed", 0.0f);
+
+    const char *scroll_str = swl_config_get_string(cfg, "pointer.scroll_method", "two_finger");
+    if (strcasecmp(scroll_str, "edge") == 0)
+        input->ptr_config.scroll_method = LIBINPUT_CONFIG_SCROLL_EDGE;
+    else if (strcasecmp(scroll_str, "button") == 0)
+        input->ptr_config.scroll_method = LIBINPUT_CONFIG_SCROLL_ON_BUTTON_DOWN;
+    else if (strcasecmp(scroll_str, "none") == 0)
+        input->ptr_config.scroll_method = LIBINPUT_CONFIG_SCROLL_NO_SCROLL;
+    else
+        input->ptr_config.scroll_method = LIBINPUT_CONFIG_SCROLL_2FG;
+
+    const char *click_str = swl_config_get_string(cfg, "pointer.click_method", "button_areas");
+    if (strcasecmp(click_str, "clickfinger") == 0)
+        input->ptr_config.click_method = LIBINPUT_CONFIG_CLICK_METHOD_CLICKFINGER;
+    else if (strcasecmp(click_str, "none") == 0)
+        input->ptr_config.click_method = LIBINPUT_CONFIG_CLICK_METHOD_NONE;
+    else
+        input->ptr_config.click_method = LIBINPUT_CONFIG_CLICK_METHOD_BUTTON_AREAS;
+
+    const char *accel_str = swl_config_get_string(cfg, "pointer.accel_profile", "adaptive");
+    if (strcasecmp(accel_str, "flat") == 0)
+        input->ptr_config.accel_profile = LIBINPUT_CONFIG_ACCEL_PROFILE_FLAT;
+    else
+        input->ptr_config.accel_profile = LIBINPUT_CONFIG_ACCEL_PROFILE_ADAPTIVE;
+
+    const char *map_str = swl_config_get_string(cfg, "pointer.button_map", "lrm");
+    if (strcasecmp(map_str, "lmr") == 0)
+        input->ptr_config.tap_button_map = LIBINPUT_CONFIG_TAP_MAP_LMR;
+    else
+        input->ptr_config.tap_button_map = LIBINPUT_CONFIG_TAP_MAP_LRM;
+
+    const char *send_events_str = swl_config_get_string(cfg, "pointer.send_events", "enabled");
+    if (strcasecmp(send_events_str, "disabled") == 0)
+        input->ptr_config.send_events = SWL_SEND_EVENTS_DISABLED;
+    else if (strcasecmp(send_events_str, "disabled_on_external_mouse") == 0)
+        input->ptr_config.send_events = SWL_SEND_EVENTS_DISABLED_ON_EXTERNAL_MOUSE;
+    else
+        input->ptr_config.send_events = SWL_SEND_EVENTS_ENABLED;
+
+    // Re-apply to all connected pointer devices
+    swl_pointer_reconfigure_all(input);
+
     return SWL_OK;
 }
 

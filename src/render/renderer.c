@@ -95,6 +95,60 @@ SwlError swl_renderer_configure(SwlRenderer *r, const SwlRenderConfig *cfg)
     return SWL_OK;
 }
 
+SwlError swl_renderer_reload_config(SwlRenderer *r)
+{
+    if (!r)
+        return SWL_ERR_INVALID_ARG;
+
+    SwlConfig *cfg = swl_compositor_get_config(r->comp);
+    if (!cfg)
+        return SWL_ERR_INVALID_ARG;
+
+    r->config.blur_radius = swl_config_get_int(cfg, "scenefx.blur.radius", 5);
+    r->config.blur_passes = swl_config_get_int(cfg, "scenefx.blur.passes", 3);
+    r->config.blur_optimize = swl_config_get_bool(cfg, "scenefx.blur.optimized", true);
+    r->config.blur_ignore_transparent = swl_config_get_bool(cfg, "scenefx.blur.ignore_transparent", true);
+
+    r->config.shadow_enabled = swl_config_get_bool(cfg, "scenefx.shadows.enabled", true);
+    r->config.shadow_radius = swl_config_get_int(cfg, "scenefx.shadows.blur_sigma", 20);
+    if (swl_config_get_color(cfg, "scenefx.shadows.color", r->config.shadow_color) != SWL_OK) {
+        r->config.shadow_color[0] = 0.0f;
+        r->config.shadow_color[1] = 0.0f;
+        r->config.shadow_color[2] = 0.0f;
+        r->config.shadow_color[3] = 0.5f;
+    }
+
+    r->config.corner_radius = swl_config_get_int(cfg, "scenefx.corners.radius", 10);
+
+    r->config.opacity_active = swl_config_get_float(cfg, "scenefx.opacity.active", 1.0f);
+    r->config.opacity_inactive = swl_config_get_float(cfg, "scenefx.opacity.inactive", 0.9f);
+
+    r->config.border_width = swl_config_get_int(cfg, "appearance.border_width", 2);
+
+    if (swl_config_get_color(cfg, "appearance.colors.focus", r->config.border_color_focused) != SWL_OK) {
+        r->config.border_color_focused[0] = 0.0f;
+        r->config.border_color_focused[1] = 0.33f;
+        r->config.border_color_focused[2] = 0.47f;
+        r->config.border_color_focused[3] = 1.0f;
+    }
+
+    if (swl_config_get_color(cfg, "appearance.colors.border", r->config.border_color_unfocused) != SWL_OK) {
+        r->config.border_color_unfocused[0] = 0.27f;
+        r->config.border_color_unfocused[1] = 0.27f;
+        r->config.border_color_unfocused[2] = 0.27f;
+        r->config.border_color_unfocused[3] = 1.0f;
+    }
+
+    if (swl_config_get_color(cfg, "appearance.colors.urgent", r->config.border_color_urgent) != SWL_OK) {
+        r->config.border_color_urgent[0] = 1.0f;
+        r->config.border_color_urgent[1] = 0.0f;
+        r->config.border_color_urgent[2] = 0.0f;
+        r->config.border_color_urgent[3] = 1.0f;
+    }
+
+    return SWL_OK;
+}
+
 SwlRenderConfig swl_renderer_get_config(const SwlRenderer *r)
 {
     if (!r) {

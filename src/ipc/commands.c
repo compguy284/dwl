@@ -3,8 +3,12 @@
 #include "compositor.h"
 #include "client.h"
 #include "config.h"
+#include "events.h"
+#include "input.h"
+#include "keybindings.h"
 #include "layout.h"
 #include "monitor.h"
+#include "render.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -78,13 +82,36 @@ static SwlIPCResponse cmd_reload_config(SwlCompositor *comp, const char *args)
     SwlIPCResponse r = {.success = true};
 
     SwlConfig *cfg = swl_compositor_get_config(comp);
-    if (cfg && swl_config_reload(cfg) == SWL_OK)
-        r.json = strdup("ok");
-    else {
+    if (!cfg || swl_config_reload(cfg) != SWL_OK) {
         r.success = false;
         r.error = strdup("failed to reload config");
+        return r;
     }
 
+    SwlRenderer *renderer = swl_compositor_get_renderer(comp);
+    if (renderer)
+        swl_renderer_reload_config(renderer);
+
+    SwlInput *input = swl_compositor_get_input(comp);
+    if (input) {
+        swl_input_reload_config(input);
+        SwlKeybindingManager *kb = swl_input_get_keybindings(input);
+        if (kb)
+            swl_keybinding_reload(kb);
+    }
+
+    SwlClientManager *clients = swl_compositor_get_clients(comp);
+    if (clients)
+        swl_client_manager_load_rules(clients);
+
+    SwlOutputManager *output = swl_compositor_get_output(comp);
+    if (output)
+        swl_monitor_reload_config(output);
+
+    SwlEventBus *bus = swl_compositor_get_event_bus(comp);
+    swl_event_bus_emit_simple(bus, SWL_EVENT_CONFIG_RELOAD, NULL);
+
+    r.json = strdup("ok");
     return r;
 }
 

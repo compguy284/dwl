@@ -896,3 +896,15 @@ void swl_monitor_arrange_all(SwlOutputManager *mgr)
         swl_monitor_arrange(mon);
     }
 }
+
+void swl_monitor_reload_config(SwlOutputManager *mgr)
+{
+    if (!mgr)
+        return;
+
+    SwlMonitor *mon;
+    wl_list_for_each(mon, &mgr->monitors, link) {
+        apply_monitor_rules(mon);
+        swl_monitor_arrange(mon);
+    }
+}

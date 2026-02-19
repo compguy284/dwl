@@ -66,5 +66,6 @@ SwlError swl_monitor_adjust_nmaster(SwlMonitor *mon, int delta);
 void swl_monitor_set_usable_area(SwlMonitor *mon, int x, int y, int w, int h);
 void swl_monitor_arrange(SwlMonitor *mon);
 void swl_monitor_arrange_all(SwlOutputManager *mgr);
+void swl_monitor_reload_config(SwlOutputManager *mgr);
 
 #endif /* SWL_MONITOR_H */

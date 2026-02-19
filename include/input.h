@@ -45,6 +45,7 @@ typedef struct SwlPointerConfig {
 
 SwlInput *swl_input_create(SwlCompositor *comp);
 void swl_input_destroy(SwlInput *input);
+SwlError swl_input_reload_config(SwlInput *input);
 
 SwlError swl_input_configure_keyboard(SwlInput *input, const SwlKeyboardConfig *cfg);
 SwlError swl_input_configure_pointer(SwlInput *input, const SwlPointerConfig *cfg);

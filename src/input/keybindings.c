@@ -3,9 +3,11 @@
 #include "compositor.h"
 #include "client.h"
 #include "config.h"
+#include "events.h"
 #include "input.h"
 #include "layout.h"
 #include "monitor.h"
+#include "render.h"
 #include <ctype.h>
 #include <linux/input-event-codes.h>
 #include <stdlib.h>
@@ -425,8 +427,37 @@ static void action_reload_config(SwlCompositor *comp, const char *arg)
 {
     (void)arg;
     SwlConfig *config = swl_compositor_get_config(comp);
-    if (config)
-        swl_config_reload(config);
+    if (!config || swl_config_reload(config) != SWL_OK)
+        return;
+
+    // Reload renderer settings (borders, colors, blur, shadows, opacity)
+    SwlRenderer *renderer = swl_compositor_get_renderer(comp);
+    if (renderer)
+        swl_renderer_reload_config(renderer);
+
+    // Reload input settings (keyboard, pointer) and re-apply to devices
+    SwlInput *input = swl_compositor_get_input(comp);
+    if (input) {
+        swl_input_reload_config(input);
+
+        // Reload keybindings and button bindings
+        SwlKeybindingManager *kb = swl_input_get_keybindings(input);
+        if (kb)
+            swl_keybinding_reload(kb);
+    }
+
+    // Reload window rules
+    SwlClientManager *clients = swl_compositor_get_clients(comp);
+    if (clients)
+        swl_client_manager_load_rules(clients);
+
+    // Re-apply monitor rules and re-arrange
+    SwlOutputManager *output = swl_compositor_get_output(comp);
+    if (output)
+        swl_monitor_reload_config(output);
+
+    SwlEventBus *bus = swl_compositor_get_event_bus(comp);
+    swl_event_bus_emit_simple(bus, SWL_EVENT_CONFIG_RELOAD, NULL);
 }
 
 static void action_zoom(SwlCompositor *comp, const char *arg)
@@ -834,6 +865,17 @@ static void load_buttons_from_config(SwlKeybindingManager *mgr)
     }
 
     swl_config_keys_free(keys, count);
+}
+
+void swl_keybinding_reload(SwlKeybindingManager *mgr)
+{
+    if (!mgr)
+        return;
+
+    swl_keybinding_clear(mgr);
+    swl_button_binding_clear(mgr);
+    load_keybindings_from_config(mgr);
+    load_buttons_from_config(mgr);
 }
 
 void swl_action_register_builtins(SwlKeybindingManager *mgr)
