@@ -8,6 +8,7 @@
 #include "layout.h"
 #include "monitor.h"
 #include "render.h"
+#include "session_lock.h"
 #include "toplevel.h"
 #include "xwayland.h"
 #include "../protocols/decoration.h"
@@ -76,6 +77,7 @@ struct SwlCompositor {
     SwlLayoutRegistry *layouts;
     SwlLayerManager *layer_mgr;
     SwlToplevelManager *toplevel_mgr;
+    SwlSessionLock *session_lock;
 
 #ifdef SWL_XWAYLAND
     SwlXWayland *xwayland;
@@ -300,6 +302,9 @@ SwlError swl_compositor_create(SwlCompositor **out, const SwlCompositorConfig *c
     // Foreign toplevel manager
     comp->toplevel_mgr = swl_toplevel_manager_create(comp);
 
+    // Session lock
+    comp->session_lock = swl_session_lock_create(comp);
+
 #ifdef SWL_XWAYLAND
     if (!cfg || cfg->enable_xwayland)
         comp->xwayland = swl_xwayland_create(comp);
@@ -321,6 +326,7 @@ void swl_compositor_destroy(SwlCompositor *comp)
     swl_xwayland_destroy(comp->xwayland);
 #endif
 
+    swl_session_lock_destroy(comp->session_lock);
     swl_toplevel_manager_destroy(comp->toplevel_mgr);
     swl_layer_manager_destroy(comp->layer_mgr);
     swl_ipc_destroy(comp->ipc);
@@ -509,4 +515,9 @@ SwlLayerManager *swl_compositor_get_layer_manager(SwlCompositor *comp)
 SwlToplevelManager *swl_compositor_get_toplevel_manager(SwlCompositor *comp)
 {
     return comp ? comp->toplevel_mgr : NULL;
+}
+
+SwlSessionLock *swl_compositor_get_session_lock(SwlCompositor *comp)
+{
+    return comp ? comp->session_lock : NULL;
 }

@@ -25,6 +25,8 @@ typedef enum {
     SWL_EVENT_RENDER_END,
     SWL_EVENT_LAYER_MAP,
     SWL_EVENT_LAYER_UNMAP,
+    SWL_EVENT_SESSION_LOCK,
+    SWL_EVENT_SESSION_UNLOCK,
 } SwlEventType;
 
 typedef struct SwlEvent {

@@ -3,6 +3,7 @@
 #include "compositor.h"
 #include "config.h"
 #include "monitor.h"
+#include "session_lock.h"
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -712,6 +713,11 @@ SwlError swl_client_focus(SwlClient *client)
 {
     if (!client || !client->mgr)
         return SWL_ERR_INVALID_ARG;
+
+    // Don't allow focus to regular clients while session is locked
+    SwlSessionLock *session_lock = swl_compositor_get_session_lock(client->mgr->comp);
+    if (swl_session_lock_is_locked(session_lock))
+        return SWL_OK;
 
     SwlClient *old = client->mgr->focused;
     if (old == client)

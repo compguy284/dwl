@@ -42,5 +42,6 @@ struct wlr_compositor *swl_compositor_get_wlr_compositor(SwlCompositor *comp);
 
 struct SwlLayerManager *swl_compositor_get_layer_manager(SwlCompositor *comp);
 struct SwlToplevelManager *swl_compositor_get_toplevel_manager(SwlCompositor *comp);
+struct SwlSessionLock *swl_compositor_get_session_lock(SwlCompositor *comp);
 
 #endif /* SWL_COMPOSITOR_H */

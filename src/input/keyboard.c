@@ -1,5 +1,6 @@
 #include "input_internal.h"
 #include "compositor.h"
+#include "session_lock.h"
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_keyboard.h>
 #include <wlr/interfaces/wlr_keyboard.h>
@@ -64,7 +65,12 @@ void handle_keyboard_key(struct wl_listener *listener, void *data)
     bool handled = false;
     uint32_t mods = wlr_keyboard_get_modifiers(kb);
 
-    if (event->state == WL_KEYBOARD_KEY_STATE_PRESSED) {
+    // Skip keybinding processing when session is locked so the lock
+    // client receives all input uninterrupted
+    SwlSessionLock *session_lock = swl_compositor_get_session_lock(input->comp);
+    bool session_locked = swl_session_lock_is_locked(session_lock);
+
+    if (!session_locked && event->state == WL_KEYBOARD_KEY_STATE_PRESSED) {
         for (int i = 0; i < nsyms; i++) {
             if (swl_keybinding_handle(input->keybindings, mods, syms[i])) {
                 handled = true;

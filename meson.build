@@ -103,6 +103,7 @@ swl_sources = files(
   # Protocols
   'src/protocols/decoration.c',
   'src/protocols/xdg_shell.c',
+  'src/protocols/session_lock.c',
   # Layer shell
   'src/layer/layer.c',
   # Foreign toplevel manager
