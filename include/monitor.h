@@ -67,5 +67,6 @@ void swl_monitor_set_usable_area(SwlMonitor *mon, int x, int y, int w, int h);
 void swl_monitor_arrange(SwlMonitor *mon);
 void swl_monitor_arrange_all(SwlOutputManager *mgr);
 void swl_monitor_reload_config(SwlOutputManager *mgr);
+void swl_monitor_damage_whole(SwlMonitor *mon);
 
 #endif /* SWL_MONITOR_H */

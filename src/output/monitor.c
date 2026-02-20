@@ -16,6 +16,7 @@
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_output_layout.h>
+#include <wlr/types/wlr_damage_ring.h>
 #include <scenefx/types/wlr_scene.h>
 
 struct SwlMonitor {
@@ -895,6 +896,14 @@ void swl_monitor_arrange_all(SwlOutputManager *mgr)
     wl_list_for_each(mon, &mgr->monitors, link) {
         swl_monitor_arrange(mon);
     }
+}
+
+void swl_monitor_damage_whole(SwlMonitor *mon)
+{
+    if (!mon || !mon->scene_output)
+        return;
+    wlr_damage_ring_add_whole(&mon->scene_output->damage_ring);
+    wlr_output_schedule_frame(mon->output);
 }
 
 void swl_monitor_reload_config(SwlOutputManager *mgr)

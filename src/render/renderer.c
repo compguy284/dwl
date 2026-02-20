@@ -2,6 +2,7 @@
 #include "compositor.h"
 #include "config.h"
 #include "client.h"
+#include "monitor.h"
 #include <stdlib.h>
 #include <string.h>
 #include <scenefx/render/fx_renderer/fx_renderer.h>
@@ -234,10 +235,19 @@ int swl_renderer_get_client_corner_radius(const SwlRenderer *r, const SwlClient 
     return 0;
 }
 
+static bool damage_whole_iterator(SwlMonitor *mon, void *data)
+{
+    (void)data;
+    swl_monitor_damage_whole(mon);
+    return true;
+}
+
 void swl_renderer_damage_whole(SwlRenderer *r)
 {
     if (!r)
         return;
 
-    // TODO: Damage all outputs
+    SwlOutputManager *output = swl_compositor_get_output(r->comp);
+    if (output)
+        swl_monitor_foreach(output, damage_whole_iterator, NULL);
 }

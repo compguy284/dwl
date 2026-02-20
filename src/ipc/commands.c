@@ -89,8 +89,10 @@ static SwlIPCResponse cmd_reload_config(SwlCompositor *comp, const char *args)
     }
 
     SwlRenderer *renderer = swl_compositor_get_renderer(comp);
-    if (renderer)
+    if (renderer) {
         swl_renderer_reload_config(renderer);
+        swl_renderer_damage_whole(renderer);
+    }
 
     SwlInput *input = swl_compositor_get_input(comp);
     if (input) {

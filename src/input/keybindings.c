@@ -432,8 +432,10 @@ static void action_reload_config(SwlCompositor *comp, const char *arg)
 
     // Reload renderer settings (borders, colors, blur, shadows, opacity)
     SwlRenderer *renderer = swl_compositor_get_renderer(comp);
-    if (renderer)
+    if (renderer) {
         swl_renderer_reload_config(renderer);
+        swl_renderer_damage_whole(renderer);
+    }
 
     // Reload input settings (keyboard, pointer) and re-apply to devices
     SwlInput *input = swl_compositor_get_input(comp);
