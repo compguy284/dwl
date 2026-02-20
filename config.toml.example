@@ -126,8 +126,6 @@ monitor = -1  # -1 = current monitor
 # You can also use [monitors.eDP-1] table syntax instead.
 [[monitors]]
 name = "default"
-mfact = 0.55
-nmaster = 1
 scale = 1.0
 layout = "scroller"  # "scroller", "float"
 transform = "normal"  # "normal", "90", "180", "270", "flipped", etc.
@@ -158,12 +156,6 @@ y = -1
 "mod+Right" = { action = "focusdir", arg = "right" }
 "mod+Up" = { action = "focusdir", arg = "up" }
 "mod+Down" = { action = "focusdir", arg = "down" }
-
-# Master area
-"mod+i" = { action = "incnmaster", arg = 1 }
-"mod+d" = { action = "incnmaster", arg = -1 }
-"mod+h" = { action = "setmfact", arg = -0.05 }
-"mod+l" = { action = "setmfact", arg = 0.05 }
 
 # Gaps
 "mod+logo+h" = { action = "incgaps", arg = 1 }

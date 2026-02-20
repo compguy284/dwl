@@ -14,8 +14,6 @@ gap_inner_h = 10
 gap_inner_v = 10
 gap_outer_h = 10
 gap_outer_v = 10
-mfact = 0.55
-nmaster = 1
 layout = "scroller"
 
 [appearance.colors]
@@ -88,12 +86,6 @@ accel_speed = 0.0
 "mod+f" = "toggle-fullscreen"
 "mod+z" = "zoom"
 
-# Master area
-"mod+h" = "dec-mfact"
-"mod+l" = "inc-mfact"
-"mod+i" = "inc-nmaster"
-"mod+d" = "dec-nmaster"
-
 # Layouts
 "mod+s" = "set-layout:scroller"
 
@@ -121,13 +113,7 @@ accel_speed = 0.0
 #   refresh = 60000          # Refresh rate in mHz (60000 = 60Hz)
 #   x = 0                    # Position X (requires both x and y)
 #   y = 0                    # Position Y
-#   mfact = 0.55             # Master area factor
-#   nmaster = 1              # Number of master clients
 #   layout = "scroller"      # Default layout for this monitor
-#   gap_inner_h = 10         # Inner horizontal gap
-#   gap_inner_v = 10         # Inner vertical gap
-#   gap_outer_h = 10         # Outer horizontal gap
-#   gap_outer_v = 10         # Outer vertical gap
 #   enabled = true           # Enable/disable monitor
 
 # Example: HiDPI laptop display

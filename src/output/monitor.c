@@ -32,9 +32,7 @@ struct SwlMonitor {
     const SwlLayout *layout;
     const SwlLayout *prev_layout;
 
-    float mfact;
     float scroller_ratio;
-    int nmaster;
     int gap_inner_h, gap_inner_v;
     int gap_outer_h, gap_outer_v;
 
@@ -164,9 +162,7 @@ static void handle_new_output(struct wl_listener *listener, void *data)
     mon->mgr = mgr;
     mon->output = output;
     SwlConfig *cfg = swl_compositor_get_config(mgr->comp);
-    mon->mfact = swl_config_get_float(cfg, "appearance.mfact", 0.55f);
     mon->scroller_ratio = swl_config_get_float(cfg, "appearance.scroller_ratio", 0.8f);
-    mon->nmaster = swl_config_get_int(cfg, "appearance.nmaster", 1);
     mon->gap_inner_h = swl_config_get_int(cfg, "appearance.gap_inner_h", 10);
     mon->gap_inner_v = swl_config_get_int(cfg, "appearance.gap_inner_v", 10);
     mon->gap_outer_h = swl_config_get_int(cfg, "appearance.gap_outer_h", 10);
@@ -551,40 +547,9 @@ static void apply_monitor_rules(SwlMonitor *mon)
         wlr_output_layout_add(mon->mgr->layout, mon->output, x, y);
     }
 
-    // Layout-specific settings (mfact, nmaster, gaps, layout)
-    snprintf(key, sizeof(key), "monitors.%s.mfact", name);
-    if (swl_config_has_key(cfg, key)) {
-        mon->mfact = swl_config_get_float(cfg, key, mon->mfact);
-    }
-
     snprintf(key, sizeof(key), "monitors.%s.scroller_ratio", name);
     if (swl_config_has_key(cfg, key)) {
         mon->scroller_ratio = swl_config_get_float(cfg, key, mon->scroller_ratio);
-    }
-
-    snprintf(key, sizeof(key), "monitors.%s.nmaster", name);
-    if (swl_config_has_key(cfg, key)) {
-        mon->nmaster = swl_config_get_int(cfg, key, mon->nmaster);
-    }
-
-    snprintf(key, sizeof(key), "monitors.%s.gap_inner_h", name);
-    if (swl_config_has_key(cfg, key)) {
-        mon->gap_inner_h = swl_config_get_int(cfg, key, mon->gap_inner_h);
-    }
-
-    snprintf(key, sizeof(key), "monitors.%s.gap_inner_v", name);
-    if (swl_config_has_key(cfg, key)) {
-        mon->gap_inner_v = swl_config_get_int(cfg, key, mon->gap_inner_v);
-    }
-
-    snprintf(key, sizeof(key), "monitors.%s.gap_outer_h", name);
-    if (swl_config_has_key(cfg, key)) {
-        mon->gap_outer_h = swl_config_get_int(cfg, key, mon->gap_outer_h);
-    }
-
-    snprintf(key, sizeof(key), "monitors.%s.gap_outer_v", name);
-    if (swl_config_has_key(cfg, key)) {
-        mon->gap_outer_v = swl_config_get_int(cfg, key, mon->gap_outer_v);
     }
 
     snprintf(key, sizeof(key), "monitors.%s.layout", name);
@@ -809,63 +774,9 @@ struct wlr_output *swl_monitor_get_wlr_output(const SwlMonitor *mon)
     return mon ? mon->output : NULL;
 }
 
-float swl_monitor_get_mfact(const SwlMonitor *mon)
-{
-    return mon ? mon->mfact : 0.55f;
-}
-
 float swl_monitor_get_scroller_ratio(const SwlMonitor *mon)
 {
     return mon ? mon->scroller_ratio : 0.8f;
-}
-
-int swl_monitor_get_nmaster(const SwlMonitor *mon)
-{
-    return mon ? mon->nmaster : 1;
-}
-
-SwlError swl_monitor_set_mfact(SwlMonitor *mon, float mfact)
-{
-    if (!mon)
-        return SWL_ERR_INVALID_ARG;
-
-    if (mfact < 0.05f)
-        mfact = 0.05f;
-    if (mfact > 0.95f)
-        mfact = 0.95f;
-
-    mon->mfact = mfact;
-    swl_monitor_arrange(mon);
-    return SWL_OK;
-}
-
-SwlError swl_monitor_set_nmaster(SwlMonitor *mon, int nmaster)
-{
-    if (!mon)
-        return SWL_ERR_INVALID_ARG;
-
-    if (nmaster < 0)
-        nmaster = 0;
-
-    mon->nmaster = nmaster;
-    swl_monitor_arrange(mon);
-    return SWL_OK;
-}
-
-SwlError swl_monitor_adjust_mfact(SwlMonitor *mon, float delta)
-{
-    if (!mon)
-        return SWL_ERR_INVALID_ARG;
-
-    return swl_monitor_set_mfact(mon, mon->mfact + delta);
-}
-
-SwlError swl_monitor_adjust_nmaster(SwlMonitor *mon, int delta)
-{
-    if (!mon)
-        return SWL_ERR_INVALID_ARG;
-
-    return swl_monitor_set_nmaster(mon, mon->nmaster + delta);
 }
 
 void swl_monitor_set_usable_area(SwlMonitor *mon, int x, int y, int w, int h)
@@ -951,10 +862,6 @@ void swl_monitor_arrange(SwlMonitor *mon)
                 break;
         }
 
-        // Use scroller_ratio instead of mfact when layout is scroller
-        bool is_scroller = mon->layout->name && strcmp(mon->layout->name, "scroller") == 0;
-        float layout_mfact = is_scroller ? mon->scroller_ratio : mon->mfact;
-
         SwlLayoutParams params = {
             .area_x = mon->usable_x,
             .area_y = mon->usable_y,
@@ -964,8 +871,7 @@ void swl_monitor_arrange(SwlMonitor *mon)
             .gap_inner_v = mon->gap_inner_v,
             .gap_outer_h = mon->gap_outer_h,
             .gap_outer_v = mon->gap_outer_v,
-            .master_factor = layout_mfact,
-            .master_count = mon->nmaster,
+            .master_factor = mon->scroller_ratio,
             .client_count = head_count,
             .focused_index = focused_index,
             .clients = calloc(head_count, sizeof(SwlLayoutClient)),
@@ -976,8 +882,7 @@ void swl_monitor_arrange(SwlMonitor *mon)
             params.clients[i].id = info.id;
             params.clients[i].width = info.geometry.width;
             params.clients[i].height = info.geometry.height;
-            if (is_scroller)
-                params.clients[i].column_ratio = swl_client_get_scroller_ratio(heads[i]);
+            params.clients[i].column_ratio = swl_client_get_scroller_ratio(heads[i]);
         }
 
         mon->layout->arrange(&params);

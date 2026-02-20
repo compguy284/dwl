@@ -55,13 +55,7 @@ SwlError swl_monitor_focus(SwlMonitor *mon);
 const SwlLayout *swl_monitor_get_layout(const SwlMonitor *mon);
 struct wlr_output *swl_monitor_get_wlr_output(const SwlMonitor *mon);
 
-float swl_monitor_get_mfact(const SwlMonitor *mon);
 float swl_monitor_get_scroller_ratio(const SwlMonitor *mon);
-int swl_monitor_get_nmaster(const SwlMonitor *mon);
-SwlError swl_monitor_set_mfact(SwlMonitor *mon, float mfact);
-SwlError swl_monitor_set_nmaster(SwlMonitor *mon, int nmaster);
-SwlError swl_monitor_adjust_mfact(SwlMonitor *mon, float delta);
-SwlError swl_monitor_adjust_nmaster(SwlMonitor *mon, int delta);
 
 void swl_monitor_set_usable_area(SwlMonitor *mon, int x, int y, int w, int h);
 void swl_monitor_arrange(SwlMonitor *mon);

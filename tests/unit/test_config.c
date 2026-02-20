@@ -573,7 +573,7 @@ static void test_config_keybinding_inline_table(void **state)
         "\"mod+p\" = { action = \"spawn\", command = [\"wmenu-run\"] }\n"
         "\"mod+shift+Return\" = { action = \"spawn\", command = [\"foot\"] }\n"
         "\"mod+j\" = { action = \"focusstack\", arg = 1 }\n"
-        "\"mod+h\" = { action = \"setmfact\", arg = -0.05 }\n"
+        "\"mod+h\" = { action = \"incgaps\", arg = -0.05 }\n"
         "\"mod+shift+q\" = { action = \"quit\" }\n";
 
     write(fd, content, strlen(content));
@@ -596,9 +596,9 @@ static void test_config_keybinding_inline_table(void **state)
     assert_string_equal(
         swl_config_get_string(cfg, "keybindings.mod+j", ""), "focusstack:1");
 
-    /* float arg -> "setmfact:-0.05" */
+    /* float arg -> "incgaps:-0.05" */
     assert_string_equal(
-        swl_config_get_string(cfg, "keybindings.mod+h", ""), "setmfact:-0.05");
+        swl_config_get_string(cfg, "keybindings.mod+h", ""), "incgaps:-0.05");
 
     /* no arg -> just action name */
     assert_string_equal(

@@ -482,42 +482,6 @@ static void action_zoom(SwlCompositor *comp, const char *arg)
     swl_client_zoom(clients);
 }
 
-static void action_inc_mfact(SwlCompositor *comp, const char *arg)
-{
-    float delta = arg ? strtof(arg, NULL) : 0.05f;
-    SwlOutputManager *output = swl_compositor_get_output(comp);
-    SwlMonitor *mon = swl_monitor_get_focused(output);
-    if (mon)
-        swl_monitor_adjust_mfact(mon, delta);
-}
-
-static void action_dec_mfact(SwlCompositor *comp, const char *arg)
-{
-    float delta = arg ? strtof(arg, NULL) : 0.05f;
-    SwlOutputManager *output = swl_compositor_get_output(comp);
-    SwlMonitor *mon = swl_monitor_get_focused(output);
-    if (mon)
-        swl_monitor_adjust_mfact(mon, -delta);
-}
-
-static void action_inc_nmaster(SwlCompositor *comp, const char *arg)
-{
-    int delta = arg ? atoi(arg) : 1;
-    SwlOutputManager *output = swl_compositor_get_output(comp);
-    SwlMonitor *mon = swl_monitor_get_focused(output);
-    if (mon)
-        swl_monitor_adjust_nmaster(mon, delta);
-}
-
-static void action_dec_nmaster(SwlCompositor *comp, const char *arg)
-{
-    int delta = arg ? atoi(arg) : 1;
-    SwlOutputManager *output = swl_compositor_get_output(comp);
-    SwlMonitor *mon = swl_monitor_get_focused(output);
-    if (mon)
-        swl_monitor_adjust_nmaster(mon, -delta);
-}
-
 static void action_focusdir(SwlCompositor *comp, const char *arg)
 {
     if (!arg)
@@ -918,12 +882,6 @@ void swl_action_register_builtins(SwlKeybindingManager *mgr)
     swl_action_register(mgr, "reload-config", action_reload_config);
     swl_action_register(mgr, "reload_config", action_reload_config);  // Alias
     swl_action_register(mgr, "zoom", action_zoom);
-    swl_action_register(mgr, "incnmaster", action_inc_nmaster);
-    swl_action_register(mgr, "inc-nmaster", action_inc_nmaster);
-    swl_action_register(mgr, "dec-nmaster", action_dec_nmaster);
-    swl_action_register(mgr, "setmfact", action_inc_mfact);  // Uses delta from arg
-    swl_action_register(mgr, "inc-mfact", action_inc_mfact);
-    swl_action_register(mgr, "dec-mfact", action_dec_mfact);
     swl_action_register(mgr, "focusdir", action_focusdir);
     swl_action_register(mgr, "moveresize", action_moveresize);
     swl_action_register(mgr, "cycle-ratio", action_cycle_ratio);
@@ -968,14 +926,6 @@ void swl_action_register_builtins(SwlKeybindingManager *mgr)
 
     // Zoom (swap with master)
     swl_keybinding_add(mgr, &(SwlKeybinding){MOD, XKB_KEY_z, "zoom", NULL});
-
-    // Master factor adjustment
-    swl_keybinding_add(mgr, &(SwlKeybinding){MOD, XKB_KEY_l, "inc-mfact", NULL});
-    swl_keybinding_add(mgr, &(SwlKeybinding){MOD, XKB_KEY_h, "dec-mfact", NULL});
-
-    // Master count adjustment
-    swl_keybinding_add(mgr, &(SwlKeybinding){MOD, XKB_KEY_i, "inc-nmaster", NULL});
-    swl_keybinding_add(mgr, &(SwlKeybinding){MOD, XKB_KEY_d, "dec-nmaster", NULL});
 
     // Monitor focus/move (left = -1, right = 1)
     swl_keybinding_add(mgr, &(SwlKeybinding){MOD, XKB_KEY_comma, "focus-monitor", "-1"});
