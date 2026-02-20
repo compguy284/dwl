@@ -54,6 +54,9 @@ SwlError swl_rule_engine_add(SwlRuleEngine *engine, const SwlRule *rule)
     engine->rules[i].app_id_pattern = rule->app_id_pattern ? strdup(rule->app_id_pattern) : NULL;
     engine->rules[i].title_pattern = rule->title_pattern ? strdup(rule->title_pattern) : NULL;
 
+    engine->has_app_id_regex[i] = false;
+    engine->has_title_regex[i] = false;
+
     if (rule->app_id_pattern) {
         if (regcomp(&engine->app_id_regex[i], rule->app_id_pattern, REG_EXTENDED | REG_NOSUB) == 0)
             engine->has_app_id_regex[i] = true;
@@ -107,6 +110,8 @@ void swl_rule_engine_clear(SwlRuleEngine *engine)
         free((void *)engine->rules[i].title_pattern);
     }
 
+    memset(engine->has_app_id_regex, 0, sizeof(engine->has_app_id_regex));
+    memset(engine->has_title_regex, 0, sizeof(engine->has_title_regex));
     engine->count = 0;
 }
 
