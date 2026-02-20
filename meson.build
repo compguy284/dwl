@@ -139,6 +139,9 @@ executable('swlctl',
   sources: ['tools/swlctl.c'],
   install: true)
 
+install_data('swl.desktop',
+  install_dir: get_option('datadir') / 'wayland-sessions')
+
 # Create static library for testable code (no main.c, no wlroots-dependent code)
 swl_testable_sources = files(
   'lib/tomlc99/toml.c',
