@@ -512,6 +512,7 @@ SwlClientInfo swl_client_get_info(const SwlClient *client)
     info.geometry.y = client->y;
     info.geometry.width = client->width;
     info.geometry.height = client->height;
+    info.border_width = client->border_width;
     info.floating = client->floating;
     info.fullscreen = client->fullscreen;
     info.urgent = client->urgent;

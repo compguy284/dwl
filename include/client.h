@@ -19,6 +19,7 @@ typedef struct SwlClientInfo {
     struct {
         int x, y, width, height;
     } geometry;
+    int border_width;
     bool floating;
     bool fullscreen;
     bool urgent;

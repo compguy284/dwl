@@ -20,7 +20,9 @@ static void process_cursor_motion(SwlInput *input, uint32_t time)
             int new_x = (int)input->cursor->x - input->grab_x;
             int new_y = (int)input->cursor->y - input->grab_y;
             SwlClientInfo info = swl_client_get_info(c);
-            swl_client_resize(c, new_x, new_y, info.geometry.width, info.geometry.height);
+            int bw2 = 2 * info.border_width;
+            swl_client_resize(c, new_x, new_y,
+                info.geometry.width + bw2, info.geometry.height + bw2);
         }
         return;
     } else if (input->cursor_mode == SWL_CURSOR_RESIZE) {
