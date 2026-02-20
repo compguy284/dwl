@@ -47,4 +47,6 @@ bool swl_keybinding_handle(SwlKeybindingManager *mgr, uint32_t mod, xkb_keysym_t
 bool swl_button_binding_handle(SwlKeybindingManager *mgr, uint32_t mod, uint32_t button);
 void swl_keybinding_reload(SwlKeybindingManager *mgr);
 
+SwlError swl_action_dispatch(SwlKeybindingManager *mgr, const char *action, const char *arg);
+
 #endif /* SWL_KEYBINDINGS_H */

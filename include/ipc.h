@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 #include "error.h"
 
 typedef struct SwlIPC SwlIPC;
@@ -12,6 +13,8 @@ typedef struct SwlIPCResponse {
     bool success;
     char *json;
     char *error;
+    bool keep_open;
+    uint32_t event_mask;
 } SwlIPCResponse;
 
 typedef SwlIPCResponse (*SwlIPCHandler)(SwlCompositor *comp, const char *args);

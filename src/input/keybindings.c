@@ -228,6 +228,19 @@ static SwlAction find_action(SwlKeybindingManager *mgr, const char *name)
     return NULL;
 }
 
+SwlError swl_action_dispatch(SwlKeybindingManager *mgr, const char *action, const char *arg)
+{
+    if (!mgr || !action)
+        return SWL_ERR_INVALID_ARG;
+
+    SwlAction fn = find_action(mgr, action);
+    if (!fn)
+        return SWL_ERR_NOT_FOUND;
+
+    fn(mgr->comp, arg);
+    return SWL_OK;
+}
+
 bool swl_keybinding_handle(SwlKeybindingManager *mgr, uint32_t mod, xkb_keysym_t key)
 {
     if (!mgr)

@@ -1,6 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 #include "ipc_internal.h"
 #include "compositor.h"
+#include "events.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -25,6 +26,14 @@ void swl_ipc_destroy(SwlIPC *ipc)
 {
     if (!ipc)
         return;
+
+    /* Unsubscribe from event bus */
+    SwlEventBus *bus = swl_compositor_get_event_bus(ipc->comp);
+    if (bus) {
+        for (size_t i = 0; i < ipc->event_sub_count; i++)
+            swl_event_bus_unsubscribe(bus, ipc->event_sub_ids[i]);
+    }
+    ipc->event_sub_count = 0;
 
     swl_ipc_socket_cleanup(ipc);
 
