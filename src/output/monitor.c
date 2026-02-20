@@ -474,15 +474,6 @@ static void apply_monitor_rules(SwlMonitor *mon)
     const char *name = mon->output->name;
     char key[256];
 
-    // Check if there are rules for this monitor by name
-    snprintf(key, sizeof(key), "monitors.%s.scale", name);
-    if (!swl_config_has_key(cfg, key)) {
-        // No rules for this monitor
-        return;
-    }
-
-    fprintf(stderr, "Applying monitor rules for %s\n", name);
-
     // Build output state for mode/scale/transform changes
     struct wlr_output_state state;
     wlr_output_state_init(&state);
