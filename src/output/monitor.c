@@ -16,6 +16,7 @@
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_output_layout.h>
+#include <wlr/types/wlr_output_management_v1.h>
 #include <wlr/types/wlr_damage_ring.h>
 #include <scenefx/types/wlr_scene.h>
 
@@ -51,6 +52,10 @@ struct SwlOutputManager {
     SwlMonitor *focused;
     uint32_t next_id;
 
+    struct wlr_output_manager_v1 *output_mgmt;
+    struct wl_listener output_mgmt_apply;
+    struct wl_listener output_mgmt_test;
+
     struct wl_listener new_output;
     struct wl_listener layout_change;
 };
@@ -60,6 +65,9 @@ static void handle_destroy(struct wl_listener *listener, void *data);
 static void handle_request_state(struct wl_listener *listener, void *data);
 static void handle_new_output(struct wl_listener *listener, void *data);
 static void handle_layout_change(struct wl_listener *listener, void *data);
+static void handle_output_mgmt_apply(struct wl_listener *listener, void *data);
+static void handle_output_mgmt_test(struct wl_listener *listener, void *data);
+static void update_output_management(SwlOutputManager *mgr);
 static void apply_monitor_rules(SwlMonitor *mon);
 
 /* Data structure for restore_client_to_monitor callback */
@@ -100,6 +108,15 @@ SwlOutputManager *swl_output_create(SwlCompositor *comp)
     mgr->layout_change.notify = handle_layout_change;
     wl_signal_add(&mgr->layout->events.change, &mgr->layout_change);
 
+    struct wl_display *display = swl_compositor_get_wl_display(comp);
+    mgr->output_mgmt = wlr_output_manager_v1_create(display);
+    if (mgr->output_mgmt) {
+        mgr->output_mgmt_apply.notify = handle_output_mgmt_apply;
+        wl_signal_add(&mgr->output_mgmt->events.apply, &mgr->output_mgmt_apply);
+        mgr->output_mgmt_test.notify = handle_output_mgmt_test;
+        wl_signal_add(&mgr->output_mgmt->events.test, &mgr->output_mgmt_test);
+    }
+
     return mgr;
 }
 
@@ -108,6 +125,10 @@ void swl_output_destroy(SwlOutputManager *mgr)
     if (!mgr)
         return;
 
+    if (mgr->output_mgmt) {
+        wl_list_remove(&mgr->output_mgmt_apply.link);
+        wl_list_remove(&mgr->output_mgmt_test.link);
+    }
     wl_list_remove(&mgr->new_output.link);
     wl_list_remove(&mgr->layout_change.link);
 
@@ -238,6 +259,8 @@ static void handle_new_output(struct wl_listener *listener, void *data)
 
     SwlEventBus *bus = swl_compositor_get_event_bus(mgr->comp);
     swl_event_bus_emit_simple(bus, SWL_EVENT_MONITOR_ADD, mon);
+
+    update_output_management(mgr);
 }
 
 static void handle_frame(struct wl_listener *listener, void *data)
@@ -283,7 +306,9 @@ static void handle_destroy(struct wl_listener *listener, void *data)
             mon->mgr->focused = NULL;
     }
 
+    SwlOutputManager *mgr = mon->mgr;
     free(mon);
+    update_output_management(mgr);
 }
 
 static void handle_request_state(struct wl_listener *listener, void *data)
@@ -292,6 +317,7 @@ static void handle_request_state(struct wl_listener *listener, void *data)
     struct wlr_output_event_request_state *event = data;
 
     wlr_output_commit_state(mon->output, event->state);
+    update_output_management(mon->mgr);
 }
 
 static void handle_layout_change(struct wl_listener *listener, void *data)
@@ -323,6 +349,121 @@ static void handle_layout_change(struct wl_listener *listener, void *data)
                     mon->scene_output->x, mon->scene_output->y);
         }
     }
+
+    update_output_management(mgr);
+}
+
+static struct wlr_output_configuration_v1 *create_output_configuration(
+    SwlOutputManager *mgr)
+{
+    struct wlr_output_configuration_v1 *config =
+        wlr_output_configuration_v1_create();
+    if (!config)
+        return NULL;
+
+    SwlMonitor *mon;
+    wl_list_for_each(mon, &mgr->monitors, link) {
+        struct wlr_output_configuration_head_v1 *head =
+            wlr_output_configuration_head_v1_create(config, mon->output);
+        if (!head) {
+            wlr_output_configuration_v1_destroy(config);
+            return NULL;
+        }
+        // Head is pre-filled from output; set position from our layout
+        struct wlr_output_layout_output *l_output =
+            wlr_output_layout_get(mgr->layout, mon->output);
+        if (l_output) {
+            head->state.x = l_output->x;
+            head->state.y = l_output->y;
+        }
+    }
+
+    return config;
+}
+
+static void update_output_management(SwlOutputManager *mgr)
+{
+    if (!mgr->output_mgmt)
+        return;
+
+    struct wlr_output_configuration_v1 *config =
+        create_output_configuration(mgr);
+    if (config)
+        wlr_output_manager_v1_set_configuration(mgr->output_mgmt, config);
+}
+
+static void handle_output_mgmt_apply(struct wl_listener *listener, void *data)
+{
+    SwlOutputManager *mgr =
+        wl_container_of(listener, mgr, output_mgmt_apply);
+    struct wlr_output_configuration_v1 *config = data;
+
+    size_t states_len = 0;
+    struct wlr_backend_output_state *states =
+        wlr_output_configuration_v1_build_state(config, &states_len);
+    if (!states) {
+        wlr_output_configuration_v1_send_failed(config);
+        wlr_output_configuration_v1_destroy(config);
+        return;
+    }
+
+    struct wlr_backend *backend = swl_compositor_get_backend(mgr->comp);
+    if (!wlr_backend_test(backend, states, states_len)) {
+        wlr_output_configuration_v1_send_failed(config);
+        wlr_output_configuration_v1_destroy(config);
+        free(states);
+        return;
+    }
+
+    if (!wlr_backend_commit(backend, states, states_len)) {
+        wlr_output_configuration_v1_send_failed(config);
+        wlr_output_configuration_v1_destroy(config);
+        free(states);
+        return;
+    }
+
+    free(states);
+
+    // Apply positions from the configuration to the output layout
+    struct wlr_output_configuration_head_v1 *head;
+    wl_list_for_each(head, &config->heads, link) {
+        if (head->state.enabled) {
+            wlr_output_layout_add(mgr->layout, head->state.output,
+                head->state.x, head->state.y);
+        } else {
+            wlr_output_layout_remove(mgr->layout, head->state.output);
+        }
+    }
+
+    wlr_output_configuration_v1_send_succeeded(config);
+    wlr_output_configuration_v1_destroy(config);
+
+    update_output_management(mgr);
+}
+
+static void handle_output_mgmt_test(struct wl_listener *listener, void *data)
+{
+    SwlOutputManager *mgr =
+        wl_container_of(listener, mgr, output_mgmt_test);
+    struct wlr_output_configuration_v1 *config = data;
+
+    size_t states_len = 0;
+    struct wlr_backend_output_state *states =
+        wlr_output_configuration_v1_build_state(config, &states_len);
+    if (!states) {
+        wlr_output_configuration_v1_send_failed(config);
+        wlr_output_configuration_v1_destroy(config);
+        return;
+    }
+
+    struct wlr_backend *backend = swl_compositor_get_backend(mgr->comp);
+    if (wlr_backend_test(backend, states, states_len))
+        wlr_output_configuration_v1_send_succeeded(config);
+    else
+        wlr_output_configuration_v1_send_failed(config);
+
+    free(states);
+    wlr_output_configuration_v1_destroy(config);
 }
 
 static void apply_monitor_rules(SwlMonitor *mon)
