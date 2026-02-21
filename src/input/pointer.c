@@ -1,6 +1,7 @@
 #include "input_internal.h"
 #include "compositor.h"
 #include "client.h"
+#include "scene.h"
 #include <wayland-server-core.h>
 #include <wlr/backend/libinput.h>
 #include <wlr/types/wlr_cursor.h>
@@ -192,6 +193,31 @@ void handle_request_set_primary_selection(struct wl_listener *listener, void *da
     wlr_seat_set_primary_selection(input->seat, event->source, event->serial);
 }
 
+void handle_request_start_drag(struct wl_listener *listener, void *data)
+{
+    SwlInput *input = wl_container_of(listener, input, request_start_drag);
+    struct wlr_seat_request_start_drag_event *event = data;
+
+    if (wlr_seat_validate_pointer_grab_serial(input->seat, event->origin,
+                                               event->serial)) {
+        wlr_seat_start_pointer_drag(input->seat, event->drag, event->serial);
+    }
+}
+
+void handle_start_drag(struct wl_listener *listener, void *data)
+{
+    SwlInput *input = wl_container_of(listener, input, start_drag);
+    struct wlr_drag *drag = data;
+
+    if (drag->icon) {
+        SwlSceneManager *scene_mgr = swl_client_manager_get_scene(
+            swl_compositor_get_clients(input->comp));
+        struct wlr_scene_tree *layer = swl_scene_get_layer(scene_mgr,
+            SWL_LAYER_OVERLAY);
+        wlr_scene_drag_icon_create(layer, drag->icon);
+    }
+}
+
 void configure_pointer(SwlInput *input, struct wlr_pointer *ptr)
 {
     if (!wlr_input_device_is_libinput(&ptr->base))
@@ -318,6 +344,12 @@ void swl_pointer_setup(SwlInput *input)
 
     input->request_set_primary_selection.notify = handle_request_set_primary_selection;
     wl_signal_add(&input->seat->events.request_set_primary_selection, &input->request_set_primary_selection);
+
+    input->request_start_drag.notify = handle_request_start_drag;
+    wl_signal_add(&input->seat->events.request_start_drag, &input->request_start_drag);
+
+    input->start_drag.notify = handle_start_drag;
+    wl_signal_add(&input->seat->events.start_drag, &input->start_drag);
 }
 
 void swl_pointer_cleanup(SwlInput *input)
@@ -330,4 +362,6 @@ void swl_pointer_cleanup(SwlInput *input)
     wl_list_remove(&input->request_cursor.link);
     wl_list_remove(&input->request_set_selection.link);
     wl_list_remove(&input->request_set_primary_selection.link);
+    wl_list_remove(&input->request_start_drag.link);
+    wl_list_remove(&input->start_drag.link);
 }

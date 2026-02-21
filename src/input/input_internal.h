@@ -37,6 +37,8 @@ struct SwlInput {
     struct wl_listener request_cursor;
     struct wl_listener request_set_selection;
     struct wl_listener request_set_primary_selection;
+    struct wl_listener request_start_drag;
+    struct wl_listener start_drag;
     struct wl_listener switch_toggle;
 
     bool lid_closed;
@@ -82,6 +84,8 @@ void handle_cursor_frame(struct wl_listener *listener, void *data);
 void handle_request_cursor(struct wl_listener *listener, void *data);
 void handle_request_set_selection(struct wl_listener *listener, void *data);
 void handle_request_set_primary_selection(struct wl_listener *listener, void *data);
+void handle_request_start_drag(struct wl_listener *listener, void *data);
+void handle_start_drag(struct wl_listener *listener, void *data);
 SwlClient *client_at_cursor(SwlInput *input);
 
 /* switch.c */
