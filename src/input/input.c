@@ -31,6 +31,28 @@ static void handle_monitor_add(void *ctx, const SwlEvent *event)
     wlr_xcursor_manager_load(input->xcursor_mgr, scale);
 }
 
+static void handle_client_focus(void *ctx, const SwlEvent *event)
+{
+    SwlInput *input = ctx;
+    SwlClient *client = event->data;
+    if (!client)
+        return;
+
+    SwlClientInfo info = swl_client_get_info(client);
+    double cx = input->cursor->x;
+    double cy = input->cursor->y;
+
+    // Skip warp if cursor is already inside the client bounds
+    if (cx >= info.geometry.x && cx < info.geometry.x + info.geometry.width &&
+        cy >= info.geometry.y && cy < info.geometry.y + info.geometry.height)
+        return;
+
+    // Warp cursor to center of the focused client
+    double target_x = info.geometry.x + info.geometry.width / 2.0;
+    double target_y = info.geometry.y + info.geometry.height / 2.0;
+    wlr_cursor_warp(input->cursor, NULL, target_x, target_y);
+}
+
 SwlInput *swl_input_create(SwlCompositor *comp)
 {
     SwlInput *input = calloc(1, sizeof(*input));
@@ -157,6 +179,8 @@ SwlInput *swl_input_create(SwlCompositor *comp)
     SwlEventBus *bus = swl_compositor_get_event_bus(comp);
     input->monitor_add_sub = swl_event_bus_subscribe(bus, SWL_EVENT_MONITOR_ADD,
                                                      handle_monitor_add, input);
+    input->client_focus_sub = swl_event_bus_subscribe(bus, SWL_EVENT_CLIENT_FOCUS,
+                                                      handle_client_focus, input);
 
     // Set default cursor
     wlr_cursor_set_xcursor(input->cursor, input->xcursor_mgr, "default");
@@ -171,6 +195,7 @@ void swl_input_destroy(SwlInput *input)
 
     SwlEventBus *bus = swl_compositor_get_event_bus(input->comp);
     swl_event_bus_unsubscribe(bus, input->monitor_add_sub);
+    swl_event_bus_unsubscribe(bus, input->client_focus_sub);
 
     wl_list_remove(&input->new_input.link);
     swl_keyboard_cleanup(input);
