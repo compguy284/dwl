@@ -1,6 +1,7 @@
 #include "input_internal.h"
 #include "compositor.h"
 #include "client.h"
+#include "monitor.h"
 #include "scene.h"
 #include <wayland-server-core.h>
 #include <wlr/backend/libinput.h>
@@ -38,6 +39,12 @@ static void process_cursor_motion(SwlInput *input, uint32_t time)
         }
         return;
     }
+
+    // Update focused monitor to follow cursor
+    SwlOutputManager *output_mgr = swl_compositor_get_output(input->comp);
+    SwlMonitor *mon = swl_monitor_at(output_mgr, input->cursor->x, input->cursor->y);
+    if (mon && mon != swl_monitor_get_focused(output_mgr))
+        swl_monitor_focus(mon);
 
     // Normal cursor motion handling
     struct wlr_scene *scene = swl_compositor_get_scene(input->comp);
