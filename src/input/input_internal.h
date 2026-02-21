@@ -41,6 +41,7 @@ struct SwlInput {
     struct wl_listener start_drag;
     struct wl_listener switch_toggle;
 
+    int monitor_add_sub;
     bool lid_closed;
     SwlKeyboardConfig kb_config;
     SwlPointerConfig ptr_config;

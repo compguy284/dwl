@@ -3,6 +3,8 @@
 #include "compositor.h"
 #include "config.h"
 #include "client.h"
+#include "events.h"
+#include "monitor.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -20,6 +22,14 @@
 #endif
 
 static void handle_new_input(struct wl_listener *listener, void *data);
+
+static void handle_monitor_add(void *ctx, const SwlEvent *event)
+{
+    SwlInput *input = ctx;
+    SwlMonitor *mon = event->data;
+    float scale = swl_monitor_get_info(mon).scale;
+    wlr_xcursor_manager_load(input->xcursor_mgr, scale);
+}
 
 SwlInput *swl_input_create(SwlCompositor *comp)
 {
@@ -122,6 +132,7 @@ SwlInput *swl_input_create(SwlCompositor *comp)
         free(input);
         return NULL;
     }
+    wlr_xcursor_manager_load(input->xcursor_mgr, 1);
 
     // Use the compositor's seat instead of creating a new one
     input->seat = swl_compositor_get_seat(comp);
@@ -142,6 +153,11 @@ SwlInput *swl_input_create(SwlCompositor *comp)
         swl_action_register_builtins(input->keybindings);
     }
 
+    // Load cursor theme at each output's scale as monitors appear
+    SwlEventBus *bus = swl_compositor_get_event_bus(comp);
+    input->monitor_add_sub = swl_event_bus_subscribe(bus, SWL_EVENT_MONITOR_ADD,
+                                                     handle_monitor_add, input);
+
     // Set default cursor
     wlr_cursor_set_xcursor(input->cursor, input->xcursor_mgr, "default");
 
@@ -152,6 +168,9 @@ void swl_input_destroy(SwlInput *input)
 {
     if (!input)
         return;
+
+    SwlEventBus *bus = swl_compositor_get_event_bus(input->comp);
+    swl_event_bus_unsubscribe(bus, input->monitor_add_sub);
 
     wl_list_remove(&input->new_input.link);
     swl_keyboard_cleanup(input);
