@@ -114,6 +114,18 @@ static void x11_handle_map(struct wl_listener *listener, void *data)
             c->app_id = strdup(c->xwayland->class);
     }
 
+    // Move child windows to parent's monitor
+    if (c->xwayland && c->xwayland->parent) {
+        SwlClient *p;
+        wl_list_for_each(p, &c->mgr->clients, link) {
+            if (p->is_x11 && p->xwayland == c->xwayland->parent) {
+                if (p->mon && p->mon != c->mon)
+                    swl_client_move_to_monitor(c, p->mon);
+                break;
+            }
+        }
+    }
+
     // Apply window rules
     if (c->mgr->rules)
         swl_rule_engine_apply(c->mgr->rules, c);
