@@ -393,6 +393,12 @@ SwlError swl_compositor_run(SwlCompositor *comp)
         _exit(1);
     }
 
+    // Start the systemd user session target
+    if (fork() == 0) {
+        execlp("systemctl", "systemctl", "--user", "start", "swl-session.target", NULL);
+        _exit(1);
+    }
+
     if (comp->startup_cmd) {
         if (fork() == 0) {
             setsid();
@@ -411,6 +417,12 @@ void swl_compositor_quit(SwlCompositor *comp)
 {
     if (!comp)
         return;
+
+    // Stop the systemd user session target
+    if (fork() == 0) {
+        execlp("systemctl", "systemctl", "--user", "stop", "swl-session.target", NULL);
+        _exit(1);
+    }
 
     comp->running = false;
     swl_signal_request_quit();
