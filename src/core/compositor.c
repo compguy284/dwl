@@ -15,6 +15,7 @@
 #include "../protocols/xdg_shell.h"
 #include <stdlib.h>
 #include <string.h>
+#include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
 #include <wayland-server-core.h>
@@ -396,9 +397,11 @@ SwlError swl_compositor_run(SwlCompositor *comp)
     }
 #endif
 
-    // Import environment variables into D-Bus and systemd user session
-    // This enables portals, notifications, and other D-Bus services
-    if (fork() == 0) {
+    // Import environment variables into D-Bus and systemd user session.
+    // This must complete before starting the session target so that services
+    // like waybar can see WAYLAND_DISPLAY.
+    pid_t dbus_pid = fork();
+    if (dbus_pid == 0) {
 #ifdef SWL_XWAYLAND
         execlp("dbus-update-activation-environment", "dbus-update-activation-environment",
             "--systemd", "WAYLAND_DISPLAY", "XDG_CURRENT_DESKTOP", "PATH", "SWL_SOCKET",
@@ -410,8 +413,10 @@ SwlError swl_compositor_run(SwlCompositor *comp)
 #endif
         _exit(1);
     }
+    if (dbus_pid > 0)
+        waitpid(dbus_pid, NULL, 0);
 
-    // Start the systemd user session target
+    // Start the systemd user session target after environment is imported
     if (fork() == 0) {
         execlp("systemctl", "systemctl", "--user", "start", "swl-session.target", NULL);
         _exit(1);
