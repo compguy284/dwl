@@ -283,7 +283,7 @@ static void client_handle_unmap(struct wl_listener *listener, void *data)
 
         SwlClient *next;
         wl_list_for_each(next, &c->mgr->focus_stack, flink) {
-            if (next != c && next->mapped) {
+            if (next != c && next->mapped && next->mon == c->mon) {
                 swl_client_focus(next);
                 break;
             }
