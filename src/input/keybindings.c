@@ -409,8 +409,15 @@ static void action_focus_monitor(SwlCompositor *comp, const char *arg)
         return;
 
     SwlMonitor *next = swl_monitor_in_direction(output, mon, dir);
-    if (next)
-        swl_monitor_focus(next);
+    if (!next)
+        return;
+
+    swl_monitor_focus(next);
+
+    SwlClientManager *clients = swl_compositor_get_clients(comp);
+    SwlClient *c = swl_client_focus_top_on_monitor(clients, next);
+    if (c)
+        swl_client_focus(c);
 }
 
 static void action_send_monitor(SwlCompositor *comp, const char *arg)
