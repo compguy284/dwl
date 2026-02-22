@@ -52,20 +52,21 @@ static void process_cursor_motion(SwlInput *input, uint32_t time)
     struct wlr_scene_node *node = wlr_scene_node_at(&scene->tree.node,
         input->cursor->x, input->cursor->y, &sx, &sy);
 
-    if (!node || node->type != WLR_SCENE_NODE_BUFFER) {
+    if (!node) {
         wlr_cursor_set_xcursor(input->cursor, input->xcursor_mgr, "default");
         wlr_seat_pointer_clear_focus(input->seat);
         return;
     }
 
+    if (node->type != WLR_SCENE_NODE_BUFFER)
+        return;
+
     struct wlr_scene_buffer *scene_buffer = wlr_scene_buffer_from_node(node);
     struct wlr_scene_surface *scene_surface =
         wlr_scene_surface_try_from_buffer(scene_buffer);
 
-    if (!scene_surface) {
-        wlr_seat_pointer_clear_focus(input->seat);
+    if (!scene_surface)
         return;
-    }
 
     struct wlr_surface *surface = scene_surface->surface;
     wlr_seat_pointer_notify_enter(input->seat, surface, sx, sy);
