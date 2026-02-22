@@ -90,6 +90,7 @@ struct SwlCompositor {
     struct wl_listener new_xdg_decoration;
     struct wl_listener request_activate;
     struct wl_listener set_output_power_mode;
+    struct wl_listener cursor_shape_request;
 
     char *startup_cmd;
     char *config_path;
@@ -131,6 +132,19 @@ static void handle_request_activate(struct wl_listener *listener, void *data)
 
     // Mark as urgent
     swl_client_set_urgent(client, true);
+}
+
+static void handle_cursor_shape_request(struct wl_listener *listener, void *data)
+{
+    SwlCompositor *comp = wl_container_of(listener, comp, cursor_shape_request);
+    struct wlr_cursor_shape_manager_v1_request_set_shape_event *event = data;
+
+    struct wlr_seat_client *focused = comp->seat->pointer_state.focused_client;
+    if (focused != event->seat_client)
+        return;
+
+    swl_input_set_cursor_image(comp->input,
+        wlr_cursor_shape_v1_name(event->shape));
 }
 
 static void handle_set_output_power_mode(struct wl_listener *listener, void *data)
@@ -227,7 +241,11 @@ SwlError swl_compositor_create(SwlCompositor **out, const SwlCompositorConfig *c
     wlr_screencopy_manager_v1_create(comp->display);
     wlr_gamma_control_manager_v1_create(comp->display);
     wlr_presentation_create(comp->display, comp->backend, CLOCK_MONOTONIC);
-    wlr_cursor_shape_manager_v1_create(comp->display, 1);
+    struct wlr_cursor_shape_manager_v1 *cursor_shape_mgr =
+        wlr_cursor_shape_manager_v1_create(comp->display, 1);
+    comp->cursor_shape_request.notify = handle_cursor_shape_request;
+    wl_signal_add(&cursor_shape_mgr->events.request_set_shape,
+                  &comp->cursor_shape_request);
 
     comp->idle_notifier = wlr_idle_notifier_v1_create(comp->display);
 
