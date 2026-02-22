@@ -150,7 +150,7 @@ void handle_cursor_button(struct wl_listener *listener, void *data)
     wlr_seat_pointer_notify_button(input->seat, event->time_msec, event->button, event->state);
 
     SwlClient *client = client_at_cursor(input);
-    if (client) {
+    if (client && input->focus_on_click) {
         swl_client_focus(client);
     }
 }

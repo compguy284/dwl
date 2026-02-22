@@ -44,6 +44,8 @@ struct SwlInput {
     int monitor_add_sub;
     int client_focus_sub;
     bool lid_closed;
+    bool focus_on_click;
+    bool warp_cursor_on_focus;
     SwlKeyboardConfig kb_config;
     SwlPointerConfig ptr_config;
 

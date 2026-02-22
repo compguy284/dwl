@@ -38,6 +38,9 @@ static void handle_client_focus(void *ctx, const SwlEvent *event)
     if (!client)
         return;
 
+    if (!input->warp_cursor_on_focus)
+        return;
+
     SwlClientInfo info = swl_client_get_info(client);
     double cx = input->cursor->x;
     double cy = input->cursor->y;
@@ -62,8 +65,12 @@ SwlInput *swl_input_create(SwlCompositor *comp)
     input->comp = comp;
     wl_list_init(&input->pointer_devices);
 
-    // Load keyboard config from config file
+    // Load general focus/cursor config
     SwlConfig *cfg = swl_compositor_get_config(comp);
+    input->focus_on_click = swl_config_get_bool(cfg, "general.focus_on_click", true);
+    input->warp_cursor_on_focus = swl_config_get_bool(cfg, "general.warp_cursor_on_focus", true);
+
+    // Load keyboard config from config file
     input->kb_config.repeat_rate = swl_config_get_int(cfg, "keyboard.repeat_rate", 25);
     input->kb_config.repeat_delay = swl_config_get_int(cfg, "keyboard.repeat_delay", 600);
     input->kb_config.numlock = swl_config_get_bool(cfg, "keyboard.numlock", true);
@@ -280,6 +287,10 @@ SwlError swl_input_reload_config(SwlInput *input)
     SwlConfig *cfg = swl_compositor_get_config(input->comp);
     if (!cfg)
         return SWL_ERR_INVALID_ARG;
+
+    // Re-read general focus/cursor config
+    input->focus_on_click = swl_config_get_bool(cfg, "general.focus_on_click", true);
+    input->warp_cursor_on_focus = swl_config_get_bool(cfg, "general.warp_cursor_on_focus", true);
 
     // Re-read keyboard config
     input->kb_config.repeat_rate = swl_config_get_int(cfg, "keyboard.repeat_rate", 25);

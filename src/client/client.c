@@ -158,8 +158,12 @@ static void focus_client_internal(SwlClient *c)
         wlr_xwayland_surface_activate(c->xwayland, true);
 #endif
 
-    if (c->scene_data && c->scene_data->tree)
-        wlr_scene_node_raise_to_top(&c->scene_data->tree->node);
+    if (c->scene_data && c->scene_data->tree) {
+        SwlConfig *cfg = swl_compositor_get_config(comp);
+        bool raise = swl_config_get_bool(cfg, "general.raise_on_focus", true);
+        if (raise)
+            wlr_scene_node_raise_to_top(&c->scene_data->tree->node);
+    }
 }
 
 static void unfocus_client_internal(SwlClient *c)

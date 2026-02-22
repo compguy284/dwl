@@ -8,10 +8,14 @@
 # Default modifier key: "super", "alt", "ctrl", or "shift"
 # Use "mod" in keybindings to reference this
 modkey = "alt"
+# Focus windows when clicked
+focus_on_click = true
+# Warp cursor to center of window on keyboard-driven focus change
+warp_cursor_on_focus = true
+# Raise focused window to top of stack
+raise_on_focus = true
 
 [appearance]
-# Focus follows mouse
-sloppyfocus = true
 # Idle inhibitors work even when surface isn't visible
 bypass_surface_visibility = false
 # No outer gaps when only one window
