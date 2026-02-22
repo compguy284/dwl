@@ -236,11 +236,26 @@ static void client_handle_map(struct wl_listener *listener, void *data)
     if (c->floating && c->mgr->scene_mgr)
         swl_scene_client_set_layer(c->mgr->scene_mgr, c, SWL_LAYER_FLOAT);
     if (c->floating && c->mon) {
-        int mx, my, mw, mh;
-        swl_monitor_get_usable_area(c->mon, &mx, &my, &mw, &mh);
         int bw = c->border_width;
-        c->x = mx + (mw - c->width - 2 * bw) / 2;
-        c->y = my + (mh - c->height - 2 * bw) / 2;
+        SwlClient *parent = NULL;
+        if (c->xdg && c->xdg->parent) {
+            SwlClient *p;
+            wl_list_for_each(p, &c->mgr->clients, link) {
+                if (p->xdg == c->xdg->parent) {
+                    parent = p;
+                    break;
+                }
+            }
+        }
+        if (parent) {
+            c->x = parent->x + (parent->width - c->width) / 2;
+            c->y = parent->y + (parent->height - c->height) / 2;
+        } else {
+            int mx, my, mw, mh;
+            swl_monitor_get_usable_area(c->mon, &mx, &my, &mw, &mh);
+            c->x = mx + (mw - c->width - 2 * bw) / 2;
+            c->y = my + (mh - c->height - 2 * bw) / 2;
+        }
     }
 
     SwlRenderer *renderer = swl_compositor_get_renderer(c->mgr->comp);

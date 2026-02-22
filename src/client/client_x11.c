@@ -130,6 +130,18 @@ static void x11_handle_map(struct wl_listener *listener, void *data)
     if (c->mgr->rules)
         swl_rule_engine_apply(c->mgr->rules, c);
 
+    // Center child windows on parent
+    if (c->floating && c->xwayland && c->xwayland->parent && c->mon) {
+        SwlClient *p;
+        wl_list_for_each(p, &c->mgr->clients, link) {
+            if (p->is_x11 && p->xwayland == c->xwayland->parent) {
+                c->x = p->x + (p->width - c->width) / 2;
+                c->y = p->y + (p->height - c->height) / 2;
+                break;
+            }
+        }
+    }
+
     swl_scene_client_create(c->mgr->scene_mgr, c);
 
     SwlRenderer *renderer = swl_compositor_get_renderer(c->mgr->comp);
